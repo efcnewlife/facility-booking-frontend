@@ -1,0 +1,91 @@
+{
+  "appTitle": "Booking",
+  "home": {
+    "signedInAs": "Signed in as {{name}}",
+    "memberFallback": "member",
+    "signOut": "Sign out"
+  },
+  "nav": {
+    "bookNow": "Book Now",
+    "myBookings": "My Bookings",
+    "contact": "Contact"
+  },
+  "findSpace": {
+    "title": "Find a Space"
+  },
+  "tabs": {
+    "byDate": "By Date",
+    "byRoom": "By Room/Series",
+    "multiRooms": "Multi-Rooms"
+  },
+  "descriptions": {
+    "byDate": "Choose a date and see which rooms are available.\nOne-time booking only.",
+    "byRoom": "Choose the room you want and see when it's available.\nOne-time or reoccurring bookings available.",
+    "multiRooms": "Choose up to 3 rooms.\nOne-time or reoccurring bookings available."
+  },
+  "sections": {
+    "selectDate": "Select Date",
+    "availableRooms": "Available Rooms",
+    "selectRooms": "Select Rooms"
+  },
+  "room": {
+    "capacity": "Capacity: {{range}}",
+    "seeAvailability": "See Availability",
+    "selectTime": "Select Time",
+    "availability": "Availability:",
+    "am": "AM",
+    "pm": "PM"
+  },
+  "multiRoom": {
+    "selectRoomToAdd": "Select room to add",
+    "chooseUpTo3": "Choose up to 3 rooms."
+  },
+  "empty": {
+    "noAvailableRooms": "No available rooms"
+  },
+  "support": {
+    "prefix": "Need help? Have special request?  ",
+    "link": "Contact support"
+  },
+  "gallery": {
+    "close": "Close gallery",
+    "previous": "Previous image",
+    "next": "Next image",
+    "zoom": "View room photos"
+  },
+  "profile": {
+    "myProfile": "My Profile",
+    "signOut": "Sign out",
+    "churchMember": "Church Member",
+    "userType": "User",
+    "personalInformation": "Personal Information",
+    "settings": "Settings",
+    "paymentHistory": "Payment History",
+    "edit": "Edit",
+    "firstName": "First Name",
+    "lastName": "Last Name",
+    "dateOfBirth": "Date of Birth",
+    "phoneNumber": "Phone Number",
+    "emailAddress": "Email Address",
+    "loginUsername": "Login Username",
+    "password": "Password",
+    "language": "Language",
+    "update": "Update",
+    "change": "Change",
+    "updatePhoto": "Update profile photo"
+  },
+  "myBookings": {
+    "upcomingTitle": "Upcoming Bookings",
+    "pastTitle": "Past Bookings",
+    "seeAll": "See all",
+    "noUpcoming": "No upcoming bookings",
+    "change": "Change",
+    "cancel": "Cancel",
+    "fields": {
+      "room": "Room",
+      "date": "Date",
+      "time": "Time",
+      "note": "Note"
+    }
+  }
+}

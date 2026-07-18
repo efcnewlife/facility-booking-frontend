@@ -1,0 +1,10 @@
+{
+  "network": "網路連線錯誤，請檢查您的網路連線。",
+  "timeout": "請求逾時，請稍後再試。",
+  "unauthorized": "未授權，請重新登入。",
+  "forbidden": "僅限 EFC 會員使用。",
+  "notFound": "找不到請求的資源。",
+  "server": "伺服器錯誤，請稍後再試。",
+  "validation": "資料驗證失敗。",
+  "unknown": "發生未知錯誤。"
+}

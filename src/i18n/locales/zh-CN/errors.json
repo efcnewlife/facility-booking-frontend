@@ -1,0 +1,10 @@
+{
+  "network": "网络连接错误，请检查您的网络连接。",
+  "timeout": "请求超时，请稍后再试。",
+  "unauthorized": "未授权，请重新登录。",
+  "forbidden": "仅限 EFC 会员使用。",
+  "notFound": "找不到请求的资源。",
+  "server": "服务器错误，请稍后再试。",
+  "validation": "数据验证失败。",
+  "unknown": "发生未知错误。"
+}

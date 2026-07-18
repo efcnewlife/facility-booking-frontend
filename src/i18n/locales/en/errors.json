@@ -1,0 +1,10 @@
+{
+  "network": "Network connection error. Please check your internet connection.",
+  "timeout": "Request timed out. Please try again later.",
+  "unauthorized": "Unauthorized. Please sign in again.",
+  "forbidden": "Access is limited to EFC members.",
+  "notFound": "Requested resource was not found.",
+  "server": "Server error. Please try again later.",
+  "validation": "Data validation failed.",
+  "unknown": "An unknown error occurred."
+}

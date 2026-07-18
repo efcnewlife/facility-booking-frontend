@@ -1,0 +1,91 @@
+{
+  "appTitle": "場地預約",
+  "home": {
+    "signedInAs": "已登入：{{name}}",
+    "memberFallback": "會員",
+    "signOut": "登出"
+  },
+  "nav": {
+    "bookNow": "立即預約",
+    "myBookings": "我的預約",
+    "contact": "聯絡我們"
+  },
+  "findSpace": {
+    "title": "尋找場地"
+  },
+  "tabs": {
+    "byDate": "依日期",
+    "byRoom": "依場地/系列",
+    "multiRooms": "多場地"
+  },
+  "descriptions": {
+    "byDate": "選擇日期，查看可預約的場地。\n僅限單次預約。",
+    "byRoom": "選擇您需要的場地，查看可預約時段。\n支援單次或週期性預約。",
+    "multiRooms": "最多可選 3 個場地。\n支援單次或週期性預約。"
+  },
+  "sections": {
+    "selectDate": "選擇日期",
+    "availableRooms": "可預約場地",
+    "selectRooms": "選擇場地"
+  },
+  "room": {
+    "capacity": "容量：{{range}}",
+    "seeAvailability": "查看可預約時段",
+    "selectTime": "選擇時段",
+    "availability": "可預約時段：",
+    "am": "上午",
+    "pm": "下午"
+  },
+  "multiRoom": {
+    "selectRoomToAdd": "選擇要加入的場地",
+    "chooseUpTo3": "最多可選 3 個場地。"
+  },
+  "empty": {
+    "noAvailableRooms": "目前沒有可預約的場地"
+  },
+  "support": {
+    "prefix": "需要協助或有特殊需求？  ",
+    "link": "聯絡客服"
+  },
+  "gallery": {
+    "close": "關閉相簿",
+    "previous": "上一張",
+    "next": "下一張",
+    "zoom": "查看場地照片"
+  },
+  "profile": {
+    "myProfile": "我的個人資料",
+    "signOut": "登出",
+    "churchMember": "教會會友",
+    "userType": "使用者",
+    "personalInformation": "個人資料",
+    "settings": "設定",
+    "paymentHistory": "付款紀錄",
+    "edit": "編輯",
+    "firstName": "名字",
+    "lastName": "姓氏",
+    "dateOfBirth": "出生日期",
+    "phoneNumber": "電話號碼",
+    "emailAddress": "電子郵件",
+    "loginUsername": "登入帳號",
+    "password": "密碼",
+    "language": "語言",
+    "update": "更新",
+    "change": "變更",
+    "updatePhoto": "更新個人照片"
+  },
+  "myBookings": {
+    "upcomingTitle": "即將到來的預約",
+    "pastTitle": "過去的預約",
+    "seeAll": "查看全部",
+    "noUpcoming": "目前沒有即將到來的預約",
+    "change": "變更",
+    "cancel": "取消",
+    "fields": {
+      "room": "場地",
+      "date": "日期",
+      "time": "時間",
+      "note": "備註"
+    }
+  }
+}

@@ -1,0 +1,3 @@
+# GitHub Packages token
+# Generate from GitHub Settings > Personal access tokens, select "read:packages" scope
+export NODE_AUTH_TOKEN=ghp_xxxxxxx
