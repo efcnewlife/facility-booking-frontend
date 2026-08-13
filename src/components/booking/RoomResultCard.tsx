@@ -1,5 +1,5 @@
 import AvailabilitySlots from "@/components/booking/AvailabilitySlots";
-import type { RoomAvailability } from "@/types/booking";
+import type { RoomAvailability, TimeSlot } from "@/types/booking";
 import { format_capacity_range } from "@/utils/bookingMock";
 import { cn } from "@efcnewlife/newlife-ui";
 import { useTranslation } from "react-i18next";
@@ -8,15 +8,32 @@ import { MdZoomIn } from "react-icons/md";
 interface RoomResultCardProps {
   room: RoomAvailability;
   onSelectTime?: (room: RoomAvailability) => void;
+  onSelectSlot?: (room: RoomAvailability, slot: TimeSlot, period: "am" | "pm") => void;
   onOpenGallery?: (room: RoomAvailability) => void;
+  isSelected?: boolean;
+  selectedLabel?: string;
   className?: string;
 }
 
-const RoomResultCard = ({ room, onSelectTime, onOpenGallery, className }: RoomResultCardProps) => {
+const RoomResultCard = ({
+  room,
+  onSelectTime,
+  onSelectSlot,
+  onOpenGallery,
+  isSelected = false,
+  selectedLabel,
+  className,
+}: RoomResultCardProps) => {
   const { t } = useTranslation("booking");
 
   return (
-    <article className={cn("rounded-[16px] bg-surface p-3 shadow-sm sm:p-4", className)}>
+    <article
+      className={cn(
+        "rounded-[16px] bg-surface p-3 shadow-sm transition-shadow sm:p-4",
+        isSelected && "ring-2 ring-primary shadow-md",
+        className,
+      )}
+    >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
         <div className="relative shrink-0 lg:w-[300px]">
           <div className="aspect-[380/225] w-full rounded-sm bg-booking-grey lg:h-[178px]" />
@@ -33,21 +50,35 @@ const RoomResultCard = ({ room, onSelectTime, onOpenGallery, className }: RoomRe
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-3 lg:flex-row lg:items-end">
           <div className="min-w-0 flex-1 space-y-2">
             <div>
-              <h3 className="text-lg font-bold text-on-surface">{room.name}</h3>
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 className="text-lg font-bold text-on-surface">{room.name}</h3>
+                {isSelected && selectedLabel ? (
+                  <span className="rounded-full bg-primary/10 px-2.5 py-0.5 text-xs font-bold text-primary">
+                    {selectedLabel}
+                  </span>
+                ) : null}
+              </div>
               <p className="mt-0.5 text-sm font-medium text-on-surface-variant">
                 {t("room.capacity", { range: format_capacity_range(room) })}
               </p>
             </div>
-            <AvailabilitySlots availability={room.availability} />
+            <AvailabilitySlots
+              availability={room.availability}
+              onSelectSlot={
+                onSelectSlot ? (slot, period) => onSelectSlot(room, slot, period) : undefined
+              }
+            />
           </div>
 
-          <button
-            className="h-9 min-w-[130px] shrink-0 self-start rounded-[24px] bg-cta px-3 text-sm font-bold text-on-cta transition-colors hover:bg-cta-hover hover:text-on-cta-hover lg:self-end"
-            onClick={() => onSelectTime?.(room)}
-            type="button"
-          >
-            {t("room.selectTime")}
-          </button>
+          {!onSelectSlot ? (
+            <button
+              className="h-9 min-w-[130px] shrink-0 self-start rounded-[24px] bg-cta px-3 text-sm font-bold text-on-cta transition-colors hover:bg-cta-hover hover:text-on-cta-hover lg:self-end"
+              onClick={() => onSelectTime?.(room)}
+              type="button"
+            >
+              {t("room.selectTime")}
+            </button>
+          ) : null}
         </div>
       </div>
     </article>

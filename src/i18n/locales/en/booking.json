@@ -1,9 +1,9 @@
 {
   "appTitle": "Booking",
   "home": {
-    "signedInAs": "Signed in as {{name}}",
-    "memberFallback": "member",
-    "signOut": "Sign out"
+    "welcomeTitle": "Welcome to facility booking",
+    "welcomeBody": "Book a room for a ministry gathering or a one-time event.",
+    "startBooking": "Start Booking"
   },
   "nav": {
     "bookNow": "Book Now",
@@ -86,6 +86,181 @@
       "date": "Date",
       "time": "Time",
       "note": "Note"
+    }
+  },
+  "startBooking": {
+    "back": "Back",
+    "continue": "Continue",
+    "search": "Search",
+    "loading": "Loading...",
+    "progress": {
+      "label": "Progress: step {{current}} of {{total}}",
+      "startBooking": "Start booking",
+      "ministryName": "Ministry name",
+      "howOften": "How often",
+      "dateTime": "Date & time",
+      "spaceNeeded": "Space needed"
+    },
+    "ministryChoice": {
+      "title": "To start, are you booking for a ministry?",
+      "yes": "Yes",
+      "no": "No",
+      "yesHint": "Fellowship, Mission team, etc.",
+      "noHint": "Personal group events",
+      "priorityTitle": "Note: Ministry events take priority",
+      "priorityMessage": "A conflicting Non-ministry booking is cancelled. You will be notified and must book again."
+    },
+    "selectMinistry": {
+      "title": "Select the ministry you are booking for",
+      "body": "If you don't see your ministry listed, please create a new one.",
+      "sponsor": "Be sure you have a sponsoring church leader or staff.",
+      "placeholder": "Select your ministry",
+      "empty": "You do not have an active ministry yet.",
+      "createNew": "Create New"
+    },
+    "createMinistry": {
+      "title": "Create new ministry",
+      "name": "Ministry name",
+      "ownerPosition": "Owner/Leader",
+      "purpose": "Purpose",
+      "submit": "Submit",
+      "close": "Close",
+      "approvalTitle": "Approval required.",
+      "approvalMessage": "Please wait for a confirmation email before you make a booking.",
+      "submittedTitle": "Request submitted!",
+      "submittedBodyHours": "Review process can take up to 48 hours.",
+      "submittedBodyReturn": "Come back once your new ministry is approved.",
+      "office": {
+        "elder": "Elder",
+        "deacon": "Deacon",
+        "pastor": "Pastor",
+        "staff": "Staff"
+      }
+    },
+    "frequency": {
+      "title": "Is this a one-time or repeated booking?",
+      "oneTime": "One-time booking",
+      "oneTimeHint": "Personal, one-off group events",
+      "repeated": "Repeated",
+      "repeatedHint": "Weekly, monthly, yearly bookings",
+      "repeatedUnavailableTitle": "Repeated booking is not available yet",
+      "repeatedUnavailableMessage": "Series booking is not available yet. Choose One-time to continue."
+    },
+    "when": {
+      "title": "When is your booking?",
+      "date": "Date",
+      "datePlaceholder": "Select your date",
+      "start": "Start",
+      "end": "End"
+    },
+    "spaceNeeded": {
+      "title": "Which room do you need?",
+      "single": "Single room",
+      "multiple": "Multiple rooms",
+      "gym": "Gym",
+      "sanctuary": "Sanctuary"
+    },
+    "errors": {
+      "title": "Something went wrong",
+      "loadMinistries": "Failed to load ministries.",
+      "loadCreateForm": "Failed to load ministry form.",
+      "createMinistryValidation": "Ministry name and owner position are required.",
+      "createMinistry": "Failed to create ministry."
+    }
+  },
+  "wizard": {
+    "back": "Back",
+    "loading": "Loading...",
+    "selectDate": {
+      "title": "Select a date",
+      "subtitle": "Choose when you want to book a space."
+    },
+    "ministryChoice": {
+      "title": "Is this a ministry booking?",
+      "subtitle": "Ministry bookings require an approved ministry.",
+      "yes": "Yes, ministry",
+      "no": "No, personal / other"
+    },
+    "selectMinistry": {
+      "title": "Select your ministry",
+      "empty": "You do not have any ministries yet.",
+      "createNew": "Create a new ministry"
+    },
+    "createMinistry": {
+      "title": "Create ministry",
+      "name": "Ministry name",
+      "ownerPosition": "Owner position",
+      "submit": "Submit for approval",
+      "office": {
+        "elder": "Elder",
+        "deacon": "Deacon",
+        "pastor": "Pastor",
+        "staff": "Staff"
+      }
+    },
+    "pending": {
+      "title": "Waiting for approval",
+      "body": "Deacons or Elders must approve your ministry before you can book. You can refresh this page later.",
+      "submitted": "Ministry application submitted.",
+      "refresh": "Refresh list",
+      "checkApproved": "Continue if approved",
+      "stillWaiting": "No approved ministry yet. Please wait for approval."
+    },
+    "availableRooms": {
+      "title": "Available rooms"
+    },
+    "confirm": {
+      "title": "Confirm booking",
+      "room": "Room",
+      "date": "Date",
+      "time": "Time",
+      "submit": "Confirm booking",
+      "success": "Booking created successfully."
+    },
+    "errors": {
+      "loadMinistries": "Failed to load ministries.",
+      "loadAvailability": "Failed to load room availability.",
+      "loadCreateForm": "Failed to load ministry form.",
+      "createMinistryValidation": "Ministry name and owner position are required.",
+      "createMinistry": "Failed to create ministry.",
+      "createBooking": "Failed to create booking.",
+      "ministryRejected": "This ministry was rejected. Please create a new application."
+    },
+    "stepper": {
+      "label": "Booking progress",
+      "date": "Date",
+      "ministry": "Ministry",
+      "multi_room": "Multi-room",
+      "hours": "Hours"
+    },
+    "multiRoomChoice": {
+      "title": "Do you need multiple rooms?",
+      "subtitle": "You can book up to 3 rooms for the same event.",
+      "yes": "Yes, multi-room",
+      "no": "No, single room"
+    },
+    "durationHours": {
+      "title": "How many hours do you need?",
+      "subtitle": "Enter the minimum hours you need for the booking.",
+      "label": "Hours",
+      "continue": "Continue",
+      "validation": "Please enter a whole number of hours (1 or more)."
+    },
+    "roomFilter": {
+      "title": "Available rooms",
+      "filters": {
+        "date": "Date",
+        "capacity": "Capacity",
+        "minHours": "Min hours",
+        "apply": "Apply filters"
+      },
+      "selectedRooms": "Selected rooms ({{count}}/{{max}})",
+      "confirmSelection": "Review booking",
+      "maxRooms": "You can select up to {{max}} rooms.",
+      "selectSlotHint": "Select a time slot for each room.",
+      "backToWizard": "Back to Home",
+      "filtersHeading": "Search filters",
+      "resultsCount": "{{count}} rooms"
     }
   }
 }

@@ -1,13 +1,13 @@
 {
-  "appTitle": "場地預約",
+  "appTitle": "場地預訂",
   "home": {
-    "signedInAs": "已登入：{{name}}",
-    "memberFallback": "會員",
-    "signOut": "登出"
+    "welcomeTitle": "歡迎使用場地預訂",
+    "welcomeBody": "為事工聚會或單次活動預訂房間。",
+    "startBooking": "開始預訂"
   },
   "nav": {
-    "bookNow": "立即預約",
-    "myBookings": "我的預約",
+    "bookNow": "立即預訂",
+    "myBookings": "我的預訂",
     "contact": "聯絡我們"
   },
   "findSpace": {
@@ -19,20 +19,20 @@
     "multiRooms": "多場地"
   },
   "descriptions": {
-    "byDate": "選擇日期，查看可預約的場地。\n僅限單次預約。",
-    "byRoom": "選擇您需要的場地，查看可預約時段。\n支援單次或週期性預約。",
-    "multiRooms": "最多可選 3 個場地。\n支援單次或週期性預約。"
+    "byDate": "選擇日期，查看可預訂的場地。\n僅限單次預訂。",
+    "byRoom": "選擇您需要的場地，查看可預訂時段。\n支援單次或週期性預訂。",
+    "multiRooms": "最多可選 3 個場地。\n支援單次或週期性預訂。"
   },
   "sections": {
     "selectDate": "選擇日期",
-    "availableRooms": "可預約場地",
+    "availableRooms": "可預訂場地",
     "selectRooms": "選擇場地"
   },
   "room": {
     "capacity": "容量：{{range}}",
-    "seeAvailability": "查看可預約時段",
+    "seeAvailability": "查看可預訂時段",
     "selectTime": "選擇時段",
-    "availability": "可預約時段：",
+    "availability": "可預訂時段：",
     "am": "上午",
     "pm": "下午"
   },
@@ -41,7 +41,7 @@
     "chooseUpTo3": "最多可選 3 個場地。"
   },
   "empty": {
-    "noAvailableRooms": "目前沒有可預約的場地"
+    "noAvailableRooms": "目前沒有可預訂的場地"
   },
   "support": {
     "prefix": "需要協助或有特殊需求？  ",
@@ -75,10 +75,10 @@
     "updatePhoto": "更新個人照片"
   },
   "myBookings": {
-    "upcomingTitle": "即將到來的預約",
-    "pastTitle": "過去的預約",
+    "upcomingTitle": "即將到來的預訂",
+    "pastTitle": "過去的預訂",
     "seeAll": "查看全部",
-    "noUpcoming": "目前沒有即將到來的預約",
+    "noUpcoming": "目前沒有即將到來的預訂",
     "change": "變更",
     "cancel": "取消",
     "fields": {
@@ -86,6 +86,181 @@
       "date": "日期",
       "time": "時間",
       "note": "備註"
+    }
+  },
+  "startBooking": {
+    "back": "返回",
+    "continue": "繼續",
+    "search": "搜尋",
+    "loading": "載入中...",
+    "progress": {
+      "label": "進度：第 {{current}} 步，共 {{total}} 步",
+      "startBooking": "開始預訂",
+      "ministryName": "事工名稱",
+      "howOften": "頻率",
+      "dateTime": "日期與時間",
+      "spaceNeeded": "所需空間"
+    },
+    "ministryChoice": {
+      "title": "首先，這次是為事工預訂嗎？",
+      "yes": "是",
+      "no": "否",
+      "yesHint": "團契、宣教隊等",
+      "noHint": "個人或小組活動",
+      "priorityTitle": "注意：事工活動優先",
+      "priorityMessage": "若時段衝突，非事工預訂會被取消。你會收到通知，且必須重新預訂。"
+    },
+    "selectMinistry": {
+      "title": "請選擇這次預訂所屬的事工",
+      "body": "若清單中沒有你的事工，請建立一個新的。",
+      "sponsor": "請確認你有教會領袖或同工作為贊助人。",
+      "placeholder": "選擇你的事工",
+      "empty": "你目前沒有已核准的事工。",
+      "createNew": "建立新事工"
+    },
+    "createMinistry": {
+      "title": "建立新事工",
+      "name": "事工名稱",
+      "ownerPosition": "負責人／領袖",
+      "purpose": "用途",
+      "submit": "送出",
+      "close": "關閉",
+      "approvalTitle": "需要核准。",
+      "approvalMessage": "請等待確認郵件後再進行預訂。",
+      "submittedTitle": "申請已送出！",
+      "submittedBodyHours": "審核最多可能需要 48 小時。",
+      "submittedBodyReturn": "事工核准後再回來預訂。",
+      "office": {
+        "elder": "長老",
+        "deacon": "執事",
+        "pastor": "牧師",
+        "staff": "同工"
+      }
+    },
+    "frequency": {
+      "title": "這是單次還是重複預訂？",
+      "oneTime": "單次預訂",
+      "oneTimeHint": "個人或一次性小組活動",
+      "repeated": "重複",
+      "repeatedHint": "每週、每月、每年預訂",
+      "repeatedUnavailableTitle": "尚不支援重複預訂",
+      "repeatedUnavailableMessage": "系列預訂尚未開放。請選擇單次預訂以繼續。"
+    },
+    "when": {
+      "title": "預訂時間是什麼時候？",
+      "date": "日期",
+      "datePlaceholder": "選擇日期",
+      "start": "開始",
+      "end": "結束"
+    },
+    "spaceNeeded": {
+      "title": "你需要哪個房間？",
+      "single": "單一房間",
+      "multiple": "多個房間",
+      "gym": "體育館",
+      "sanctuary": "大堂"
+    },
+    "errors": {
+      "title": "發生錯誤",
+      "loadMinistries": "無法載入事工。",
+      "loadCreateForm": "無法載入申請表單。",
+      "createMinistryValidation": "請填寫事工名稱與負責職位。",
+      "createMinistry": "無法建立事工。"
+    }
+  },
+  "wizard": {
+    "back": "返回",
+    "loading": "載入中...",
+    "selectDate": {
+      "title": "選擇日期",
+      "subtitle": "請選擇你想預訂空間的日期。"
+    },
+    "ministryChoice": {
+      "title": "這是事工預訂嗎？",
+      "subtitle": "事工預訂需要已核准的事工。",
+      "yes": "是，事工",
+      "no": "否，個人／其他"
+    },
+    "selectMinistry": {
+      "title": "選擇你的事工",
+      "empty": "你目前還沒有事工。",
+      "createNew": "申請新事工"
+    },
+    "createMinistry": {
+      "title": "申請事工",
+      "name": "事工名稱",
+      "ownerPosition": "負責職位",
+      "submit": "送出審核",
+      "office": {
+        "elder": "長老",
+        "deacon": "執事",
+        "pastor": "牧師",
+        "staff": "同工"
+      }
+    },
+    "pending": {
+      "title": "等待核准",
+      "body": "長老或執事核准事工後才能開始預訂。你可以稍後再回來查看。",
+      "submitted": "事工申請已送出。",
+      "refresh": "重新整理",
+      "checkApproved": "若已核准則繼續",
+      "stillWaiting": "尚無已核准事工，請再等候。"
+    },
+    "availableRooms": {
+      "title": "可用房間"
+    },
+    "confirm": {
+      "title": "確認預訂",
+      "room": "房間",
+      "date": "日期",
+      "time": "時間",
+      "submit": "確認預訂",
+      "success": "預訂已建立。"
+    },
+    "errors": {
+      "loadMinistries": "無法載入事工。",
+      "loadAvailability": "無法載入房間可用性。",
+      "loadCreateForm": "無法載入申請表單。",
+      "createMinistryValidation": "請填寫事工名稱與負責職位。",
+      "createMinistry": "無法建立事工。",
+      "createBooking": "無法建立預訂。",
+      "ministryRejected": "此事工已被拒絕，請重新申請。"
+    },
+    "stepper": {
+      "label": "預訂進度",
+      "date": "日期",
+      "ministry": "事工",
+      "multi_room": "多房間",
+      "hours": "時數"
+    },
+    "multiRoomChoice": {
+      "title": "需要多個房間嗎？",
+      "subtitle": "同一活動最多可預訂 3 個房間。",
+      "yes": "是，多房間",
+      "no": "否，單一房間"
+    },
+    "durationHours": {
+      "title": "需要使用多久？",
+      "subtitle": "請輸入預訂所需的最少小時數。",
+      "label": "小時",
+      "continue": "繼續",
+      "validation": "請輸入 1 以上的整數小時。"
+    },
+    "roomFilter": {
+      "title": "可用房間",
+      "filters": {
+        "date": "日期",
+        "capacity": "容納人數",
+        "minHours": "最少時數",
+        "apply": "套用篩選"
+      },
+      "selectedRooms": "已選房間（{{count}}/{{max}}）",
+      "confirmSelection": "檢視預訂",
+      "maxRooms": "最多可選擇 {{max}} 個房間。",
+      "selectSlotHint": "請為每個房間選擇時段。",
+      "backToWizard": "返回首頁",
+      "filtersHeading": "搜尋條件",
+      "resultsCount": "{{count}} 間房間"
     }
   }
 }

@@ -9,6 +9,22 @@ export const API_ENDPOINTS = {
     REFRESH: `${BOOKING_API_PREFIX}/auth/refresh`,
     PROFILE: `${BOOKING_API_PREFIX}/auth/me`,
   },
+  MINISTRY: {
+    MINE: `${BOOKING_API_PREFIX}/ministry/ministries/mine`,
+    APPLICATIONS: `${BOOKING_API_PREFIX}/ministry/applications`,
+    MINISTRY_TYPES: `${BOOKING_API_PREFIX}/ministry/catalog/ministry-types`,
+    TARGET_AUDIENCES: `${BOOKING_API_PREFIX}/ministry/catalog/target-audiences`,
+  },
+  ORG: {
+    ASSIGNABLE_POSITIONS: `${BOOKING_API_PREFIX}/org/positions/assignable`,
+    LOCALES: `${BOOKING_API_PREFIX}/org/locales`,
+  },
+  FACILITY: {
+    AVAILABILITY: `${BOOKING_API_PREFIX}/facility/rooms/availability`,
+    BOOKINGS: `${BOOKING_API_PREFIX}/facility/bookings`,
+    MY_BOOKINGS: `${BOOKING_API_PREFIX}/facility/bookings/mine`,
+    cancelBooking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}/cancel`,
+  },
 } as const;
 
 export const HTTP_STATUS = {
