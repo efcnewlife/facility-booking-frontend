@@ -1,30 +1,23 @@
-import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
+import ministryService from "@/api/services/ministryService";
 import ChoicePill from "@/components/booking/ChoicePill";
 import StartBookingProgress from "@/components/booking/StartBookingProgress";
-import ministryService from "@/api/services/ministryService";
 import { useAuth } from "@/context/AuthContext";
+import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
 import {
+  buildRoomsSearchQuery,
   canAdvance,
   isStartBookingStep,
+  isWhenEndAfterStart,
   nextStep,
   previousStep,
   toRoomsSearchParams,
-  buildRoomsSearchQuery,
   type BookingFrequency,
   type SpaceNeededChoice,
   type StartBookingAnswers,
   type StartBookingStep,
 } from "@/utils/startBookingFlow";
-import {
-  Alert,
-  Button,
-  DatePicker,
-  type DatePickerValue,
-  Select,
-  TimePicker,
-  type TimePickerValue,
-} from "@efcnewlife/newlife-ui";
+import { Alert, Button, DatePicker, Select, TimePicker, type DatePickerValue, type TimePickerValue } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -87,6 +80,7 @@ const StartBookingPage = () => {
     space,
   };
   const canGoForward = canAdvance(step, answers, now);
+  const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
 
   const goToStep = useCallback(
     (next: StartBookingStep, ministryChoice: boolean | null = isMinistryBooking) => {
@@ -165,23 +159,20 @@ const StartBookingPage = () => {
   };
 
   const continueLabel = step === "space_needed" ? t("startBooking.search") : t("startBooking.continue");
-  const showActions = step !== "ministry_choice";
 
   return (
-    <main className="mx-auto flex w-full max-w-3xl flex-1 flex-col items-center px-4 py-6 sm:px-6">
+    <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col items-center px-6 py-8 sm:px-8">
       <StartBookingProgress step={step} />
 
       {error ? (
-        <div className="mt-6 w-full max-w-lg">
+        <div className="mt-6 w-full">
           <Alert message={error} title={t("startBooking.errors.title")} variant="error" width="full" />
         </div>
       ) : null}
 
       {step === "ministry_choice" ? (
-        <section className="mt-10 flex w-full max-w-lg flex-col items-center">
-          <h1 className="text-center text-2xl font-semibold text-on-surface">
-            {t("startBooking.ministryChoice.title")}
-          </h1>
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.ministryChoice.title")}</h1>
           <div className="mt-8 flex flex-col items-center">
             <ChoicePill
               checked={isMinistryBooking === true}
@@ -206,21 +197,20 @@ const StartBookingPage = () => {
             className="mt-10"
             message={t("startBooking.ministryChoice.priorityMessage")}
             messageLines={6}
+            size="lg"
             title={t("startBooking.ministryChoice.priorityTitle")}
             variant="warning"
-            width="lg"
+            width="full"
           />
         </section>
       ) : null}
 
       {step === "select_ministry" ? (
-        <section className="mt-10 flex w-full max-w-lg flex-col items-center">
-          <h1 className="text-center text-2xl font-semibold text-on-surface">
-            {t("startBooking.selectMinistry.title")}
-          </h1>
-          <p className="mt-3 text-center text-on-surface">{t("startBooking.selectMinistry.body")}</p>
-          <p className="text-center text-on-surface">{t("startBooking.selectMinistry.sponsor")}</p>
-          <div className="mt-8 w-full max-w-xs">
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.selectMinistry.title")}</h1>
+          <p className="mt-3 text-center text-lg text-on-surface">{t("startBooking.selectMinistry.body")}</p>
+          <p className="text-center text-lg text-on-surface">{t("startBooking.selectMinistry.sponsor")}</p>
+          <div className="mt-8 w-full">
             <Select
               id="start-booking-ministry"
               labels={{ noOptions: t("startBooking.selectMinistry.empty") }}
@@ -236,18 +226,17 @@ const StartBookingPage = () => {
                 label: ministry.name || ministry.id,
               }))}
               placeholder={t("startBooking.selectMinistry.placeholder")}
+              size="lg"
               value={ministryId}
             />
           </div>
-          {loading ? <p className="mt-3 text-sm text-on-surface-variant">{t("startBooking.loading")}</p> : null}
+          {loading ? <p className="mt-3 text-base text-on-surface-variant">{t("startBooking.loading")}</p> : null}
         </section>
       ) : null}
 
       {step === "frequency" ? (
-        <section className="mt-10 flex w-full max-w-lg flex-col items-center">
-          <h1 className="text-center text-2xl font-semibold text-on-surface">
-            {t("startBooking.frequency.title")}
-          </h1>
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.frequency.title")}</h1>
           <div className="mt-8 flex flex-col items-center">
             <ChoicePill
               checked={frequency === "one_time"}
@@ -272,18 +261,19 @@ const StartBookingPage = () => {
             <Alert
               className="mt-6"
               message={t("startBooking.frequency.repeatedUnavailableMessage")}
+              size="lg"
               title={t("startBooking.frequency.repeatedUnavailableTitle")}
               variant="info"
-              width="lg"
+              width="full"
             />
           ) : null}
         </section>
       ) : null}
 
       {step === "when" ? (
-        <section className="mt-10 flex w-full max-w-lg flex-col items-center">
-          <h1 className="text-center text-2xl font-semibold text-on-surface">{t("startBooking.when.title")}</h1>
-          <div className="mt-8 w-full max-w-xs space-y-4">
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.when.title")}</h1>
+          <div className="mt-8 w-full space-y-4">
             <DatePicker
               id="start-booking-date"
               label={t("startBooking.when.date")}
@@ -300,14 +290,17 @@ const StartBookingPage = () => {
                 id="start-booking-start"
                 label={t("startBooking.when.start")}
                 onChange={(value) => setStartValue(value)}
+                placeholder={t("startBooking.when.startPlaceholder")}
                 required
                 value={startValue}
               />
               <TimePicker
                 ampm
                 id="start-booking-end"
+                error={endTimeError}
                 label={t("startBooking.when.end")}
                 onChange={(value) => setEndValue(value)}
+                placeholder={t("startBooking.when.endPlaceholder")}
                 required
                 value={endValue}
               />
@@ -317,11 +310,9 @@ const StartBookingPage = () => {
       ) : null}
 
       {step === "space_needed" ? (
-        <section className="mt-10 flex w-full max-w-lg flex-col items-center">
-          <h1 className="text-center text-2xl font-semibold text-on-surface">
-            {t("startBooking.spaceNeeded.title")}
-          </h1>
-          <div className="mt-8 grid grid-cols-2 gap-4">
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.spaceNeeded.title")}</h1>
+          <div className="mt-8 grid w-full grid-cols-2 gap-4">
             <ChoicePill
               checked={space === "single"}
               id="space-single"
@@ -362,20 +353,24 @@ const StartBookingPage = () => {
         </section>
       ) : null}
 
-      <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-        <Button onClick={handleBack} size="sm" startIcon={<MdArrowBack className="size-3" />} variant="outline">
-          {t("startBooking.back")}
-        </Button>
-        {step === "select_ministry" ? (
-          <Button onClick={() => setIsCreateOpen(true)} size="sm" variant="primary">
-            {t("startBooking.selectMinistry.createNew")}
+      <div className="mt-10 grid w-full grid-cols-3 items-center gap-3">
+        <div className="justify-self-start">
+          <Button onClick={handleBack} size="md" startIcon={<MdArrowBack className="size-4" />} variant="outline">
+            {t("startBooking.back")}
           </Button>
-        ) : null}
-        {showActions ? (
-          <Button disabled={!canGoForward} onClick={handleContinue} size="sm" variant="primary">
+        </div>
+        <div className="justify-self-center">
+          {step === "select_ministry" ? (
+            <Button onClick={() => setIsCreateOpen(true)} size="md" variant="primary">
+              {t("startBooking.selectMinistry.createNew")}
+            </Button>
+          ) : null}
+        </div>
+        <div className="justify-self-end">
+          <Button disabled={!canGoForward} onClick={handleContinue} size="md" variant="primary">
             {continueLabel}
           </Button>
-        ) : null}
+        </div>
       </div>
 
       <CreateMinistryModal

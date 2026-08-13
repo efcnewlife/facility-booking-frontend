@@ -121,8 +121,13 @@
     "createMinistry": {
       "title": "建立新事工",
       "name": "事工名稱",
+      "namePlaceholder": "輸入事工名稱",
       "ownerPosition": "負責人／領袖",
+      "ownerPositionPlaceholder": "搜尋並選擇負責人／領袖",
+      "ownerSearch": "搜尋負責人／領袖",
+      "ownerEmpty": "找不到符合的負責人／領袖",
       "purpose": "用途",
+      "purposePlaceholder": "輸入用途",
       "submit": "送出",
       "close": "關閉",
       "approvalTitle": "需要核准。",
@@ -142,7 +147,7 @@
       "oneTime": "單次預訂",
       "oneTimeHint": "個人或一次性小組活動",
       "repeated": "重複",
-      "repeatedHint": "每週、每月、每年預訂",
+      "repeatedHint": "每週、每月預訂",
       "repeatedUnavailableTitle": "尚不支援重複預訂",
       "repeatedUnavailableMessage": "系列預訂尚未開放。請選擇單次預訂以繼續。"
     },
@@ -151,7 +156,10 @@
       "date": "日期",
       "datePlaceholder": "選擇日期",
       "start": "開始",
-      "end": "結束"
+      "startPlaceholder": "選擇開始時間",
+      "end": "結束",
+      "endPlaceholder": "選擇結束時間",
+      "endAfterStart": "結束時間必須晚於開始時間"
     },
     "spaceNeeded": {
       "title": "你需要哪個房間？",
@@ -164,7 +172,7 @@
       "title": "發生錯誤",
       "loadMinistries": "無法載入事工。",
       "loadCreateForm": "無法載入申請表單。",
-      "createMinistryValidation": "請填寫事工名稱與負責職位。",
+      "createMinistryValidation": "請填寫事工名稱、負責人／領袖與用途。",
       "createMinistry": "無法建立事工。"
     }
   },
@@ -221,7 +229,7 @@
       "loadMinistries": "無法載入事工。",
       "loadAvailability": "無法載入房間可用性。",
       "loadCreateForm": "無法載入申請表單。",
-      "createMinistryValidation": "請填寫事工名稱與負責職位。",
+      "createMinistryValidation": "請填寫事工名稱、負責人／領袖與用途。",
       "createMinistry": "無法建立事工。",
       "createBooking": "無法建立預訂。",
       "ministryRejected": "此事工已被拒絕，請重新申請。"

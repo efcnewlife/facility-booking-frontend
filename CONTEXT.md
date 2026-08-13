@@ -8,6 +8,18 @@ Member-facing church facility booking: Home, Start booking questions, then Rooms
 The first authenticated screen. It welcomes the member and offers a Start Booking action. It is not the question flow.
 _Avoid_: Landing, Find Space, dashboard, treating Home as Q1
 
+**Support**:
+The member-facing help page for special requests.
+_Avoid_: Contact as the canonical nav name
+
+**Not Found**:
+The page an authenticated member sees for an unknown path, or a path they are not allowed to open. Unknown and unauthorized look the same; there is no separate forbidden page. It offers a way back to Home. Unauthenticated visitors never see this — they go to login.
+_Avoid_: redirecting unknown paths to Home, 403 as the member-facing response, showing Not Found before login
+
+**My Ministry**:
+The member-facing place for a Ministry member to see the ministries they are listed on, including pending and rejected records.
+_Avoid_: the Start booking ministry picker, Support, Contact
+
 **Start booking**:
 The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then date and time, then Space needed. Search leaves this flow for Rooms.
 _Avoid_: Landing, Find Space, wizard (as the product name)
@@ -21,7 +33,7 @@ The allowed One-time date range: from today through one year ahead (rolling, not
 _Avoid_: calendar year, 365-day fee window as the name of this limit
 
 **Repeated**:
-A booking frequency: the same interval on a repeating schedule (weekly, monthly, yearly). Member copy uses this word, not Recurring.
+A booking frequency: the same interval on a repeating schedule (weekly, monthly). Member copy uses this word, not Recurring.
 _Avoid_: Reoccurring, Recurring (in member copy)
 
 **Space needed**:
@@ -39,6 +51,10 @@ _Avoid_: room type, facility type, excluding Gym from an unfiltered Single/Multi
 **Sanctuary**:
 A named room. Choosing it as a Room shortcut means that room, with Space needed Single.
 _Avoid_: room type, hall type, excluding Sanctuary from an unfiltered Single/Multiple search
+
+**Ministry member**:
+A person listed on a ministry as primary or secondary steward. Pending, rejected, and active ministries all count. Only a Ministry member can see My Ministry.
+_Avoid_: church member, attendee, treating a pending applicant as a different kind of person
 
 **Ministry booking**:
 A booking attached to a ministry the booker belongs to.

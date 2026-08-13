@@ -1,9 +1,9 @@
 import ministryService from "@/api/services/ministryService";
-import type { AssignablePosition, LocaleItem } from "@/types/ministry";
-import { Alert, Button, Input, Modal, Select } from "@efcnewlife/newlife-ui";
-import { useEffect, useMemo, useState } from "react";
-import { useTranslation } from "react-i18next";
 import i18n from "@/i18n";
+import type { AssignablePosition, LocaleItem } from "@/types/ministry";
+import { Alert, Button, Input, ModalForm, type ModalFormHandle, Select } from "@efcnewlife/newlife-ui";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 interface CreateMinistryModalProps {
   isOpen: boolean;
@@ -26,6 +26,7 @@ const resolveLocaleId = (locales: LocaleItem[]): string => {
 
 const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMinistryModalProps) => {
   const { t } = useTranslation("booking");
+  const modalRef = useRef<ModalFormHandle>(null);
   const [phase, setPhase] = useState<"form" | "confirmation">("form");
   const [positions, setPositions] = useState<AssignablePosition[]>([]);
   const [locales, setLocales] = useState<LocaleItem[]>([]);
@@ -43,6 +44,7 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
     }
     setPhase("form");
     setMinistryName("");
+    setOwnerPositionId("");
     setPurpose("");
     setError(null);
     const loadForm = async () => {
@@ -54,9 +56,6 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
         ]);
         setPositions(positionResult.items || []);
         setLocales(localeResult.items || []);
-        if (positionResult.items?.[0]?.id) {
-          setOwnerPositionId(positionResult.items[0].id);
-        }
       } catch (err) {
         setError(err instanceof Error ? err.message : t("startBooking.errors.loadCreateForm"));
       } finally {
@@ -74,14 +73,16 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
   };
 
   const handleSubmit = async () => {
-    if (!ministryName.trim() || !ownerPositionId || !defaultLocaleId) {
+    if (phase === "confirmation") {
+      return;
+    }
+    if (!ministryName.trim() || !ownerPositionId || !purpose.trim() || !defaultLocaleId) {
       setError(t("startBooking.errors.createMinistryValidation"));
       return;
     }
     setLoading(true);
     setError(null);
     try {
-      const description = purpose.trim();
       await ministryService.createApplication({
         ownerPositionId,
         hasPriorityBooking: true,
@@ -89,7 +90,7 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
           {
             localeId: defaultLocaleId,
             name: ministryName.trim(),
-            ...(description ? { description } : {}),
+            description: purpose.trim(),
           },
         ],
         members: userId
@@ -110,30 +111,32 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
   };
 
   return (
-    <Modal
+    <ModalForm
+      className="max-w-2xl w-full mx-4 p-6"
       footer={
         phase === "confirmation" ? (
           <Button onClick={handleClose} size="sm" variant="primary">
             {t("startBooking.createMinistry.close")}
           </Button>
         ) : (
-          <div className="flex flex-wrap justify-end gap-3">
+          <>
             <Button onClick={handleClose} size="sm" variant="outline">
               {t("startBooking.back")}
             </Button>
-            <Button disabled={loading} onClick={() => void handleSubmit()} size="sm" variant="primary">
+            <Button disabled={loading} onClick={() => modalRef.current?.submit()} size="sm" variant="primary">
               {t("startBooking.createMinistry.submit")}
             </Button>
-          </div>
+          </>
         )
       }
       isOpen={isOpen}
       onClose={handleClose}
-      title={
-        phase === "confirmation"
-          ? t("startBooking.createMinistry.submittedTitle")
-          : t("startBooking.createMinistry.title")
-      }
+      onSubmit={async (event) => {
+        event.preventDefault();
+        await handleSubmit();
+      }}
+      ref={modalRef}
+      title={phase === "confirmation" ? t("startBooking.createMinistry.submittedTitle") : t("startBooking.createMinistry.title")}
     >
       {phase === "confirmation" ? (
         <div className="space-y-2 text-on-surface">
@@ -142,23 +145,24 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
         </div>
       ) : (
         <div className="space-y-4">
-          {error ? (
-            <Alert message={error} title={t("startBooking.errors.title")} variant="error" width="full" />
-          ) : null}
+          {error ? <Alert message={error} title={t("startBooking.errors.title")} variant="error" width="full" /> : null}
           <Input
             id="create-ministry-name"
             label={t("startBooking.createMinistry.name")}
             onChange={(event) => setMinistryName(event.target.value)}
+            placeholder={t("startBooking.createMinistry.namePlaceholder")}
             required
             value={ministryName}
           />
           <Select
             id="create-ministry-owner"
             label={t("startBooking.createMinistry.ownerPosition")}
+            labels={{
+              noOptions: t("startBooking.createMinistry.ownerEmpty"),
+              searchOptions: t("startBooking.createMinistry.ownerSearch"),
+            }}
             onChange={(value) => {
-              if (typeof value === "string") {
-                setOwnerPositionId(value);
-              }
+              setOwnerPositionId(typeof value === "string" ? value : "");
             }}
             options={positions.map((position) => {
               const name = position.name || position.code || position.id;
@@ -173,13 +177,17 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
                 label: officeLabel ? `${name} (${officeLabel})` : name,
               };
             })}
+            placeholder={t("startBooking.createMinistry.ownerPositionPlaceholder")}
             required
-            value={ownerPositionId}
+            searchable
+            value={ownerPositionId || null}
           />
           <Input
             id="create-ministry-purpose"
             label={t("startBooking.createMinistry.purpose")}
             onChange={(event) => setPurpose(event.target.value)}
+            placeholder={t("startBooking.createMinistry.purposePlaceholder")}
+            required
             value={purpose}
           />
           <Alert
@@ -190,7 +198,7 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
           />
         </div>
       )}
-    </Modal>
+    </ModalForm>
   );
 };
 

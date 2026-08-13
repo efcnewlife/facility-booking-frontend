@@ -121,8 +121,13 @@
     "createMinistry": {
       "title": "Create new ministry",
       "name": "Ministry name",
+      "namePlaceholder": "Enter the ministry name",
       "ownerPosition": "Owner/Leader",
+      "ownerPositionPlaceholder": "Search and select an owner/leader",
+      "ownerSearch": "Search owner/leader",
+      "ownerEmpty": "No matching owner/leader",
       "purpose": "Purpose",
+      "purposePlaceholder": "Enter the purpose",
       "submit": "Submit",
       "close": "Close",
       "approvalTitle": "Approval required.",
@@ -142,7 +147,7 @@
       "oneTime": "One-time booking",
       "oneTimeHint": "Personal, one-off group events",
       "repeated": "Repeated",
-      "repeatedHint": "Weekly, monthly, yearly bookings",
+      "repeatedHint": "Weekly, monthly bookings",
       "repeatedUnavailableTitle": "Repeated booking is not available yet",
       "repeatedUnavailableMessage": "Series booking is not available yet. Choose One-time to continue."
     },
@@ -151,7 +156,10 @@
       "date": "Date",
       "datePlaceholder": "Select your date",
       "start": "Start",
-      "end": "End"
+      "startPlaceholder": "Select start time",
+      "end": "End",
+      "endPlaceholder": "Select end time",
+      "endAfterStart": "End time must be after start time"
     },
     "spaceNeeded": {
       "title": "Which room do you need?",
@@ -164,7 +172,7 @@
       "title": "Something went wrong",
       "loadMinistries": "Failed to load ministries.",
       "loadCreateForm": "Failed to load ministry form.",
-      "createMinistryValidation": "Ministry name and owner position are required.",
+      "createMinistryValidation": "Ministry name, owner/leader, and purpose are required.",
       "createMinistry": "Failed to create ministry."
     }
   },
@@ -221,7 +229,7 @@
       "loadMinistries": "Failed to load ministries.",
       "loadAvailability": "Failed to load room availability.",
       "loadCreateForm": "Failed to load ministry form.",
-      "createMinistryValidation": "Ministry name and owner position are required.",
+      "createMinistryValidation": "Ministry name, owner/leader, and purpose are required.",
       "createMinistry": "Failed to create ministry.",
       "createBooking": "Failed to create booking.",
       "ministryRejected": "This ministry was rejected. Please create a new application."

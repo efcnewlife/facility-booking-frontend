@@ -121,8 +121,13 @@
     "createMinistry": {
       "title": "创建新事工",
       "name": "事工名称",
+      "namePlaceholder": "输入事工名称",
       "ownerPosition": "负责人／领袖",
+      "ownerPositionPlaceholder": "搜索并选择负责人／领袖",
+      "ownerSearch": "搜索负责人／领袖",
+      "ownerEmpty": "找不到符合的负责人／领袖",
       "purpose": "用途",
+      "purposePlaceholder": "输入用途",
       "submit": "提交",
       "close": "关闭",
       "approvalTitle": "需要核准。",
@@ -142,7 +147,7 @@
       "oneTime": "单次预订",
       "oneTimeHint": "个人或一次性小组活动",
       "repeated": "重复",
-      "repeatedHint": "每周、每月、每年预订",
+      "repeatedHint": "每周、每月预订",
       "repeatedUnavailableTitle": "尚不支持重复预订",
       "repeatedUnavailableMessage": "系列预订尚未开放。请选择单次预订以继续。"
     },
@@ -151,7 +156,10 @@
       "date": "日期",
       "datePlaceholder": "选择日期",
       "start": "开始",
-      "end": "结束"
+      "startPlaceholder": "选择开始时间",
+      "end": "结束",
+      "endPlaceholder": "选择结束时间",
+      "endAfterStart": "结束时间必须晚于开始时间"
     },
     "spaceNeeded": {
       "title": "你需要哪个房间？",
@@ -164,7 +172,7 @@
       "title": "发生错误",
       "loadMinistries": "无法加载事工。",
       "loadCreateForm": "无法加载申请表单。",
-      "createMinistryValidation": "请填写事工名称与负责职位。",
+      "createMinistryValidation": "请填写事工名称、负责人／领袖与用途。",
       "createMinistry": "无法创建事工。"
     }
   },
@@ -221,7 +229,7 @@
       "loadMinistries": "无法加载事工。",
       "loadAvailability": "无法加载房间可用性。",
       "loadCreateForm": "无法加载申请表单。",
-      "createMinistryValidation": "请填写事工名称与负责职位。",
+      "createMinistryValidation": "请填写事工名称、负责人／领袖与用途。",
       "createMinistry": "无法创建事工。",
       "createBooking": "无法创建预订。",
       "ministryRejected": "此事工已被拒绝，请重新申请。"

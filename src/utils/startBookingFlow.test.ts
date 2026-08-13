@@ -3,6 +3,7 @@ import {
   buildRoomsSearchQuery,
   canAdvance,
   isStartBookingStep,
+  isWhenEndAfterStart,
   isWhenValid,
   nextStep,
   parseRoomsSearchQuery,
@@ -58,9 +59,7 @@ describe("nextStep", () => {
   });
 
   it("goes from ministry name to One-time vs Repeated", () => {
-    expect(nextStep("select_ministry", answers({ isMinistryBooking: true, ministryId: "m-1" }))).toBe(
-      "frequency",
-    );
+    expect(nextStep("select_ministry", answers({ isMinistryBooking: true, ministryId: "m-1" }))).toBe("frequency");
   });
 
   it("goes from One-time to date and time", () => {
@@ -73,13 +72,7 @@ describe("nextStep", () => {
 
   it("goes from a valid When to Space needed", () => {
     const now = new Date("2026-08-13T12:00:00");
-    expect(
-      nextStep(
-        "when",
-        answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }),
-        now,
-      ),
-    ).toBe("space_needed");
+    expect(nextStep("when", answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }), now)).toBe("space_needed");
   });
 
   it("leaves Start booking for Rooms after Space needed", () => {
@@ -122,9 +115,7 @@ describe("canAdvance", () => {
 
   it("allows ministry name only when an active ministry is selected", () => {
     expect(canAdvance("select_ministry", answers({ isMinistryBooking: true }))).toBe(false);
-    expect(canAdvance("select_ministry", answers({ isMinistryBooking: true, ministryId: "m-1" }))).toBe(
-      true,
-    );
+    expect(canAdvance("select_ministry", answers({ isMinistryBooking: true, ministryId: "m-1" }))).toBe(true);
   });
 
   it("allows frequency Continue only for One-time", () => {
@@ -162,6 +153,13 @@ describe("isWhenValid", () => {
   it("rejects end that is not after start", () => {
     expect(isWhenValid({ date: "2026-08-20", start: "09:00", end: "09:00" }, now)).toBe(false);
     expect(isWhenValid({ date: "2026-08-20", start: "11:00", end: "09:00" }, now)).toBe(false);
+  });
+
+  it("flags End before or equal to Start for the When warning", () => {
+    expect(isWhenEndAfterStart({ date: null, start: "11:00", end: "09:00" })).toBe(false);
+    expect(isWhenEndAfterStart({ date: null, start: "09:00", end: "09:00" })).toBe(false);
+    expect(isWhenEndAfterStart({ date: null, start: "09:00", end: "11:00" })).toBe(true);
+    expect(isWhenEndAfterStart({ date: null, start: "09:00", end: null })).toBe(true);
   });
 
   it("rejects a start that is not after now when the date is today", () => {
@@ -220,22 +218,14 @@ describe("buildRoomsSearchQuery", () => {
   });
 
   it("includes ministryId only for a Ministry booking", () => {
-    expect(
-      buildRoomsSearchQuery(
-        answers({ isMinistryBooking: true, ministryId: "m-1", when, space: "single" }),
-      ),
-    ).toEqual({
+    expect(buildRoomsSearchQuery(answers({ isMinistryBooking: true, ministryId: "m-1", when, space: "single" }))).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
       space: "single",
       ministryId: "m-1",
     });
-    expect(
-      buildRoomsSearchQuery(
-        answers({ isMinistryBooking: false, ministryId: "m-1", when, space: "single" }),
-      ),
-    ).toEqual({
+    expect(buildRoomsSearchQuery(answers({ isMinistryBooking: false, ministryId: "m-1", when, space: "single" }))).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
@@ -270,9 +260,7 @@ describe("parseRoomsSearchQuery", () => {
   });
 
   it("reads the new Search contract and ignores extra keys", () => {
-    const params = new URLSearchParams(
-      "date=2026-09-01&start=09:00&end=11:00&space=single&room=gym&ministryId=m-1&minHours=2&multiRoom=1",
-    );
+    const params = new URLSearchParams("date=2026-09-01&start=09:00&end=11:00&space=single&room=gym&ministryId=m-1&minHours=2&multiRoom=1");
     expect(parseRoomsSearchQuery(params)).toEqual({
       date: "2026-09-01",
       start: "09:00",

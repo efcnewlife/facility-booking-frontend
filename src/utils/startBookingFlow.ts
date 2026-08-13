@@ -1,12 +1,6 @@
 import moment from "moment";
 
-export const START_BOOKING_STEPS = [
-  "ministry_choice",
-  "select_ministry",
-  "frequency",
-  "when",
-  "space_needed",
-] as const;
+export const START_BOOKING_STEPS = ["ministry_choice", "select_ministry", "frequency", "when", "space_needed"] as const;
 
 export type StartBookingStep = (typeof START_BOOKING_STEPS)[number];
 
@@ -62,6 +56,18 @@ const hasCompleteWhen = (when: WhenValue): when is { date: string; start: string
   return Boolean(when.date && when.start && when.end);
 };
 
+export const isWhenEndAfterStart = (when: WhenValue): boolean => {
+  if (!when.start || !when.end) {
+    return true;
+  }
+  const start = moment(when.start, TIME_FORMAT, true);
+  const end = moment(when.end, TIME_FORMAT, true);
+  if (!start.isValid() || !end.isValid()) {
+    return true;
+  }
+  return end.isAfter(start);
+};
+
 export const isWhenValid = (when: WhenValue, now: Date): boolean => {
   if (!hasCompleteWhen(when)) {
     return false;
@@ -83,7 +89,7 @@ export const isWhenValid = (when: WhenValue, now: Date): boolean => {
   if (!start.isValid() || !end.isValid()) {
     return false;
   }
-  if (!end.isAfter(start)) {
+  if (!isWhenEndAfterStart(when)) {
     return false;
   }
   if (date.isSame(today, "day") && !start.isAfter(moment(now))) {
@@ -92,11 +98,7 @@ export const isWhenValid = (when: WhenValue, now: Date): boolean => {
   return true;
 };
 
-export const canAdvance = (
-  step: StartBookingStep,
-  answers: StartBookingAnswers,
-  now: Date = new Date(),
-): boolean => {
+export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers, now: Date = new Date()): boolean => {
   switch (step) {
     case "ministry_choice":
       return answers.isMinistryBooking === true || answers.isMinistryBooking === false;
@@ -133,10 +135,7 @@ export const nextStep = (
   }
 };
 
-export const previousStep = (
-  step: StartBookingStep,
-  answers: StartBookingAnswers,
-): StartBookingStep | "home" => {
+export const previousStep = (step: StartBookingStep, answers: StartBookingAnswers): StartBookingStep | "home" => {
   switch (step) {
     case "ministry_choice":
       return "home";
@@ -191,8 +190,7 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
   const end = parseTimeOfDay(params.get("end"));
   const space: RoomsSpace = params.get("space") === "multiple" ? "multiple" : "single";
   const roomParam = params.get("room");
-  const room: RoomShortcutCode | undefined =
-    roomParam === "gym" || roomParam === "sanctuary-hall" ? roomParam : undefined;
+  const room: RoomShortcutCode | undefined = roomParam === "gym" || roomParam === "sanctuary-hall" ? roomParam : undefined;
   const ministryId = params.get("ministryId") || undefined;
 
   const query: RoomsSearchQuery = { date, space };
@@ -209,7 +207,7 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
     query.room = room;
   }
   return query;
-}
+};
 
 export const toRoomsSearchParams = (query: RoomsSearchQuery): URLSearchParams => {
   const params = new URLSearchParams();
