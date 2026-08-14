@@ -44,11 +44,7 @@ export const MinistryMembershipProvider = ({ children }: MinistryMembershipProvi
     };
   }, []);
 
-  return (
-    <MinistryMembershipContext.Provider value={{ isMinistryMember, isLoading }}>
-      {children}
-    </MinistryMembershipContext.Provider>
-  );
+  return <MinistryMembershipContext.Provider value={{ isMinistryMember, isLoading }}>{children}</MinistryMembershipContext.Provider>;
 };
 
 export const useMinistryMembership = (): MinistryMembershipContextType => {

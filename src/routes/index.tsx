@@ -1,4 +1,3 @@
-import { createBrowserRouter } from "react-router";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AuthenticatedLayout from "@/layout/AuthenticatedLayout";
 import ContactPage from "@/pages/contact/ContactPage";
@@ -9,6 +8,7 @@ import MyMinistryPage from "@/pages/my-ministry/MyMinistryPage";
 import MyProfilePage from "@/pages/my-profile/MyProfilePage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
 import StartBookingPage from "@/pages/start-booking/StartBookingPage";
+import { createBrowserRouter } from "react-router";
 
 export const router = createBrowserRouter([
   {

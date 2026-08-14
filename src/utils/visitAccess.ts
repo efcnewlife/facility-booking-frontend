@@ -4,15 +4,7 @@ const LOGIN_PATH = "/login";
 export const MY_MINISTRY_PATH = "/my-ministry";
 export const SUPPORT_PATH = "/contact";
 
-const KNOWN_MEMBER_PATHS = new Set([
-  "/",
-  "/start-booking",
-  "/rooms",
-  "/my-bookings",
-  "/my-profile",
-  SUPPORT_PATH,
-  MY_MINISTRY_PATH,
-]);
+const KNOWN_MEMBER_PATHS = new Set(["/", "/start-booking", "/rooms", "/my-bookings", "/my-profile", SUPPORT_PATH, MY_MINISTRY_PATH]);
 
 interface VisitAccessInput {
   isAuthenticated: boolean;
@@ -27,11 +19,7 @@ const normalizePathname = (pathname: string): string => {
   return pathname;
 };
 
-export const visitAccess = ({
-  isAuthenticated,
-  isMinistryMember,
-  pathname,
-}: VisitAccessInput): VisitAccess => {
+export const visitAccess = ({ isAuthenticated, isMinistryMember, pathname }: VisitAccessInput): VisitAccess => {
   const path = normalizePathname(pathname);
 
   if (!isAuthenticated) {
