@@ -7,7 +7,7 @@ import { Link, useLocation } from "react-router";
 import { MdAccountCircle } from "react-icons/md";
 
 const NAV_ITEMS = [
-  { path: "/", labelKey: "nav.bookNow", end: true },
+  { path: "/start-booking", labelKey: "nav.bookNow", end: true },
   { path: "/my-bookings", labelKey: "nav.myBookings", end: false },
   { path: "/contact", labelKey: "nav.contact", end: false },
 ] as const;

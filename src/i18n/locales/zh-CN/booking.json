@@ -1,13 +1,13 @@
 {
-  "appTitle": "场地预约",
+  "appTitle": "场地预订",
   "home": {
-    "signedInAs": "已登录：{{name}}",
-    "memberFallback": "会员",
-    "signOut": "退出登录"
+    "welcomeTitle": "欢迎使用场地预订",
+    "welcomeBody": "为事工聚会或单次活动预订房间。",
+    "startBooking": "开始预订"
   },
   "nav": {
-    "bookNow": "立即预约",
-    "myBookings": "我的预约",
+    "bookNow": "立即预订",
+    "myBookings": "我的预订",
     "contact": "联系我们"
   },
   "findSpace": {
@@ -19,20 +19,20 @@
     "multiRooms": "多场地"
   },
   "descriptions": {
-    "byDate": "选择日期，查看可预约的场地。\n仅限单次预约。",
-    "byRoom": "选择您需要的场地，查看可预约时段。\n支持单次或周期性预约。",
-    "multiRooms": "最多可选 3 个场地。\n支持单次或周期性预约。"
+    "byDate": "选择日期，查看可预订的场地。\n仅限单次预订。",
+    "byRoom": "选择您需要的场地，查看可预订时段。\n支持单次或周期性预订。",
+    "multiRooms": "最多可选 3 个场地。\n支持单次或周期性预订。"
   },
   "sections": {
     "selectDate": "选择日期",
-    "availableRooms": "可预约场地",
+    "availableRooms": "可预订场地",
     "selectRooms": "选择场地"
   },
   "room": {
     "capacity": "容量：{{range}}",
-    "seeAvailability": "查看可预约时段",
+    "seeAvailability": "查看可预订时段",
     "selectTime": "选择时段",
-    "availability": "可预约时段：",
+    "availability": "可预订时段：",
     "am": "上午",
     "pm": "下午"
   },
@@ -41,7 +41,7 @@
     "chooseUpTo3": "最多可选 3 个场地。"
   },
   "empty": {
-    "noAvailableRooms": "目前没有可预约的场地"
+    "noAvailableRooms": "目前没有可预订的场地"
   },
   "support": {
     "prefix": "需要帮助或有特殊需求？  ",
@@ -75,10 +75,10 @@
     "updatePhoto": "更新个人照片"
   },
   "myBookings": {
-    "upcomingTitle": "即将到来的预约",
-    "pastTitle": "过去的预约",
+    "upcomingTitle": "即将到来的预订",
+    "pastTitle": "过去的预订",
     "seeAll": "查看全部",
-    "noUpcoming": "目前没有即将到来的预约",
+    "noUpcoming": "目前没有即将到来的预订",
     "change": "变更",
     "cancel": "取消",
     "fields": {
@@ -86,6 +86,189 @@
       "date": "日期",
       "time": "时间",
       "note": "备注"
+    }
+  },
+  "startBooking": {
+    "back": "返回",
+    "continue": "继续",
+    "search": "搜索",
+    "loading": "加载中...",
+    "progress": {
+      "label": "进度：第 {{current}} 步，共 {{total}} 步",
+      "startBooking": "开始预订",
+      "ministryName": "事工名称",
+      "howOften": "频率",
+      "dateTime": "日期与时间",
+      "spaceNeeded": "所需空间"
+    },
+    "ministryChoice": {
+      "title": "首先，这次是为事工预订吗？",
+      "yes": "是",
+      "no": "否",
+      "yesHint": "团契、宣教队等",
+      "noHint": "个人或小组活动",
+      "priorityTitle": "注意：事工活动优先",
+      "priorityMessage": "若时段冲突，非事工预订会被取消。你会收到通知，且必须重新预订。"
+    },
+    "selectMinistry": {
+      "title": "请选择这次预订所属的事工",
+      "body": "若列表中没有你的事工，请创建一个新的。",
+      "sponsor": "请确认你有教会领袖或同工作为赞助人。",
+      "placeholder": "选择你的事工",
+      "empty": "你目前没有已核准的事工。",
+      "createNew": "创建新事工"
+    },
+    "createMinistry": {
+      "title": "创建新事工",
+      "name": "事工名称",
+      "namePlaceholder": "输入事工名称",
+      "ownerPosition": "负责人／领袖",
+      "ownerPositionPlaceholder": "搜索并选择负责人／领袖",
+      "ownerSearch": "搜索负责人／领袖",
+      "ownerEmpty": "找不到符合的负责人／领袖",
+      "purpose": "用途",
+      "purposePlaceholder": "输入用途",
+      "submit": "提交",
+      "close": "关闭",
+      "approvalTitle": "需要核准。",
+      "approvalMessage": "请等待确认邮件后再进行预订。",
+      "submittedTitle": "申请已提交！",
+      "submittedBodyHours": "审核最多可能需要 48 小时。",
+      "submittedBodyReturn": "事工核准后再回来预订。",
+      "office": {
+        "elder": "长老",
+        "deacon": "执事",
+        "pastor": "牧师",
+        "staff": "同工"
+      }
+    },
+    "frequency": {
+      "title": "这是单次还是重复预订？",
+      "oneTime": "单次预订",
+      "oneTimeHint": "个人或一次性小组活动",
+      "repeated": "重复",
+      "repeatedHint": "每周、每月预订",
+      "repeatedUnavailableTitle": "尚不支持重复预订",
+      "repeatedUnavailableMessage": "系列预订尚未开放。请选择单次预订以继续。"
+    },
+    "when": {
+      "title": "预订时间是什么时候？",
+      "date": "日期",
+      "datePlaceholder": "选择日期",
+      "start": "开始",
+      "startPlaceholder": "选择开始时间",
+      "end": "结束",
+      "endPlaceholder": "选择结束时间",
+      "endAfterStart": "结束时间必须晚于开始时间"
+    },
+    "spaceNeeded": {
+      "title": "你需要哪个房间？",
+      "single": "单一房间",
+      "multiple": "多个房间",
+      "gym": "体育馆",
+      "sanctuary": "大堂"
+    },
+    "errors": {
+      "title": "发生错误",
+      "loadMinistries": "无法加载事工。",
+      "loadCreateForm": "无法加载申请表单。",
+      "createMinistryValidation": "请填写事工名称、负责人／领袖与用途。",
+      "createMinistry": "无法创建事工。"
+    }
+  },
+  "wizard": {
+    "back": "返回",
+    "loading": "加载中...",
+    "selectDate": {
+      "title": "选择日期",
+      "subtitle": "请选择你想预订空间的日期。"
+    },
+    "ministryChoice": {
+      "title": "这是事工预订吗？",
+      "subtitle": "事工预订需要已核准的事工。",
+      "yes": "是，事工",
+      "no": "否，个人／其他"
+    },
+    "selectMinistry": {
+      "title": "选择你的事工",
+      "empty": "你目前还没有事工。",
+      "createNew": "申请新事工"
+    },
+    "createMinistry": {
+      "title": "申请事工",
+      "name": "事工名称",
+      "ownerPosition": "负责职位",
+      "submit": "提交审核",
+      "office": {
+        "elder": "长老",
+        "deacon": "执事",
+        "pastor": "牧师",
+        "staff": "同工"
+      }
+    },
+    "pending": {
+      "title": "等待核准",
+      "body": "长老或执事核准事工后才能开始预订。你可以稍后再回来查看。",
+      "submitted": "事工申请已提交。",
+      "refresh": "刷新列表",
+      "checkApproved": "若已核准则继续",
+      "stillWaiting": "尚无已核准事工，请再等候。"
+    },
+    "availableRooms": {
+      "title": "可用房间"
+    },
+    "confirm": {
+      "title": "确认预订",
+      "room": "房间",
+      "date": "日期",
+      "time": "时间",
+      "submit": "确认预订",
+      "success": "预订已创建。"
+    },
+    "errors": {
+      "loadMinistries": "无法加载事工。",
+      "loadAvailability": "无法加载房间可用性。",
+      "loadCreateForm": "无法加载申请表单。",
+      "createMinistryValidation": "请填写事工名称、负责人／领袖与用途。",
+      "createMinistry": "无法创建事工。",
+      "createBooking": "无法创建预订。",
+      "ministryRejected": "此事工已被拒绝，请重新申请。"
+    },
+    "stepper": {
+      "label": "预订进度",
+      "date": "日期",
+      "ministry": "事工",
+      "multi_room": "多房间",
+      "hours": "时数"
+    },
+    "multiRoomChoice": {
+      "title": "需要多个房间吗？",
+      "subtitle": "同一活动最多可预订 3 个房间。",
+      "yes": "是，多房间",
+      "no": "否，单房间"
+    },
+    "durationHours": {
+      "title": "需要使用多久？",
+      "subtitle": "请输入预订所需的最少小时数。",
+      "label": "小时",
+      "continue": "继续",
+      "validation": "请输入 1 以上的整数小时。"
+    },
+    "roomFilter": {
+      "title": "可用房间",
+      "filters": {
+        "date": "日期",
+        "capacity": "容纳人数",
+        "minHours": "最少时数",
+        "apply": "应用筛选"
+      },
+      "selectedRooms": "已选房间（{{count}}/{{max}}）",
+      "confirmSelection": "查看预订",
+      "maxRooms": "最多可选择 {{max}} 个房间。",
+      "selectSlotHint": "请为每个房间选择时段。",
+      "backToWizard": "返回首页",
+      "filtersHeading": "搜索条件",
+      "resultsCount": "{{count}} 间房间"
     }
   }
 }

@@ -1,7 +1,11 @@
 ### Custom
 .idea
 .vscode
-docs
+docs/*
+!docs/adr/
+!docs/adr/**
+!docs/agents/
+!docs/agents/**
 
 ### Node template
 # Logs
