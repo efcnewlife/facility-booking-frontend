@@ -171,6 +171,16 @@ layer(base);
     cursor: pointer;
   }
 
+  /* Rectangular hit boxes for links; SVG paint holes must not steal hit-testing. */
+  a[href] {
+    display: inline-block;
+  }
+  button svg,
+  [role="button"] svg,
+  a svg {
+    pointer-events: none;
+  }
+
   body {
     @apply bg-surface-container font-figtree text-on-surface antialiased;
   }
