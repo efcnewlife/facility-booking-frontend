@@ -1,5 +1,7 @@
+import { SUPPORT_PATH } from "@/utils/visitAccess";
 import { cn } from "@efcnewlife/newlife-ui";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 
 interface SupportFooterProps {
   className?: string;
@@ -7,20 +9,22 @@ interface SupportFooterProps {
 
 const SupportFooter = ({ className }: SupportFooterProps) => {
   const { t } = useTranslation("booking");
+  const year = new Date().getFullYear();
 
   return (
-    <footer
-      className={cn(
-        "mt-auto bg-surface py-6 shadow-[0px_-2px_3px_rgba(0,0,0,0.1)]",
-        className,
-      )}
-    >
-      <p className="text-center text-lg font-bold text-primary">
-        <span>{t("support.prefix")}</span>
-        <a className="underline decoration-solid underline-offset-2" href="mailto:support@example.com">
-          {t("support.link")}
-        </a>
-      </p>
+    <footer className={cn("mt-auto bg-surface py-4 shadow-[0px_-2px_3px_rgba(0,0,0,0.1)]", className)}>
+      <div className="mx-auto flex max-w-[1366px] flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-12">
+        <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
+          <img alt={t("footer.churchLogoAlt")} className="h-[50px] w-[85px] object-contain" src="/images/logo/church-logo.png" />
+          <p className="text-center text-xs font-medium text-booking-text">{t("footer.copyright", { year })}</p>
+        </div>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+          <p className="text-center text-base text-booking-primary">{t("footer.specialRequest")}</p>
+          <Link className="text-sm font-semibold text-booking-secondary" to={SUPPORT_PATH}>
+            {t("footer.contactSupport")}
+          </Link>
+        </div>
+      </div>
     </footer>
   );
 };

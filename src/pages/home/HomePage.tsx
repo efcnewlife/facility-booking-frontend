@@ -7,12 +7,18 @@ const HomePage = () => {
   const navigate = useNavigate();
 
   return (
-    <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center px-4 py-16 text-center">
-      <h1 className="text-3xl font-bold text-on-surface">{t("home.welcomeTitle")}</h1>
-      <p className="mt-3 text-on-surface-variant">{t("home.welcomeBody")}</p>
-      <Button className="mt-8" onClick={() => navigate("/start-booking")} variant="primary">
-        {t("home.startBooking")}
-      </Button>
+    <main className="relative flex flex-1 flex-col items-center justify-center overflow-hidden px-4 py-16 text-center">
+      <div aria-hidden="true" className="absolute inset-0">
+        <img alt="" className="size-full object-cover" src="/images/home/hero.jpg" />
+        <div className="absolute inset-0 bg-black/50" />
+      </div>
+      <div className="relative z-10 mx-auto flex w-full max-w-lg flex-col items-center">
+        <h1 className="text-3xl font-bold text-white">{t("home.welcomeTitle")}</h1>
+        <p className="mt-3 text-white/90">{t("home.welcomeBody")}</p>
+        <Button className="mt-8" onClick={() => navigate("/start-booking")} variant="primary">
+          {t("home.startBooking")}
+        </Button>
+      </div>
     </main>
   );
 };
