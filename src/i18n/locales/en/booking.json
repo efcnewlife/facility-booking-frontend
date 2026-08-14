@@ -8,7 +8,24 @@
   "nav": {
     "bookNow": "Book Now",
     "myBookings": "My Bookings",
-    "contact": "Contact"
+    "myMinistry": "My Ministry",
+    "support": "Support",
+    "logoAlt": "NEW LIFE Booking",
+    "primary": "Primary"
+  },
+  "footer": {
+    "churchLogoAlt": "EFC New Life Gospel Church",
+    "copyright": "© {{year}} EFC New Life Gospel Church",
+    "specialRequest": "Have a special request?",
+    "contactSupport": "Contact Support"
+  },
+  "myMinistry": {
+    "pageTitle": "My Ministry"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "body": "This page is not available.",
+    "backHome": "Back to Home"
   },
   "findSpace": {
     "title": "Find a Space"
@@ -44,8 +61,7 @@
     "noAvailableRooms": "No available rooms"
   },
   "support": {
-    "prefix": "Need help? Have special request?  ",
-    "link": "Contact support"
+    "pageTitle": "Support"
   },
   "gallery": {
     "close": "Close gallery",

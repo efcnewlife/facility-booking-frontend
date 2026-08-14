@@ -1,16 +1,26 @@
 import AppLocaleSelect from "@/components/auth/AppLocaleSelect";
 import { useAuth } from "@/context/AuthContext";
+import { useMinistryMembership } from "@/context/MinistryMembershipContext";
+import { MY_MINISTRY_PATH, SUPPORT_PATH } from "@/utils/visitAccess";
 import { cn } from "@efcnewlife/newlife-ui";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation } from "react-router";
 import { MdAccountCircle } from "react-icons/md";
 
-const NAV_ITEMS = [
-  { path: "/start-booking", labelKey: "nav.bookNow", end: true },
-  { path: "/my-bookings", labelKey: "nav.myBookings", end: false },
-  { path: "/contact", labelKey: "nav.contact", end: false },
-] as const;
+interface NavItem {
+  path: string;
+  labelKey: string;
+  end: boolean;
+  ministryOnly: boolean;
+}
+
+const NAV_ITEMS: NavItem[] = [
+  { path: "/start-booking", labelKey: "nav.bookNow", end: true, ministryOnly: false },
+  { path: "/my-bookings", labelKey: "nav.myBookings", end: false, ministryOnly: false },
+  { path: MY_MINISTRY_PATH, labelKey: "nav.myMinistry", end: false, ministryOnly: true },
+  { path: SUPPORT_PATH, labelKey: "nav.support", end: false, ministryOnly: false },
+];
 
 const isNavActive = (pathname: string, path: string, end: boolean) => {
   if (end) {
@@ -24,6 +34,7 @@ const TopNavBar = () => {
   const { t } = useTranslation("booking");
   const { pathname } = useLocation();
   const { logout } = useAuth();
+  const { isMinistryMember } = useMinistryMembership();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -40,8 +51,10 @@ const TopNavBar = () => {
 
   const navLinkClass = (isActive: boolean) =>
     cn(
-      "min-w-[88px] text-center text-sm leading-none transition-colors",
-      isActive ? "font-bold text-primary" : "font-medium text-slate-900 hover:text-primary",
+      "whitespace-nowrap text-sm font-semibold leading-none transition-colors",
+      isActive
+        ? "text-booking-primary underline decoration-solid underline-offset-4"
+        : "text-booking-secondary",
     );
 
   const handleSignOut = async () => {
@@ -49,21 +62,22 @@ const TopNavBar = () => {
     await logout();
   };
 
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.ministryOnly || isMinistryMember);
+
   return (
     <header className="sticky top-0 z-40 bg-surface">
-      <div className="mx-auto flex h-16 max-w-[1366px] items-center justify-between px-4 sm:px-6 lg:px-12">
-        <Link className="flex min-w-0 items-center gap-3" to="/">
+      <div className="mx-auto flex min-h-16 max-w-[1366px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-12">
+        <Link className="flex min-w-0 shrink-0 items-center" to="/">
           <img
-            alt="EFC New Life"
-            className="h-8 w-auto max-w-[200px] shrink-0 object-contain object-left"
-            src="/images/logo/dark-gray.png"
+            alt={t("nav.logoAlt")}
+            className="h-[39px] w-auto max-w-[min(180px,40vw)] object-contain object-left"
+            src="/images/logo/booking-app-logo.png"
           />
-          <span className="truncate text-sm font-bold text-on-surface sm:text-base">{t("appTitle")}</span>
         </Link>
 
-        <div className="flex items-center gap-6">
-          <nav className="flex items-center gap-4">
-            {NAV_ITEMS.map((item) => (
+        <div className="flex min-w-0 flex-wrap items-center justify-end gap-4 sm:gap-6">
+          <nav aria-label={t("nav.primary")} className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 sm:gap-x-[30px]">
+            {visibleNavItems.map((item) => (
               <Link
                 key={item.path}
                 className={navLinkClass(isNavActive(pathname, item.path, item.end))}

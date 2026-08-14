@@ -8,7 +8,24 @@
   "nav": {
     "bookNow": "立即预订",
     "myBookings": "我的预订",
-    "contact": "联系我们"
+    "myMinistry": "我的事工",
+    "support": "支持",
+    "logoAlt": "NEW LIFE Booking",
+    "primary": "主要导航"
+  },
+  "footer": {
+    "churchLogoAlt": "EFC New Life Gospel Church",
+    "copyright": "© {{year}} EFC New Life Gospel Church",
+    "specialRequest": "有特殊需求吗？",
+    "contactSupport": "联系支持"
+  },
+  "myMinistry": {
+    "pageTitle": "我的事工"
+  },
+  "notFound": {
+    "title": "找不到页面",
+    "body": "这个页面无法使用。",
+    "backHome": "返回首页"
   },
   "findSpace": {
     "title": "寻找场地"
@@ -44,8 +61,7 @@
     "noAvailableRooms": "目前没有可预订的场地"
   },
   "support": {
-    "prefix": "需要帮助或有特殊需求？  ",
-    "link": "联系客服"
+    "pageTitle": "支持"
   },
   "gallery": {
     "close": "关闭相册",
