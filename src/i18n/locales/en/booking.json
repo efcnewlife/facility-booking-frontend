@@ -66,7 +66,7 @@
     "ministryNone": "None",
     "date": "Date",
     "repetition": "Repetition",
-    "oneTime": "One-time",
+    "oneTime": "One time",
     "time": "Time",
     "start": "Start",
     "end": "End",
@@ -101,7 +101,9 @@
     "loadError": "Failed to load room availability.",
     "createError": "Failed to create booking.",
     "halfFilledTime": "Start and end must both be empty or both set.",
-    "whenInvalid": "Choose a date from today through one year ahead. If Time is set, it must stay on that day and start before end."
+    "whenInvalid": "Choose a date from today through one year ahead. If Time is set, it must stay on that day and start before end.",
+    "errorTitle": "Unable to continue",
+    "successTitle": "Booking created"
   },
   "bookingDetails": {
     "title": "Booking Details",

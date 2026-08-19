@@ -5,6 +5,7 @@ import {
   canReviewBooking,
   capacityBandFor,
   clearUnconfirmedSelection,
+  displayBlocks,
   emptyTimeBookInterval,
   hasNoMatchingResults,
   isRoomAvailable,
@@ -23,7 +24,10 @@ const gymCells = (overrides: Partial<Record<string, RoomDay["cells"][number]["st
     const startMinute = minutes % 60;
     const endMinutes = minutes + 30;
     const start = `${String(startHour).padStart(2, "0")}:${String(startMinute).padStart(2, "0")}`;
-    const end = endMinutes >= 24 * 60 ? "24:00" : `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
+    const end =
+      endMinutes >= 24 * 60
+        ? "24:00"
+        : `${String(Math.floor(endMinutes / 60)).padStart(2, "0")}:${String(endMinutes % 60).padStart(2, "0")}`;
     const inOpenHours = minutes >= 9 * 60 && minutes < 17 * 60;
     const state = overrides[start] ?? (inOpenHours ? "available" : "closed");
     cells.push({ start, end, state });
@@ -220,5 +224,23 @@ describe("removeSelectedRoom", () => {
   it("drops that room and keeps the rest", () => {
     const selected: TimetableSelection = { roomIds: ["gym-id", "chapel-id"], interval: { start: "10:00", end: "11:00" } };
     expect(removeSelectedRoom(selected, "gym-id").roomIds).toEqual(["chapel-id"]);
+  });
+});
+
+describe("displayBlocks", () => {
+  it("does not paint Available when Time is empty", () => {
+    const blocks = displayBlocks(gym(), null);
+    expect(blocks.some((block) => block.state === "available")).toBe(false);
+  });
+
+  it("paints Available only on the Booking interval", () => {
+    const blocks = displayBlocks(gym(), { start: "10:00", end: "11:30" });
+    expect(blocks.filter((block) => block.state === "available")).toEqual([{ start: "10:00", end: "11:30", state: "available" }]);
+  });
+
+  it("keeps Unavailable blocks when Time is set", () => {
+    const occupied = gym({ cells: gymCells({ "13:00": "unavailable", "13:30": "unavailable" }) });
+    const blocks = displayBlocks(occupied, { start: "10:00", end: "11:00" });
+    expect(blocks).toContainEqual({ start: "13:00", end: "14:00", state: "unavailable" });
   });
 });

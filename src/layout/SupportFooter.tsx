@@ -12,8 +12,8 @@ const SupportFooter = ({ className }: SupportFooterProps) => {
   const year = new Date().getFullYear();
 
   return (
-    <footer className={cn("mt-auto bg-surface py-4 shadow-[0px_-2px_3px_rgba(0,0,0,0.1)]", className)}>
-      <div className="mx-auto flex max-w-[1366px] flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-12">
+    <footer className={cn("mt-auto shrink-0 bg-surface py-4 shadow-[0px_-2px_3px_rgba(0,0,0,0.1)]", className)}>
+      <div className="mx-auto flex max-w-[1600px] flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-12">
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
           <img
             alt={t("footer.churchLogoAlt")}

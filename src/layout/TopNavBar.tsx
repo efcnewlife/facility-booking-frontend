@@ -63,8 +63,8 @@ const TopNavBar = () => {
   const visibleNavItems = NAV_ITEMS.filter((item) => !item.ministryOnly || isMinistryMember);
 
   return (
-    <header className="sticky top-0 z-40 bg-surface">
-      <div className="mx-auto flex min-h-16 max-w-[1366px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-12">
+    <header className="sticky top-0 z-40 shrink-0 bg-surface">
+      <div className="mx-auto flex min-h-16 max-w-[1600px] flex-wrap items-center justify-between gap-3 px-4 py-3 sm:px-6 lg:px-12">
         <Link className="flex min-w-0 shrink-0 items-center" to="/">
           <img
             alt={t("nav.logoAlt")}

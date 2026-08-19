@@ -238,3 +238,11 @@ export const contiguousBlocks = (room: RoomDay): CellBlock[] => {
   }
   return blocks;
 };
+
+export const displayBlocks = (room: RoomDay, interval: BookingInterval | null): CellBlock[] => {
+  const occupied = contiguousBlocks(room).filter((block) => block.state === "unavailable" || block.state === "override");
+  if (interval && isRoomAvailable(room, interval)) {
+    return [...occupied, { start: interval.start, end: interval.end, state: "available" }];
+  }
+  return occupied;
+};

@@ -101,7 +101,9 @@
     "loadError": "無法載入房間時段。",
     "createError": "無法建立預訂。",
     "halfFilledTime": "開始與結束時間需同時空白或同時填寫。",
-    "whenInvalid": "日期需為今天起一年內。若有填寫時間，須在同一天且開始早於結束。"
+    "whenInvalid": "日期需為今天起一年內。若有填寫時間，須在同一天且開始早於結束。",
+    "errorTitle": "無法繼續",
+    "successTitle": "預訂已建立"
   },
   "bookingDetails": {
     "title": "預訂詳情",
