@@ -37,9 +37,7 @@ class MinistryService {
   }
 
   async listAssignablePositions(): Promise<AssignablePositionListResponse> {
-    const response = await httpClient.get<AssignablePositionListResponse>(
-      API_ENDPOINTS.ORG.ASSIGNABLE_POSITIONS,
-    );
+    const response = await httpClient.get<AssignablePositionListResponse>(API_ENDPOINTS.ORG.ASSIGNABLE_POSITIONS);
     if (!response.success || !response.data) {
       throw new Error(response.message || "Failed to load positions");
     }

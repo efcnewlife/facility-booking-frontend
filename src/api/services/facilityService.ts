@@ -60,10 +60,7 @@ class FacilityService {
     if (ministryId) {
       params.ministryId = ministryId;
     }
-    const response = await httpClient.get<ApiRoomAvailabilityList>(
-      API_ENDPOINTS.FACILITY.AVAILABILITY,
-      params,
-    );
+    const response = await httpClient.get<ApiRoomAvailabilityList>(API_ENDPOINTS.FACILITY.AVAILABILITY, params);
     if (!response.success || !response.data) {
       throw new Error(response.message || "Failed to load availability");
     }

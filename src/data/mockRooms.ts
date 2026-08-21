@@ -18,10 +18,7 @@ export const MOCK_ROOMS: Room[] = [
     name: "Gym",
     capacityMin: 10,
     capacityMax: 80,
-    galleryImages: [
-      "/images/booking/gradient-bg.png",
-      "/images/booking/gradient-bg.png",
-    ],
+    galleryImages: ["/images/booking/gradient-bg.png", "/images/booking/gradient-bg.png"],
   },
   {
     id: "meeting-xxx",

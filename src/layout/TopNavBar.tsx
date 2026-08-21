@@ -52,7 +52,7 @@ const TopNavBar = () => {
   const navLinkClass = (isActive: boolean) =>
     cn(
       "whitespace-nowrap text-sm font-semibold leading-none transition-colors",
-      isActive ? "text-booking-primary underline decoration-solid underline-offset-4" : "text-booking-secondary",
+      isActive ? "text-booking-primary underline decoration-solid underline-offset-4" : "text-booking-secondary"
     );
 
   const handleSignOut = async () => {
@@ -74,7 +74,10 @@ const TopNavBar = () => {
         </Link>
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-4 sm:gap-6">
-          <nav aria-label={t("nav.primary")} className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 sm:gap-x-[30px]">
+          <nav
+            aria-label={t("nav.primary")}
+            className="flex flex-wrap items-center justify-end gap-x-4 gap-y-2 sm:gap-x-[30px]"
+          >
             {visibleNavItems.map((item) => (
               <Link key={item.path} className={navLinkClass(isNavActive(pathname, item.path, item.end))} to={item.path}>
                 {t(item.labelKey)}

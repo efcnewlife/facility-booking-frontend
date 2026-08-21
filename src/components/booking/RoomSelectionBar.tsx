@@ -24,7 +24,7 @@ const RoomSelectionBar = ({ selectedRooms, maxSelection = 3, onSeeAvailability }
                 <div
                   className={cn(
                     "flex h-[110px] w-full items-center justify-center rounded-sm",
-                    room ? "bg-booking-text" : "bg-booking-light-grey",
+                    room ? "bg-booking-text" : "bg-booking-light-grey"
                   )}
                 >
                   {!room && (

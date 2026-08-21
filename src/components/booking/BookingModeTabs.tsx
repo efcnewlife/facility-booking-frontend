@@ -35,7 +35,7 @@ const BookingModeTabs = ({ activeMode, onModeChange }: BookingModeTabsProps) => 
               "h-10 min-w-[140px] rounded-[80px] px-4 text-sm transition-colors sm:min-w-[160px]",
               isActive
                 ? "bg-gray-dark font-medium text-white"
-                : "border border-gray-dark bg-surface font-bold text-gray-dark hover:bg-surface-variant",
+                : "border border-gray-dark bg-surface font-bold text-gray-dark hover:bg-surface-variant"
             )}
             onClick={() => onModeChange(mode)}
             type="button"

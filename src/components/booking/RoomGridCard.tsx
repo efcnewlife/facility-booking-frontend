@@ -58,7 +58,7 @@ const RoomGridCard = ({
             aria-pressed={isSelected}
             className={cn(
               "flex size-9 shrink-0 items-center justify-center transition-colors",
-              isSelected ? "text-primary" : "text-on-surface-variant hover:text-primary",
+              isSelected ? "text-primary" : "text-on-surface-variant hover:text-primary"
             )}
             onClick={() => onToggleSelect?.(room)}
             type="button"

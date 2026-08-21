@@ -100,7 +100,7 @@ const RoomGalleryModal = ({ images, initialIndex = 0, isOpen, onClose }: RoomGal
                   aria-label={`Image ${index + 1}`}
                   className={cn(
                     "size-2.5 rounded-full transition-colors",
-                    index === activeIndex ? "bg-primary" : "bg-white/70",
+                    index === activeIndex ? "bg-primary" : "bg-white/70"
                   )}
                   onClick={() => setActiveIndex(index)}
                   type="button"

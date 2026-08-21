@@ -46,16 +46,23 @@ pnpm dev              # http://localhost:5174 (strictPort — fails if taken)
 pnpm type-check       # tsc -b --noEmit
 pnpm test             # vitest run
 pnpm lint             # eslint .
+pnpm format           # prettier --write .
+pnpm format:check     # prettier --check .
 pnpm build            # tsc -b && vite build
 pnpm build:stg        # --mode staging
 pnpm build:prod       # --mode production
 pnpm preview
 ./scripts/check-branch-name.test.sh
+./scripts/format-staged.test.sh
 ```
 
 ### Branch names
 
 Topic branches: `{type}/{issue-number}-{short-description}` (types: `feat` `fix` `hotfix` `refactor` `perf` `test` `docs` `chore` `build` `ci`). Exceptions: `release/x.y.z`, `spike/{short-description}`, plus `main` / `develop`. Enforced by `.githooks/pre-push` (after install) and `.github/workflows/branch-name.yml`. Emergency: `git push --no-verify`. Consider marking the `Branch name` check required in GitHub branch protection.
+
+### Commit format hook
+
+After `./scripts/install-git-hooks.sh`, `.githooks/pre-commit` formats **staged** files via Prettier, runs `eslint --fix` on staged TS/JS (remaining **errors** fail the commit; warnings do not), and re-stages. Emergency: `git commit --no-verify`. See ADR 0014.
 
 Copy `.env.example` → `.env` (or `.env.local`) before running. Copy `.envrc.example` → `.envrc` (direnv) or export `NODE_AUTH_TOKEN` so pnpm can install `@efcnewlife/newlife-ui`.
 
@@ -194,7 +201,7 @@ Defined but unused by UI today: `MINISTRY.MINISTRY_TYPES`, `MINISTRY.TARGET_AUDI
 | Service           | Owns                                                                       |
 | ----------------- | -------------------------------------------------------------------------- |
 | `authService`     | Login, logout, me, storage, dev login                                      |
-| `ministryService` | `listMine`, `listAssignablePositions`, `listLocales`, `createApplication` |
+| `ministryService` | `listMine`, `listAssignablePositions`, `listLocales`, `createApplication`  |
 | `facilityService` | `getAvailability`, `createBooking`, `listMyBookings` (latter unused by UI) |
 
 Pages should call services, not `httpClient`.
@@ -228,12 +235,7 @@ Authenticated welcome plus a Start Booking action. No question stepper.
 Driven by `?step=` (and `ministry=1|0` after Q1). Step transitions, When validation, and Rooms query building live in `src/utils/startBookingFlow.ts`:
 
 ```ts
-type StartBookingStep =
-  | "ministry_choice"
-  | "select_ministry"
-  | "frequency"
-  | "when"
-  | "space_needed";
+type StartBookingStep = "ministry_choice" | "select_ministry" | "frequency" | "when" | "space_needed";
 ```
 
 Typical progression: ministry yes/no → (ministry name if Yes) → One-time vs Repeated → date and time → Space needed → navigate to `/rooms?...`. Create ministry is a modal on ministry name. The current step is mirrored into the URL with `{ replace: true }`.
@@ -250,16 +252,16 @@ Pure helpers: `timeToMinutes`, `hasContiguousHours` (merges overlapping am/pm sl
 
 ## 8. Pages
 
-| Path                             | Purpose                                                   |
-| -------------------------------- | --------------------------------------------------------- |
-| `login/LoginPage.tsx`                          | Microsoft / optional dev email login, remember me, locale |
-| `home/HomePage.tsx`                            | Welcome + Start Booking                                   |
-| `start-booking/StartBookingPage.tsx`           | Start booking questions                                   |
-| `start-booking/CreateMinistryModal.tsx`        | Create ministry application modal                         |
-| `rooms/RoomFilterPage.tsx`                     | Results, filters, slot select, create booking             |
-| `my-bookings/MyBookingsPage.tsx` | Upcoming/past — **mock data**                             |
-| `my-profile/MyProfilePage.tsx`   | Profile + payment history — **partial mock**              |
-| `contact/ContactPage.tsx`        | Stub                                                      |
+| Path                                    | Purpose                                                   |
+| --------------------------------------- | --------------------------------------------------------- |
+| `login/LoginPage.tsx`                   | Microsoft / optional dev email login, remember me, locale |
+| `home/HomePage.tsx`                     | Welcome + Start Booking                                   |
+| `start-booking/StartBookingPage.tsx`    | Start booking questions                                   |
+| `start-booking/CreateMinistryModal.tsx` | Create ministry application modal                         |
+| `rooms/RoomFilterPage.tsx`              | Results, filters, slot select, create booking             |
+| `my-bookings/MyBookingsPage.tsx`        | Upcoming/past — **mock data**                             |
+| `my-profile/MyProfilePage.tsx`          | Profile + payment history — **partial mock**              |
+| `contact/ContactPage.tsx`               | Stub                                                      |
 
 ---
 
@@ -314,14 +316,14 @@ Use **moment**, not dayjs/date-fns. API date params are `YYYY-MM-DD`. `BookingDa
 
 ## 12. Naming Conventions
 
-| Kind                               | Convention                  | Example                       |
-| ---------------------------------- | --------------------------- | ----------------------------- |
-| Variables, functions (most of app) | camelCase                   | `isAuthenticated`             |
-| Components / page files            | PascalCase                  | `StartBookingPage.tsx`        |
+| Kind                               | Convention                  | Example                          |
+| ---------------------------------- | --------------------------- | -------------------------------- |
+| Variables, functions (most of app) | camelCase                   | `isAuthenticated`                |
+| Components / page files            | PascalCase                  | `StartBookingPage.tsx`           |
 | Page / feature folders             | kebab-case                  | `start-booking/`, `my-bookings/` |
-| Constants, env vars                | UPPER_SNAKE_CASE / `VITE_*` | `VITE_API_BASE_URL`           |
-| Route paths                        | kebab-case                  | `/my-bookings`                |
-| Comments / default copy            | English                     | User strings via i18n         |
+| Constants, env vars                | UPPER_SNAKE_CASE / `VITE_*` | `VITE_API_BASE_URL`              |
+| Route paths                        | kebab-case                  | `/my-bookings`                   |
+| Comments / default copy            | English                     | User strings via i18n            |
 
 **Exception:** `src/i18n/*` and several utils (`bookingMock`, `bookingFormat`) use **snake_case** function names. Match the local file.
 
@@ -368,28 +370,28 @@ Keep Vite **port 5174** / `strictPort` in mind — the admin portal uses 5173.
 
 ## 15. Key Files Index
 
-| File                                     | Why read it                     |
-| ---------------------------------------- | ------------------------------- |
-| `package.json`                           | Scripts, dependencies           |
-| `vite.config.ts`                         | Port 5174, alias, SVGR          |
-| `src/config/env.ts`                      | Env flags                       |
-| `src/App.tsx` / `src/main.tsx`           | Bootstrap                       |
-| `src/routes/index.tsx`                   | All routes                      |
-| `src/context/AuthContext.tsx`            | Auth state                      |
-| `src/auth/msalInstance.ts`               | Entra MSAL                      |
-| `src/api/config/index.ts`                | Endpoint map                    |
-| `src/api/services/httpClient.ts`         | HTTP pipeline                   |
-| `src/api/services/facilityService.ts`    | Availability + create booking   |
-| `src/api/services/ministryService.ts`    | Ministries + applications       |
-| `src/pages/home/HomePage.tsx`                | Authenticated Home              |
-| `src/pages/start-booking/StartBookingPage.tsx` | Start booking questions       |
-| `src/utils/startBookingFlow.ts`              | Step / When / Rooms query seam  |
-| `src/pages/rooms/RoomFilterPage.tsx`         | Search + book                   |
-| `src/types/roomSearch.ts`                | Search criteria                 |
-| `src/utils/roomAvailabilityFilter.ts`    | Client-side availability filter |
-| `src/i18n/index.ts`                      | Locales and namespaces          |
-| `src/index.css`                          | Tokens / theme                  |
-| `docs/design/`                           | Design HTML mocks               |
+| File                                           | Why read it                     |
+| ---------------------------------------------- | ------------------------------- |
+| `package.json`                                 | Scripts, dependencies           |
+| `vite.config.ts`                               | Port 5174, alias, SVGR          |
+| `src/config/env.ts`                            | Env flags                       |
+| `src/App.tsx` / `src/main.tsx`                 | Bootstrap                       |
+| `src/routes/index.tsx`                         | All routes                      |
+| `src/context/AuthContext.tsx`                  | Auth state                      |
+| `src/auth/msalInstance.ts`                     | Entra MSAL                      |
+| `src/api/config/index.ts`                      | Endpoint map                    |
+| `src/api/services/httpClient.ts`               | HTTP pipeline                   |
+| `src/api/services/facilityService.ts`          | Availability + create booking   |
+| `src/api/services/ministryService.ts`          | Ministries + applications       |
+| `src/pages/home/HomePage.tsx`                  | Authenticated Home              |
+| `src/pages/start-booking/StartBookingPage.tsx` | Start booking questions         |
+| `src/utils/startBookingFlow.ts`                | Step / When / Rooms query seam  |
+| `src/pages/rooms/RoomFilterPage.tsx`           | Search + book                   |
+| `src/types/roomSearch.ts`                      | Search criteria                 |
+| `src/utils/roomAvailabilityFilter.ts`          | Client-side availability filter |
+| `src/i18n/index.ts`                            | Locales and namespaces          |
+| `src/index.css`                                | Tokens / theme                  |
+| `docs/design/`                                 | Design HTML mocks               |
 
 ---
 
@@ -397,17 +399,17 @@ Keep Vite **port 5174** / `strictPort` in mind — the admin portal uses 5173.
 
 When given a task, first classify it:
 
-| Task type                        | Start here                                                        |
-| -------------------------------- | ----------------------------------------------------------------- |
-| New authenticated page           | `src/routes/index.tsx` → page folder → `TopNavBar` if nav-visible |
+| Task type                        | Start here                                                            |
+| -------------------------------- | --------------------------------------------------------------------- |
+| New authenticated page           | `src/routes/index.tsx` → page folder → `TopNavBar` if nav-visible     |
 | Start booking question flow      | `startBookingFlow.ts` + `StartBookingPage.tsx` → `RoomFilterPage.tsx` |
-| API contract / new call          | `api/config` → service → `src/types/`                             |
-| Auth / login / remember-me       | `AuthContext`, `authService`, `LoginPage`, `env.ts`               |
-| Availability / create booking    | `facilityService` + `roomAvailabilityFilter`                      |
-| My bookings / profile still fake | Replace `data/mockBookings.ts` / `mockProfile.ts` imports         |
-| i18n string                      | `i18n/locales/*` + `i18n/index.ts` if new namespace               |
-| Visual tokens / styling          | `index.css` + newlife-ui components                               |
-| Design reference                 | `docs/design/*.html`                                              |
+| API contract / new call          | `api/config` → service → `src/types/`                                 |
+| Auth / login / remember-me       | `AuthContext`, `authService`, `LoginPage`, `env.ts`                   |
+| Availability / create booking    | `facilityService` + `roomAvailabilityFilter`                          |
+| My bookings / profile still fake | Replace `data/mockBookings.ts` / `mockProfile.ts` imports             |
+| i18n string                      | `i18n/locales/*` + `i18n/index.ts` if new namespace                   |
+| Visual tokens / styling          | `index.css` + newlife-ui components                                   |
+| Design reference                 | `docs/design/*.html`                                                  |
 
 **Prefer minimal diffs.** Match existing booking/layout patterns before introducing new abstractions. Do not port portal DataPage or backend-driven menus into this app.
 

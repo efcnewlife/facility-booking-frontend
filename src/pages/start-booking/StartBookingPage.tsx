@@ -17,7 +17,15 @@ import {
   type StartBookingAnswers,
   type StartBookingStep,
 } from "@/utils/startBookingFlow";
-import { Alert, Button, DatePicker, Select, TimePicker, type DatePickerValue, type TimePickerValue } from "@efcnewlife/newlife-ui";
+import {
+  Alert,
+  Button,
+  DatePicker,
+  Select,
+  TimePicker,
+  type DatePickerValue,
+  type TimePickerValue,
+} from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -93,7 +101,7 @@ const StartBookingPage = () => {
       setSearchParams(params, { replace: true });
       setError(null);
     },
-    [isMinistryBooking, setSearchParams],
+    [isMinistryBooking, setSearchParams]
   );
 
   const loadMinistries = useCallback(async () => {
@@ -149,7 +157,7 @@ const StartBookingPage = () => {
           pathname: "/rooms",
           search: `?${toRoomsSearchParams(query).toString()}`,
         },
-        { state: query },
+        { state: query }
       );
       return;
     }
@@ -172,7 +180,9 @@ const StartBookingPage = () => {
 
       {step === "ministry_choice" ? (
         <section className="mt-10 flex w-full flex-col items-center">
-          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.ministryChoice.title")}</h1>
+          <h1 className="text-center text-4xl font-semibold text-on-surface">
+            {t("startBooking.ministryChoice.title")}
+          </h1>
           <div className="mt-8 flex flex-col items-center">
             <ChoicePill
               checked={isMinistryBooking === true}
@@ -207,7 +217,9 @@ const StartBookingPage = () => {
 
       {step === "select_ministry" ? (
         <section className="mt-10 flex w-full flex-col items-center">
-          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.selectMinistry.title")}</h1>
+          <h1 className="text-center text-4xl font-semibold text-on-surface">
+            {t("startBooking.selectMinistry.title")}
+          </h1>
           <p className="mt-3 text-center text-lg text-on-surface">{t("startBooking.selectMinistry.body")}</p>
           <p className="text-center text-lg text-on-surface">{t("startBooking.selectMinistry.sponsor")}</p>
           <div className="mt-8 w-full">

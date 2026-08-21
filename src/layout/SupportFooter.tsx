@@ -15,7 +15,11 @@ const SupportFooter = ({ className }: SupportFooterProps) => {
     <footer className={cn("mt-auto bg-surface py-4 shadow-[0px_-2px_3px_rgba(0,0,0,0.1)]", className)}>
       <div className="mx-auto flex max-w-[1366px] flex-col items-center justify-between gap-4 px-4 sm:flex-row sm:px-6 lg:px-12">
         <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6">
-          <img alt={t("footer.churchLogoAlt")} className="h-[50px] w-[85px] object-contain" src="/images/logo/church-logo.png" />
+          <img
+            alt={t("footer.churchLogoAlt")}
+            className="h-[50px] w-[85px] object-contain"
+            src="/images/logo/church-logo.png"
+          />
           <p className="text-center text-xs font-medium text-booking-text">{t("footer.copyright", { year })}</p>
         </div>
         <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">

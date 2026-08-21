@@ -18,7 +18,7 @@ const ChoicePill = ({ id, name, value, checked, label, hint, wide, onChange }: C
         className={cn(
           "inline-flex overflow-hidden rounded-full border border-booking-secondary [&_label]:text-base",
           wide ? "w-full" : "min-w-[200px]",
-          checked && "bg-booking-secondary/10",
+          checked && "bg-booking-secondary/10"
         )}
       >
         <Radio
