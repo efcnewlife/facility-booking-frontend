@@ -136,7 +136,11 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
         await handleSubmit();
       }}
       ref={modalRef}
-      title={phase === "confirmation" ? t("startBooking.createMinistry.submittedTitle") : t("startBooking.createMinistry.title")}
+      title={
+        phase === "confirmation"
+          ? t("startBooking.createMinistry.submittedTitle")
+          : t("startBooking.createMinistry.title")
+      }
     >
       {phase === "confirmation" ? (
         <div className="space-y-2 text-on-surface">

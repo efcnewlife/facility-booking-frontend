@@ -57,7 +57,7 @@ const RoomFilterPage = () => {
 
   const filteredRooms = useMemo(
     () => filterRoomsByCriteria(rooms, appliedCapacity, appliedMinHours),
-    [appliedCapacity, appliedMinHours, rooms],
+    [appliedCapacity, appliedMinHours, rooms]
   );
 
   const formattedDate = useMemo(() => {
@@ -185,12 +185,7 @@ const RoomFilterPage = () => {
     <>
       <BookingHero titleKey="wizard.roomFilter.title" />
 
-      <main
-        className={cn(
-          "mx-auto w-full max-w-[960px] flex-1 px-4 py-6 sm:px-6 lg:px-8",
-          showStickyBar && "pb-28",
-        )}
-      >
+      <main className={cn("mx-auto w-full max-w-[960px] flex-1 px-4 py-6 sm:px-6 lg:px-8", showStickyBar && "pb-28")}>
         <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
           <button
             className="inline-flex items-center gap-1.5 text-sm font-bold text-primary hover:underline"
@@ -200,15 +195,11 @@ const RoomFilterPage = () => {
             <MdArrowBack className="size-4" />
             {t("wizard.roomFilter.backToWizard")}
           </button>
-          {formattedDate ? (
-            <p className="text-sm font-medium text-on-surface-variant">{formattedDate}</p>
-          ) : null}
+          {formattedDate ? <p className="text-sm font-medium text-on-surface-variant">{formattedDate}</p> : null}
         </div>
 
         <section className="mb-6 rounded-[16px] bg-surface p-4 shadow-sm sm:p-5">
-          <h2 className="mb-4 text-base font-bold text-on-surface">
-            {t("wizard.roomFilter.filtersHeading")}
-          </h2>
+          <h2 className="mb-4 text-base font-bold text-on-surface">{t("wizard.roomFilter.filtersHeading")}</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
             <Input
               id="filter-date"
@@ -233,21 +224,14 @@ const RoomFilterPage = () => {
               type="number"
               value={minHoursInput}
             />
-            <Button
-              className="w-full lg:min-w-[140px]"
-              onClick={handleApplyFilters}
-              size="sm"
-              variant="primary"
-            >
+            <Button className="w-full lg:min-w-[140px]" onClick={handleApplyFilters} size="sm" variant="primary">
               {t("wizard.roomFilter.filters.apply")}
             </Button>
           </div>
         </section>
 
         {error ? (
-          <div className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">
-            {error}
-          </div>
+          <div className="mb-4 rounded-xl border border-error/30 bg-error/10 px-4 py-3 text-sm text-error">{error}</div>
         ) : null}
         {successMessage ? (
           <div className="mb-4 flex items-center gap-2 rounded-xl border border-success/30 bg-success/10 px-4 py-3 text-sm text-success">
@@ -260,9 +244,7 @@ const RoomFilterPage = () => {
           <div>
             <h2 className="text-xl font-bold text-on-surface">{t("sections.availableRooms")}</h2>
             {isMultiRoom ? (
-              <p className="mt-1 text-sm text-on-surface-variant">
-                {t("wizard.roomFilter.selectSlotHint")}
-              </p>
+              <p className="mt-1 text-sm text-on-surface-variant">{t("wizard.roomFilter.selectSlotHint")}</p>
             ) : null}
           </div>
           {!loading ? (
@@ -286,9 +268,7 @@ const RoomFilterPage = () => {
                 isSelected={Boolean(selected)}
                 onSelectSlot={handleSelectSlot}
                 room={room}
-                selectedLabel={
-                  selected ? `${selected.slot.start} – ${selected.slot.end}` : undefined
-                }
+                selectedLabel={selected ? `${selected.slot.start} – ${selected.slot.end}` : undefined}
               />
             );
           })}
@@ -296,18 +276,11 @@ const RoomFilterPage = () => {
 
         {confirming && selectedSlots.length > 0 ? (
           <div className="fixed inset-0 z-40 flex items-end justify-center bg-black/40 p-4 sm:items-center">
-            <div
-              className="w-full max-w-md space-y-4 rounded-[16px] bg-surface p-5 shadow-xl sm:p-6"
-              role="dialog"
-            >
-              <h2 className="text-center text-xl font-bold text-on-surface">
-                {t("wizard.confirm.title")}
-              </h2>
+            <div className="w-full max-w-md space-y-4 rounded-[16px] bg-surface p-5 shadow-xl sm:p-6" role="dialog">
+              <h2 className="text-center text-xl font-bold text-on-surface">{t("wizard.confirm.title")}</h2>
               <div className="space-y-3 rounded-xl bg-surface-container px-4 py-3 text-sm text-on-surface">
                 <p>
-                  <span className="font-medium text-on-surface-variant">
-                    {t("wizard.confirm.date")}:{" "}
-                  </span>
+                  <span className="font-medium text-on-surface-variant">{t("wizard.confirm.date")}: </span>
                   {formattedDate}
                 </p>
                 <ul className="divide-y divide-outline-variant">
@@ -325,12 +298,7 @@ const RoomFilterPage = () => {
                 <Button onClick={() => setConfirming(false)} size="sm" variant="outline">
                   {t("wizard.back")}
                 </Button>
-                <Button
-                  disabled={loading}
-                  onClick={() => void handleConfirmBooking()}
-                  size="sm"
-                  variant="primary"
-                >
+                <Button disabled={loading} onClick={() => void handleConfirmBooking()} size="sm" variant="primary">
                   {t("wizard.confirm.submit")}
                 </Button>
               </div>

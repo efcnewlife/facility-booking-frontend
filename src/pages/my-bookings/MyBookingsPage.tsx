@@ -50,11 +50,7 @@ const MyBookingsPage = () => {
               <PastBookingCard key={booking.id} booking={booking} />
             ))}
           </div>
-          <button
-            className="text-base font-bold text-primary hover:underline"
-            onClick={handleSeeAll}
-            type="button"
-          >
+          <button className="text-base font-bold text-primary hover:underline" onClick={handleSeeAll} type="button">
             {t("myBookings.seeAll")}
           </button>
         </section>

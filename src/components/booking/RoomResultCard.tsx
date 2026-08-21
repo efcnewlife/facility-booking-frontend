@@ -31,7 +31,7 @@ const RoomResultCard = ({
       className={cn(
         "rounded-[16px] bg-surface p-3 shadow-sm transition-shadow sm:p-4",
         isSelected && "ring-2 ring-primary shadow-md",
-        className,
+        className
       )}
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-stretch">
@@ -64,9 +64,7 @@ const RoomResultCard = ({
             </div>
             <AvailabilitySlots
               availability={room.availability}
-              onSelectSlot={
-                onSelectSlot ? (slot, period) => onSelectSlot(room, slot, period) : undefined
-              }
+              onSelectSlot={onSelectSlot ? (slot, period) => onSelectSlot(room, slot, period) : undefined}
             />
           </div>
 

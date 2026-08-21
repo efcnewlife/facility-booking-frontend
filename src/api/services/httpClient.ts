@@ -113,8 +113,7 @@ class HttpClient {
     if (error.response) {
       const status = error.response.status;
       const responseData = error.response.data as
-        | { detail?: string; debug_detail?: unknown; url?: string; message?: string }
-        | undefined;
+        { detail?: string; debug_detail?: unknown; url?: string; message?: string } | undefined;
       const backendDetail = responseData?.detail;
       const fallbackMessage = responseData?.message;
       const message =

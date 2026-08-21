@@ -41,7 +41,5 @@ export const get_rooms_for_date = (date: Date): RoomAvailability[] => {
 };
 
 export const get_rooms_by_ids = (room_ids: string[]): Room[] => {
-  return room_ids
-    .map((room_id) => get_room_by_id(room_id))
-    .filter((room): room is Room => room !== undefined);
+  return room_ids.map((room_id) => get_room_by_id(room_id)).filter((room): room is Room => room !== undefined);
 };

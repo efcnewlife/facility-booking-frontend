@@ -36,7 +36,7 @@ export const hasContiguousHours = (availability: DayAvailability, minHours: numb
 export const filterRoomsByCriteria = (
   rooms: RoomAvailability[],
   capacity: number | null | undefined,
-  minHours: number | null | undefined,
+  minHours: number | null | undefined
 ): RoomAvailability[] => {
   return rooms.filter((room) => {
     if (capacity != null && capacity > 0 && room.capacityMax < capacity) {

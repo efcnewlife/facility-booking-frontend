@@ -26,7 +26,7 @@ const AppLocaleSelect = ({ id, className, showLabel = false }: AppLocaleSelectPr
         value: appLocale,
         label: tLanguage(APP_LOCALE_LABEL_KEYS[appLocale]),
       })),
-    [tLanguage],
+    [tLanguage]
   );
 
   const selectedLocale = normalize_locale_code(i18n.language) ?? "en";

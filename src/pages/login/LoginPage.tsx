@@ -53,15 +53,26 @@ const LoginPage = () => {
       </div>
 
       <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <img alt="" className="absolute left-0 top-[-10%] h-[110%] w-full max-w-none object-cover" src="/images/login/gradient-bg.png" />
+        <img
+          alt=""
+          className="absolute left-0 top-[-10%] h-[110%] w-full max-w-none object-cover"
+          src="/images/login/gradient-bg.png"
+        />
       </div>
 
       <div className="relative flex min-h-screen items-center justify-center px-8 py-14">
         <div
-          className={cn("flex w-full max-w-[480px] flex-col items-center rounded-[36px] bg-surface px-12 pb-14 pt-14", "shadow-login-card")}
+          className={cn(
+            "flex w-full max-w-[480px] flex-col items-center rounded-[36px] bg-surface px-12 pb-14 pt-14",
+            "shadow-login-card"
+          )}
         >
           <div className="mb-12 flex flex-col items-center text-center">
-            <img alt="EFC New Life" className="h-auto w-full max-w-[320px] object-contain" src="/images/logo/main-light-wide.png" />
+            <img
+              alt="EFC New Life"
+              className="h-auto w-full max-w-[320px] object-contain"
+              src="/images/logo/main-light-wide.png"
+            />
             <h1 className="mt-6 text-3xl font-bold tracking-tight text-on-surface">{t("booking:appTitle")}</h1>
           </div>
 
@@ -70,7 +81,9 @@ const LoginPage = () => {
           {IS_MICROSOFT_LOGIN_ENABLED && (
             <>
               {!IS_SHOW_DEV_LOGIN && (
-                <p className="mb-6 text-center text-base font-medium text-on-surface-variant">{t("auth:signInPromptMicrosoft")}</p>
+                <p className="mb-6 text-center text-base font-medium text-on-surface-variant">
+                  {t("auth:signInPromptMicrosoft")}
+                </p>
               )}
 
               <button
@@ -108,7 +121,9 @@ const LoginPage = () => {
                 </div>
               )}
 
-              <p className="mb-4 text-center text-base font-medium text-on-surface-variant">{t("auth:signInPromptDev")}</p>
+              <p className="mb-4 text-center text-base font-medium text-on-surface-variant">
+                {t("auth:signInPromptDev")}
+              </p>
 
               <form className="space-y-4" onSubmit={handleDevSignIn}>
                 <Input

@@ -12,7 +12,7 @@ const EmptyResultsPanel = ({ className }: EmptyResultsPanelProps) => {
     <div
       className={cn(
         "flex min-h-[200px] w-full items-center justify-center rounded-[16px] bg-booking-grey px-5 py-8",
-        className,
+        className
       )}
     >
       <p className="text-center text-lg font-bold text-on-surface">{t("empty.noAvailableRooms")}</p>

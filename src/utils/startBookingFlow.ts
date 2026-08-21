@@ -116,7 +116,7 @@ export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers,
 export const nextStep = (
   step: StartBookingStep,
   answers: StartBookingAnswers,
-  now: Date = new Date(),
+  now: Date = new Date()
 ): StartBookingStep | "rooms" | null => {
   if (!canAdvance(step, answers, now)) {
     return null;
@@ -190,7 +190,8 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
   const end = parseTimeOfDay(params.get("end"));
   const space: RoomsSpace = params.get("space") === "multiple" ? "multiple" : "single";
   const roomParam = params.get("room");
-  const room: RoomShortcutCode | undefined = roomParam === "gym" || roomParam === "sanctuary-hall" ? roomParam : undefined;
+  const room: RoomShortcutCode | undefined =
+    roomParam === "gym" || roomParam === "sanctuary-hall" ? roomParam : undefined;
   const ministryId = params.get("ministryId") || undefined;
 
   const query: RoomsSearchQuery = { date, space };

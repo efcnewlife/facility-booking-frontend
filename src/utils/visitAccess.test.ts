@@ -8,7 +8,7 @@ describe("visitAccess", () => {
         isAuthenticated: false,
         isMinistryMember: false,
         pathname: "/login",
-      }),
+      })
     ).toBe("allow");
   });
 
@@ -20,9 +20,9 @@ describe("visitAccess", () => {
           isAuthenticated: false,
           isMinistryMember: false,
           pathname,
-        }),
+        })
       ).toBe("login");
-    },
+    }
   );
 
   it("shows Not Found for an authenticated member on an unknown path", () => {
@@ -31,7 +31,7 @@ describe("visitAccess", () => {
         isAuthenticated: true,
         isMinistryMember: false,
         pathname: "/mystery",
-      }),
+      })
     ).toBe("not-found");
   });
 
@@ -41,7 +41,7 @@ describe("visitAccess", () => {
         isAuthenticated: true,
         isMinistryMember: false,
         pathname: "/my-ministry",
-      }),
+      })
     ).toBe("not-found");
   });
 
@@ -51,7 +51,7 @@ describe("visitAccess", () => {
         isAuthenticated: true,
         isMinistryMember: true,
         pathname: "/my-ministry",
-      }),
+      })
     ).toBe("allow");
   });
 
@@ -63,9 +63,9 @@ describe("visitAccess", () => {
           isAuthenticated: true,
           isMinistryMember: false,
           pathname,
-        }),
+        })
       ).toBe("allow");
-    },
+    }
   );
 });
 

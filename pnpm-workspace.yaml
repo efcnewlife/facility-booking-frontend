@@ -1,4 +1,4 @@
 allowBuilds:
   esbuild: false
 minimumReleaseAgeExclude:
-  - '@efcnewlife/newlife-ui@0.3.4'
+  - "@efcnewlife/newlife-ui@0.3.4"

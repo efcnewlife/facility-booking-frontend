@@ -72,7 +72,9 @@ describe("nextStep", () => {
 
   it("goes from a valid When to Space needed", () => {
     const now = new Date("2026-08-13T12:00:00");
-    expect(nextStep("when", answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }), now)).toBe("space_needed");
+    expect(nextStep("when", answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }), now)).toBe(
+      "space_needed"
+    );
   });
 
   it("leaves Start booking for Rooms after Space needed", () => {
@@ -218,14 +220,18 @@ describe("buildRoomsSearchQuery", () => {
   });
 
   it("includes ministryId only for a Ministry booking", () => {
-    expect(buildRoomsSearchQuery(answers({ isMinistryBooking: true, ministryId: "m-1", when, space: "single" }))).toEqual({
+    expect(
+      buildRoomsSearchQuery(answers({ isMinistryBooking: true, ministryId: "m-1", when, space: "single" }))
+    ).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
       space: "single",
       ministryId: "m-1",
     });
-    expect(buildRoomsSearchQuery(answers({ isMinistryBooking: false, ministryId: "m-1", when, space: "single" }))).toEqual({
+    expect(
+      buildRoomsSearchQuery(answers({ isMinistryBooking: false, ministryId: "m-1", when, space: "single" }))
+    ).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
@@ -260,7 +266,9 @@ describe("parseRoomsSearchQuery", () => {
   });
 
   it("reads the new Search contract and ignores extra keys", () => {
-    const params = new URLSearchParams("date=2026-09-01&start=09:00&end=11:00&space=single&room=gym&ministryId=m-1&minHours=2&multiRoom=1");
+    const params = new URLSearchParams(
+      "date=2026-09-01&start=09:00&end=11:00&space=single&room=gym&ministryId=m-1&minHours=2&multiRoom=1"
+    );
     expect(parseRoomsSearchQuery(params)).toEqual({
       date: "2026-09-01",
       start: "09:00",
