@@ -20,7 +20,7 @@ This document helps AI agents quickly understand the **Facility Booking** member
 | **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                      |
 | **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                      |
 | **Tests**           | Vitest (Node). `pnpm test` for `src/**/*.test.ts`; also `pnpm type-check`          |
-| **CI**              | No `.github/workflows` in this repo                                                |
+| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                          |
 
 `flatpickr`, `moment-timezone`, and `react-helmet-async` are listed in `package.json` but **unused in `src/`**. Do not assume they are part of the stack. `BookingDatePicker` is a custom moment calendar.
 
@@ -41,6 +41,7 @@ Local HTML design mocks live under `docs/design/` (not runtime).
 
 ```bash
 pnpm install          # requires NODE_AUTH_TOKEN (GitHub Packages)
+./scripts/install-git-hooks.sh   # once per clone
 pnpm dev              # http://localhost:5174 (strictPort — fails if taken)
 pnpm type-check       # tsc -b --noEmit
 pnpm test             # vitest run
@@ -49,7 +50,12 @@ pnpm build            # tsc -b && vite build
 pnpm build:stg        # --mode staging
 pnpm build:prod       # --mode production
 pnpm preview
+./scripts/check-branch-name.test.sh
 ```
+
+### Branch names
+
+Topic branches: `{type}/{issue-number}-{short-description}` (types: `feat` `fix` `hotfix` `refactor` `perf` `test` `docs` `chore` `build` `ci`). Exceptions: `release/x.y.z`, `spike/{short-description}`, plus `main` / `develop`. Enforced by `.githooks/pre-push` (after install) and `.github/workflows/branch-name.yml`. Emergency: `git push --no-verify`. Consider marking the `Branch name` check required in GitHub branch protection.
 
 Copy `.env.example` → `.env` (or `.env.local`) before running. Copy `.envrc.example` → `.envrc` (direnv) or export `NODE_AUTH_TOKEN` so pnpm can install `@efcnewlife/newlife-ui`.
 
