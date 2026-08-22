@@ -1,7 +1,13 @@
 import facilityService from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
 import type { MinistryItem } from "@/types/ministry";
-import { isWhenValid, parseRoomsSearchQuery, toRoomsSearchParams, type RoomsSearchQuery, type RoomsSpace } from "@/utils/startBookingFlow";
+import {
+  isWhenValid,
+  parseRoomsSearchQuery,
+  toRoomsSearchParams,
+  type RoomsSearchQuery,
+  type RoomsSpace,
+} from "@/utils/startBookingFlow";
 import {
   bookRoom,
   canReviewBooking,
@@ -42,8 +48,7 @@ import { Navigate, useSearchParams } from "react-router";
 
 const ROOMS_PER_PAGE = 4;
 const CAPACITY_BANDS: CapacityBand[] = ["1-10", "10-25", "25-50", "50+"];
-const SEARCH_CONTROL_CLASS = "h-8 py-0 text-xs leading-8";
-const SEARCH_LABEL_CLASS = "mb-[3px] text-xs font-medium leading-none text-gray-300";
+const SEARCH_LABEL_CLASS = "mb-[3px] text-xs font-medium leading-none text-inverse-on-surface";
 const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] gap-x-[30px]";
 
 const isActiveMinistry = (item: MinistryItem): boolean => {
@@ -108,7 +113,7 @@ const eventClassName = (state: CellState): string => {
     "pointer-events-none z-[1] flex min-h-0 items-start justify-between overflow-hidden border-l-[5px] py-2.5 pr-2.5 pl-[18px]",
     state === "available" && "border-l-booking-green bg-success-container text-booking-primary",
     state === "unavailable" && "border-l-gray-500 bg-gray-300 text-white",
-    state === "override" && "border-l-error bg-error-container text-booking-primary",
+    state === "override" && "border-l-error bg-error-container text-booking-primary"
   );
 };
 
@@ -205,7 +210,7 @@ const RoomFilterPage = () => {
 
   const listedRooms = useMemo(
     () => visibleRooms(rooms, view, selection.interval, capacityBand, appliedRoom),
-    [appliedRoom, capacityBand, rooms, selection.interval, view],
+    [appliedRoom, capacityBand, rooms, selection.interval, view]
   );
   const noMatching = hasNoMatchingResults(rooms, view, selection.interval, capacityBand, appliedRoom);
   const pageCount = Math.max(1, Math.ceil(listedRooms.length / ROOMS_PER_PAGE));
@@ -253,12 +258,22 @@ const RoomFilterPage = () => {
       clearUnconfirmedSelection({
         roomIds: selection.roomIds,
         interval: draftStart && draftEnd ? { start: draftStart, end: draftEnd } : null,
-      }),
+      })
     );
     setDetailsOpen(false);
     setSuccessMessage(null);
     setError(null);
-  }, [appliedRoom, draftDate, draftEnd, draftMinistryId, draftSpace, draftStart, selection.roomIds, setSearchParams, t]);
+  }, [
+    appliedRoom,
+    draftDate,
+    draftEnd,
+    draftMinistryId,
+    draftSpace,
+    draftStart,
+    selection.roomIds,
+    setSearchParams,
+    t,
+  ]);
 
   useEffect(() => {
     const on_pointer_down = (event: PointerEvent) => {
@@ -350,7 +365,6 @@ const RoomFilterPage = () => {
         <div className="flex min-w-0 flex-wrap items-end gap-2.5">
           {showMinistryField ? (
             <Select
-              className={SEARCH_CONTROL_CLASS}
               clearable
               id="timetable-ministry"
               label={t("timetable.ministry")}
@@ -362,13 +376,12 @@ const RoomFilterPage = () => {
                 label: ministry.name || ministry.id,
               }))}
               placeholder={t("timetable.ministryNone")}
-              size="sm"
+              size="xs"
               value={draftMinistryId || null}
               wrapperClassName="w-[240px] shrink-0"
             />
           ) : null}
           <DatePicker
-            className={SEARCH_CONTROL_CLASS}
             clearable={false}
             id="timetable-date"
             label={t("timetable.date")}
@@ -378,11 +391,12 @@ const RoomFilterPage = () => {
             onChange={(value) => setDraftDate(fromDatePickerValue(value))}
             placeholder={t("startBooking.when.datePlaceholder")}
             required
+            size="xs"
             value={toDatePickerValue(draftDate)}
-            wrapperClassName="w-[210px] shrink-0"
+            wrapperClassName="w-[148px] shrink-0"
           />
           <Select
-            className={cn(SEARCH_CONTROL_CLASS, "opacity-100")}
+            className="opacity-100"
             clearable={false}
             disabled
             id="timetable-repetition"
@@ -390,36 +404,35 @@ const RoomFilterPage = () => {
             labelClassName={SEARCH_LABEL_CLASS}
             labels={selectLabels}
             options={[{ value: "one_time", label: t("timetable.oneTime") }]}
-            size="sm"
+            size="xs"
             value="one_time"
-            wrapperClassName="w-[180px] shrink-0"
+            wrapperClassName="w-[124px] shrink-0"
           />
           <div className="flex items-end gap-2.5">
             <TimePicker
               ampm
-              className={SEARCH_CONTROL_CLASS}
               id="timetable-start"
               label={t("timetable.start")}
               labelClassName={SEARCH_LABEL_CLASS}
               onChange={(value) => setDraftStart(fromTimePickerValue(value))}
               placeholder={t("startBooking.when.startPlaceholder")}
+              size="xs"
               value={toTimePickerValue(draftStart)}
-              wrapperClassName="w-[180px] shrink-0"
+              wrapperClassName="w-[148px] shrink-0"
             />
             <TimePicker
               ampm
-              className={SEARCH_CONTROL_CLASS}
               id="timetable-end"
               label={t("timetable.end")}
               labelClassName={SEARCH_LABEL_CLASS}
               onChange={(value) => setDraftEnd(fromTimePickerValue(value))}
               placeholder={t("startBooking.when.endPlaceholder")}
+              size="xs"
               value={toTimePickerValue(draftEnd)}
-              wrapperClassName="w-[180px] shrink-0"
+              wrapperClassName="w-[148px] shrink-0"
             />
           </div>
           <Select
-            className={SEARCH_CONTROL_CLASS}
             clearable={false}
             id="timetable-space"
             label={t("timetable.roomsCount")}
@@ -430,9 +443,9 @@ const RoomFilterPage = () => {
               { value: "single", label: t("timetable.singleRoom") },
               { value: "multiple", label: t("timetable.multipleRooms") },
             ]}
-            size="sm"
+            size="xs"
             value={draftSpace}
-            wrapperClassName="w-[170px] shrink-0"
+            wrapperClassName="w-[152px] shrink-0"
           />
         </div>
         <span className="shrink-0" id="timetable-update-search">
@@ -448,7 +461,14 @@ const RoomFilterPage = () => {
       </form>
 
       {error ? (
-        <Alert className="mt-4 shrink-0" message={error} size="sm" title={t("timetable.errorTitle")} variant="error" width="full" />
+        <Alert
+          className="mt-4 shrink-0"
+          message={error}
+          size="sm"
+          title={t("timetable.errorTitle")}
+          variant="error"
+          width="full"
+        />
       ) : null}
       {successMessage ? (
         <Alert
@@ -541,7 +561,9 @@ const RoomFilterPage = () => {
           </div>
         </div>
 
-        {loading && rooms.length === 0 ? <Spinner className="mt-6 shrink-0" showText size="sm" text={t("startBooking.loading")} /> : null}
+        {loading && rooms.length === 0 ? (
+          <Spinner className="mt-6 shrink-0" showText size="sm" text={t("startBooking.loading")} />
+        ) : null}
 
         <div className="flex min-h-0 flex-1 flex-col">
           <div className="shrink-0 border-b-4 border-booking-primary bg-surface pt-[13px] pb-4">
@@ -566,7 +588,7 @@ const RoomFilterPage = () => {
                     </article>
                   ) : (
                     <article className="min-w-0 bg-transparent" key={`empty-${index}`} />
-                  ),
+                  )
                 )
               )}
             </div>
@@ -596,7 +618,7 @@ const RoomFilterPage = () => {
                           cellIndex % 2 === 0 && "border-t-gray-400",
                           cellIndex === 47 && "border-b border-gray-300",
                           cell?.state === "closed" && "bg-gray-200",
-                          bookable && "cursor-pointer",
+                          bookable && "cursor-pointer"
                         )}
                         disabled={!bookable}
                         key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
@@ -609,13 +631,14 @@ const RoomFilterPage = () => {
                         type="button"
                       />
                     );
-                  }),
+                  })
                 )}
                 {pagedRooms.map((room, roomIndex) =>
                   displayBlocks(room, selection.interval).map((block) => {
                     const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                     const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
-                    const bookableStart = block.state === "available" && isBookableCell(room, block.start, selection.interval);
+                    const bookableStart =
+                      block.state === "available" && isBookableCell(room, block.start, selection.interval);
                     return (
                       <article
                         className={eventClassName(block.state)}
@@ -625,7 +648,8 @@ const RoomFilterPage = () => {
                         <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                           <p className="m-0 text-base font-bold leading-normal">{t(`timetable.${block.state}`)}</p>
                           <p className="m-0 text-xs font-medium leading-none">
-                            {formatClock(block.start, i18nInstance.language)} – {formatClock(block.end, i18nInstance.language)}
+                            {formatClock(block.start, i18nInstance.language)} –{" "}
+                            {formatClock(block.end, i18nInstance.language)}
                           </p>
                         </div>
                         {block.state === "available" && bookableStart ? (
@@ -639,7 +663,7 @@ const RoomFilterPage = () => {
                         ) : null}
                       </article>
                     );
-                  }),
+                  })
                 )}
               </div>
             </div>
@@ -677,7 +701,10 @@ const RoomFilterPage = () => {
               <div className="flex flex-col gap-4">
                 {selectedFromAll.map((room, index) => (
                   <div
-                    className={cn("grid w-full grid-cols-[1fr_auto] items-center gap-4", index > 0 && "border-t border-gray-300 pt-4")}
+                    className={cn(
+                      "grid w-full grid-cols-[1fr_auto] items-center gap-4",
+                      index > 0 && "border-t border-gray-300 pt-4"
+                    )}
                     key={room.id}
                   >
                     <span>{room.name}</span>
