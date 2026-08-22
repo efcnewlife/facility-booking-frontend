@@ -12,8 +12,8 @@ importers:
         specifier: ^4.12.0
         version: 4.30.0
       '@efcnewlife/newlife-ui':
-        specifier: ^0.3.4
-        version: 0.3.4(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-icons@5.6.0(react@19.2.7))(react@19.2.7)
+        specifier: ^0.5.0
+        version: 0.5.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-icons@5.6.0(react@19.2.7))(react@19.2.7)
       '@tailwindcss/forms':
         specifier: ^0.5.10
         version: 0.5.11(tailwindcss@4.3.1)
@@ -243,8 +243,8 @@ packages:
       '@types/react':
         optional: true
 
-  '@efcnewlife/newlife-ui@0.3.4':
-    resolution: {integrity: sha512-/hoE3yFrDFCT7L+Zhkp9bi+KLydD4XjO0nn0qaRg4taOqorHeKQ226YQYSvdxGUokqnHg1Rso8w4//PYdEaJXg==, tarball: https://npm.pkg.github.com/download/@efcnewlife/newlife-ui/0.3.4/0e864788a703c7973257a8ae6e1354b37e2bd6b8}
+  '@efcnewlife/newlife-ui@0.5.0':
+    resolution: {integrity: sha512-llSpbJ5IVyp1p8JN/QEAvXVbrZdfHahT64B7CHRj8QghpJsFTFZyI6g+tyA5GoHYfy/4WzdfpcK4VHvpnJLcgw==, tarball: https://npm.pkg.github.com/download/@efcnewlife/newlife-ui/0.5.0/9d4931b80c0885cc3fb6fca8c5af463b235e3add}
     peerDependencies:
       react: ^18.0.0 || ^19.0.0
       react-dom: ^18.0.0 || ^19.0.0
@@ -2076,7 +2076,7 @@ snapshots:
     optionalDependencies:
       '@types/react': 19.2.17
 
-  '@efcnewlife/newlife-ui@0.3.4(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-icons@5.6.0(react@19.2.7))(react@19.2.7)':
+  '@efcnewlife/newlife-ui@0.5.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react-icons@5.6.0(react@19.2.7))(react@19.2.7)':
     dependencies:
       '@base-ui/react': 1.6.0(@types/react@19.2.17)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       clsx: 2.1.1

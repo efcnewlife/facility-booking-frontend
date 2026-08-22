@@ -70,6 +70,11 @@ describe("nextStep", () => {
     expect(nextStep("frequency", answers({ frequency: "repeated" }))).toBe(null);
   });
 
+  it("goes from a date-only When to Space needed", () => {
+    const now = new Date("2026-08-13T12:00:00");
+    expect(nextStep("when", answers({ when: { date: "2026-08-20", start: null, end: null } }), now)).toBe("space_needed");
+  });
+
   it("goes from a valid When to Space needed", () => {
     const now = new Date("2026-08-13T12:00:00");
     expect(nextStep("when", answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }), now)).toBe(
@@ -139,6 +144,10 @@ describe("isWhenValid", () => {
     expect(isWhenValid(blankWhen, now)).toBe(false);
   });
 
+  it("accepts a date without start and end", () => {
+    expect(isWhenValid({ date: "2026-08-20", start: null, end: null }, now)).toBe(true);
+  });
+
   it("rejects a date before today", () => {
     expect(isWhenValid({ date: "2026-08-12", start: "15:00", end: "16:00" }, now)).toBe(false);
   });
@@ -150,6 +159,11 @@ describe("isWhenValid", () => {
   it("accepts today through one rolling year ahead", () => {
     expect(isWhenValid({ date: "2026-08-13", start: "15:00", end: "16:00" }, now)).toBe(true);
     expect(isWhenValid({ date: "2027-08-13", start: "09:00", end: "10:00" }, now)).toBe(true);
+  });
+
+  it("rejects only start or only end", () => {
+    expect(isWhenValid({ date: "2026-08-20", start: "09:00", end: null }, now)).toBe(false);
+    expect(isWhenValid({ date: "2026-08-20", start: null, end: "11:00" }, now)).toBe(false);
   });
 
   it("rejects end that is not after start", () => {
@@ -175,6 +189,10 @@ describe("isWhenValid", () => {
 
   it("does not require start to be after now on a future date", () => {
     expect(isWhenValid({ date: "2026-08-14", start: "08:00", end: "09:00" }, now)).toBe(true);
+  });
+
+  it("accepts an end of 24:00 on the same calendar day", () => {
+    expect(isWhenValid({ date: "2026-08-14", start: "23:00", end: "24:00" }, now)).toBe(true);
   });
 });
 
@@ -252,6 +270,13 @@ describe("buildRoomsSearchQuery", () => {
     expect(params.has("multiRoom")).toBe(false);
   });
 
+  it("sends optional start and end when When is date-only", () => {
+    expect(buildRoomsSearchQuery(answers({ when: { date: "2026-09-01", start: null, end: null }, space: "single" }))).toEqual({
+      date: "2026-09-01",
+      space: "single",
+    });
+  });
+
   it("returns null when When or Space needed is incomplete", () => {
     expect(buildRoomsSearchQuery(answers({ when, space: null }))).toBe(null);
     expect(buildRoomsSearchQuery(answers({ space: "single" }))).toBe(null);
@@ -276,6 +301,13 @@ describe("parseRoomsSearchQuery", () => {
       space: "single",
       room: "gym",
       ministryId: "m-1",
+    });
+  });
+
+  it("drops a half-filled Time pair and keeps the date", () => {
+    expect(parseRoomsSearchQuery(new URLSearchParams("date=2026-09-01&start=09:00&space=single"))).toEqual({
+      date: "2026-09-01",
+      space: "single",
     });
   });
 });

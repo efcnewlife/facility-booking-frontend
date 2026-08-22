@@ -52,8 +52,8 @@ const hasMinistryId = (answers: StartBookingAnswers): boolean => {
   return Boolean(answers.ministryId);
 };
 
-const hasCompleteWhen = (when: WhenValue): when is { date: string; start: string; end: string } => {
-  return Boolean(when.date && when.start && when.end);
+const hasHalfFilledTime = (when: WhenValue): boolean => {
+  return Boolean(when.start) !== Boolean(when.end);
 };
 
 export const isWhenEndAfterStart = (when: WhenValue): boolean => {
@@ -69,7 +69,7 @@ export const isWhenEndAfterStart = (when: WhenValue): boolean => {
 };
 
 export const isWhenValid = (when: WhenValue, now: Date): boolean => {
-  if (!hasCompleteWhen(when)) {
+  if (!when.date || hasHalfFilledTime(when)) {
     return false;
   }
 
@@ -82,6 +82,10 @@ export const isWhenValid = (when: WhenValue, now: Date): boolean => {
   const lastAllowed = moment(now).startOf("day").add(1, "year");
   if (date.isBefore(today, "day") || date.isAfter(lastAllowed, "day")) {
     return false;
+  }
+
+  if (!when.start && !when.end) {
+    return true;
   }
 
   const start = moment(`${when.date} ${when.start}`, DATE_TIME_FORMAT, true);
@@ -151,16 +155,22 @@ export const previousStep = (step: StartBookingStep, answers: StartBookingAnswer
 };
 
 export const buildRoomsSearchQuery = (answers: StartBookingAnswers): RoomsSearchQuery | null => {
-  if (!hasCompleteWhen(answers.when) || answers.space == null) {
+  if (!answers.when.date || answers.space == null) {
+    return null;
+  }
+  if (hasHalfFilledTime(answers.when)) {
     return null;
   }
 
   const query: RoomsSearchQuery = {
     date: answers.when.date,
-    start: answers.when.start,
-    end: answers.when.end,
     space: answers.space === "multiple" ? "multiple" : "single",
   };
+
+  if (answers.when.start && answers.when.end) {
+    query.start = answers.when.start;
+    query.end = answers.when.end;
+  }
 
   if (answers.isMinistryBooking && answers.ministryId) {
     query.ministryId = answers.ministryId;
@@ -195,10 +205,8 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
   const ministryId = params.get("ministryId") || undefined;
 
   const query: RoomsSearchQuery = { date, space };
-  if (start) {
+  if (start && end && isWhenEndAfterStart({ date, start, end })) {
     query.start = start;
-  }
-  if (end) {
     query.end = end;
   }
   if (ministryId) {

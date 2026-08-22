@@ -303,7 +303,6 @@ const StartBookingPage = () => {
                 label={t("startBooking.when.start")}
                 onChange={(value) => setStartValue(value)}
                 placeholder={t("startBooking.when.startPlaceholder")}
-                required
                 value={startValue}
               />
               <TimePicker
@@ -313,7 +312,6 @@ const StartBookingPage = () => {
                 label={t("startBooking.when.end")}
                 onChange={(value) => setEndValue(value)}
                 placeholder={t("startBooking.when.endPlaceholder")}
-                required
                 value={endValue}
               />
             </div>
