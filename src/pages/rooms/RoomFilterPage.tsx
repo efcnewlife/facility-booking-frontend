@@ -21,6 +21,7 @@ import {
   hasNoMatchingResults,
   isBookableCell,
   minutesToClock,
+  scrollTargetClock,
   SLOT_MINUTES,
   visibleRooms,
   type CapacityBand,
@@ -45,12 +46,14 @@ import {
 } from "@efcnewlife/newlife-ui";
 import dayjs from "dayjs";
 import moment from "moment";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdArrowBack, MdArrowForward } from "react-icons/md";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
 const ROOMS_PER_PAGE = 4;
+const SLOT_HEIGHT_PX = 40;
+const GRID_SCROLL_PADDING_PX = 16;
 const CAPACITY_BANDS: CapacityBand[] = ["1-10", "10-25", "25-50", "50+"];
 const SEARCH_LABEL_CLASS = "mb-[3px] text-xs font-medium leading-none text-inverse-on-surface";
 const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] gap-x-[30px]";
@@ -153,6 +156,7 @@ const RoomFilterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
+  const gridScrollRef = useRef<HTMLDivElement>(null);
 
   const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
@@ -181,7 +185,6 @@ const RoomFilterPage = () => {
       setRooms(items);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("timetable.loadError"));
-      setRooms([]);
     } finally {
       setLoading(false);
     }
@@ -228,7 +231,35 @@ const RoomFilterPage = () => {
     setPageIndex(0);
   }, [view, capacityBand, appliedRoom, appliedDate, listedRooms.length]);
 
+  const appliedStart = appliedQuery?.start;
+  const appliedEnd = appliedQuery?.end;
+
+  useEffect(() => {
+    if (loading || rooms.length === 0) {
+      return;
+    }
+    const interval = appliedStart && appliedEnd ? { start: appliedStart, end: appliedEnd } : null;
+    if (hasNoMatchingResults(rooms, view, interval, capacityBand, appliedRoom)) {
+      return;
+    }
+    const roomsForScroll = visibleRooms(rooms, view, interval, capacityBand, appliedRoom);
+    const scroller = gridScrollRef.current;
+    if (!scroller) {
+      return;
+    }
+    const clock = scrollTargetClock(roomsForScroll, interval);
+    const top = GRID_SCROLL_PADDING_PX + (clockToMinutes(clock) / SLOT_MINUTES) * SLOT_HEIGHT_PX;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scroller.scrollTo({
+      top,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, [appliedDate, appliedEnd, appliedRoom, appliedStart, capacityBand, loading, rooms, view]);
+
   const handleUpdateSearch = useCallback(() => {
+    if (loading) {
+      return;
+    }
     if (!moment(draftDate, "YYYY-MM-DD", true).isValid()) {
       setError(t("timetable.date"));
       return;
@@ -271,6 +302,7 @@ const RoomFilterPage = () => {
     draftMinistryId,
     draftSpace,
     draftStart,
+    loading,
     selection.roomIds,
     setSearchParams,
     t,
@@ -283,6 +315,9 @@ const RoomFilterPage = () => {
       if (!element?.closest("#timetable-update-search")) {
         return;
       }
+      if (loading) {
+        return;
+      }
       if (!document.querySelector("[data-floating-surface]")) {
         return;
       }
@@ -290,7 +325,7 @@ const RoomFilterPage = () => {
     };
     document.addEventListener("pointerdown", on_pointer_down, true);
     return () => document.removeEventListener("pointerdown", on_pointer_down, true);
-  }, [handleUpdateSearch]);
+  }, [handleUpdateSearch, loading]);
 
   if (!appliedQuery?.date) {
     return <Navigate replace to="/" />;
@@ -361,7 +396,9 @@ const RoomFilterPage = () => {
         className="flex w-full shrink-0 items-end justify-between gap-4 overflow-visible rounded-[10px] bg-booking-primary px-10 pt-3 pb-4"
         onSubmit={(event) => {
           event.preventDefault();
-          handleUpdateSearch();
+          if (!loading) {
+            handleUpdateSearch();
+          }
         }}
       >
         <div className="flex min-w-0 flex-wrap items-end gap-2.5">
@@ -383,6 +420,19 @@ const RoomFilterPage = () => {
               wrapperClassName="w-[240px] shrink-0"
             />
           ) : null}
+          <Select
+            className="opacity-100"
+            clearable={false}
+            disabled
+            id="timetable-repetition"
+            label={t("timetable.repetition")}
+            labelClassName={SEARCH_LABEL_CLASS}
+            labels={selectLabels}
+            options={[{ value: "one_time", label: t("timetable.oneTime") }]}
+            size="xs"
+            value="one_time"
+            wrapperClassName="w-[124px] shrink-0"
+          />
           <DatePicker
             clearable={false}
             id="timetable-date"
@@ -397,43 +447,28 @@ const RoomFilterPage = () => {
             value={toDatePickerValue(draftDate)}
             wrapperClassName="w-[148px] shrink-0"
           />
-          <Select
-            className="opacity-100"
-            clearable={false}
-            disabled
-            id="timetable-repetition"
-            label={t("timetable.repetition")}
+          <TimePicker
+            ampm
+            id="timetable-start"
+            label={t("timetable.start")}
             labelClassName={SEARCH_LABEL_CLASS}
-            labels={selectLabels}
-            options={[{ value: "one_time", label: t("timetable.oneTime") }]}
+            onChange={(value) => setDraftStart(fromTimePickerValue(value))}
+            placeholder={t("startBooking.when.startPlaceholder")}
             size="xs"
-            value="one_time"
-            wrapperClassName="w-[124px] shrink-0"
+            value={toTimePickerValue(draftStart)}
+            wrapperClassName="w-[148px] shrink-0"
           />
-          <div className="flex items-end gap-2.5">
-            <TimePicker
-              ampm
-              id="timetable-start"
-              label={t("timetable.start")}
-              labelClassName={SEARCH_LABEL_CLASS}
-              onChange={(value) => setDraftStart(fromTimePickerValue(value))}
-              placeholder={t("startBooking.when.startPlaceholder")}
-              size="xs"
-              value={toTimePickerValue(draftStart)}
-              wrapperClassName="w-[148px] shrink-0"
-            />
-            <TimePicker
-              ampm
-              id="timetable-end"
-              label={t("timetable.end")}
-              labelClassName={SEARCH_LABEL_CLASS}
-              onChange={(value) => setDraftEnd(fromTimePickerValue(value))}
-              placeholder={t("startBooking.when.endPlaceholder")}
-              size="xs"
-              value={toTimePickerValue(draftEnd)}
-              wrapperClassName="w-[148px] shrink-0"
-            />
-          </div>
+          <TimePicker
+            ampm
+            id="timetable-end"
+            label={t("timetable.end")}
+            labelClassName={SEARCH_LABEL_CLASS}
+            onChange={(value) => setDraftEnd(fromTimePickerValue(value))}
+            placeholder={t("startBooking.when.endPlaceholder")}
+            size="xs"
+            value={toTimePickerValue(draftEnd)}
+            wrapperClassName="w-[148px] shrink-0"
+          />
           <Select
             clearable={false}
             id="timetable-space"
@@ -454,6 +489,7 @@ const RoomFilterPage = () => {
           <Button
             btnType="button"
             className="whitespace-nowrap !border-[0.5px] !border-booking-primary !bg-cta !text-on-cta hover:!bg-cta hover:!text-on-cta"
+            disabled={loading}
             onClick={handleUpdateSearch}
             size="xs"
           >
@@ -587,99 +623,109 @@ const RoomFilterPage = () => {
           </div>
 
           {noMatching ? null : (
-            <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pt-4">
+            <div className="relative min-h-0 flex-1">
+              {loading && rooms.length > 0 ? (
+                <div aria-busy="true" className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70">
+                  <Spinner showText size="sm" text={t("startBooking.loading")} />
+                </div>
+              ) : null}
               <div
-                aria-label={t("timetable.searchBar")}
-                className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
-                onPointerLeave={(event) => {
-                  if (event.pointerType === "mouse") {
-                    setHover(null);
-                  }
-                }}
+                className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-4"
+                ref={gridScrollRef}
               >
-                <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
-                {hourLabels.map((label, hour) => (
-                  <div
-                    className="col-start-1 flex items-start justify-end pr-3 text-right text-xs font-medium leading-none whitespace-nowrap text-booking-primary"
-                    key={label}
-                    style={{ gridRow: hour * 2 + 1 }}
-                  >
-                    <span className="-translate-y-1/2">{formatClock(label, i18nInstance.language)}</span>
-                  </div>
-                ))}
-                {paddedRooms.map((room, roomIndex) =>
-                  Array.from({ length: 48 }, (_, cellIndex) => {
-                    const cell = room?.cells[cellIndex];
-                    const bookable = room && cell ? isBookableCell(room, cell.start, selection.interval) : false;
-                    return (
-                      <button
-                        className={cn(
-                          "relative border-t border-gray-300",
-                          cellIndex % 2 === 0 && "border-t-gray-400",
-                          cellIndex === 47 && "border-b border-gray-300",
-                          cell?.state === "closed" && "bg-gray-200",
-                          bookable && "cursor-pointer"
-                        )}
-                        disabled={!bookable}
-                        key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
-                        onPointerEnter={(event) => {
-                          if (room && cell) {
-                            handleCellPointerEnter(room, cell.start, event);
-                          }
-                        }}
-                        onPointerDown={(event) => {
-                          if (pointerKindFromEvent(event) !== "mouse") {
-                            event.preventDefault();
-                          }
-                        }}
-                        onPointerUp={(event) => {
-                          if (room && cell) {
-                            handleCellPointerUp(room, cell.start, event);
-                          }
-                        }}
-                        onClick={() => {
-                          if (room && cell) {
-                            handleBook(room, cell.start);
-                          }
-                        }}
-                        style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
-                        type="button"
-                      />
-                    );
-                  })
-                )}
-                {pagedRooms.map((room, roomIndex) =>
-                  displayBlocks(room, selection.interval, hover).map((block) => {
-                    const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
-                    const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
-                    const bookableStart =
-                      block.state === "available" && isBookableCell(room, block.start, selection.interval);
-                    return (
-                      <article
-                        className={eventClassName(block.state)}
-                        key={`${room.id}-${block.start}-${block.state}`}
-                        style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
-                      >
-                        <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                          <p className="m-0 text-base font-bold leading-normal">{t(`timetable.${block.state}`)}</p>
-                          <p className="m-0 text-xs font-medium leading-none">
-                            {formatClock(block.start, i18nInstance.language)} –{" "}
-                            {formatClock(block.end, i18nInstance.language)}
-                          </p>
-                        </div>
-                        {block.state === "available" && bookableStart ? (
-                          <button
-                            className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
-                            onClick={() => handleBook(room, block.start)}
-                            type="button"
-                          >
-                            {t("timetable.book")}
-                          </button>
-                        ) : null}
-                      </article>
-                    );
-                  })
-                )}
+                <div
+                  aria-label={t("timetable.searchBar")}
+                  className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
+                  onPointerLeave={(event) => {
+                    if (event.pointerType === "mouse") {
+                      setHover(null);
+                    }
+                  }}
+                >
+                  <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
+                  {hourLabels.map((label, hour) => (
+                    <div
+                      className="col-start-1 flex items-start justify-end pr-3 text-right text-xs font-medium leading-none whitespace-nowrap text-booking-primary"
+                      key={label}
+                      style={{ gridRow: hour * 2 + 1 }}
+                    >
+                      <span className="-translate-y-1/2">{formatClock(label, i18nInstance.language)}</span>
+                    </div>
+                  ))}
+                  {paddedRooms.map((room, roomIndex) =>
+                    Array.from({ length: 48 }, (_, cellIndex) => {
+                      const cell = room?.cells[cellIndex];
+                      const bookable = room && cell ? isBookableCell(room, cell.start, selection.interval) : false;
+                      return (
+                        <button
+                          className={cn(
+                            "relative border-t border-gray-300",
+                            cellIndex % 2 === 0 && "border-t-gray-400",
+                            cellIndex === 47 && "border-b border-gray-300",
+                            cell?.state === "closed" && "bg-gray-200",
+                            bookable && "cursor-pointer"
+                          )}
+                          disabled={!bookable}
+                          key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
+                          onPointerEnter={(event) => {
+                            if (room && cell) {
+                              handleCellPointerEnter(room, cell.start, event);
+                            }
+                          }}
+                          onPointerDown={(event) => {
+                            if (pointerKindFromEvent(event) !== "mouse") {
+                              event.preventDefault();
+                            }
+                          }}
+                          onPointerUp={(event) => {
+                            if (room && cell) {
+                              handleCellPointerUp(room, cell.start, event);
+                            }
+                          }}
+                          onClick={() => {
+                            if (room && cell) {
+                              handleBook(room, cell.start);
+                            }
+                          }}
+                          style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
+                          type="button"
+                        />
+                      );
+                    })
+                  )}
+                  {pagedRooms.map((room, roomIndex) =>
+                    displayBlocks(room, selection.interval, hover).map((block) => {
+                      const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
+                      const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
+                      const bookableStart =
+                        block.state === "available" && isBookableCell(room, block.start, selection.interval);
+                      return (
+                        <article
+                          className={eventClassName(block.state)}
+                          key={`${room.id}-${block.start}-${block.state}`}
+                          style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
+                        >
+                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                            <p className="m-0 text-base font-bold leading-normal">{t(`timetable.${block.state}`)}</p>
+                            <p className="m-0 text-xs font-medium leading-none">
+                              {formatClock(block.start, i18nInstance.language)} –{" "}
+                              {formatClock(block.end, i18nInstance.language)}
+                            </p>
+                          </div>
+                          {block.state === "available" && bookableStart ? (
+                            <button
+                              className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
+                              onClick={() => handleBook(room, block.start)}
+                              type="button"
+                            >
+                              {t("timetable.book")}
+                            </button>
+                          ) : null}
+                        </article>
+                      );
+                    })
+                  )}
+                </div>
               </div>
             </div>
           )}
