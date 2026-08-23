@@ -42,6 +42,7 @@ const gym = (overrides: Partial<RoomDay> = {}): RoomDay => ({
   code: "gym",
   name: "Gym",
   capacity: 200,
+  photoUrls: [],
   templates: [{ start: "09:00", end: "17:00", slotDurationMinutes: 60 }],
   cells: gymCells(),
   ...overrides,
@@ -52,6 +53,7 @@ const chapel = (): RoomDay => ({
   code: "chapel",
   name: "Chapel",
   capacity: 10,
+  photoUrls: [],
   templates: [{ start: "09:00", end: "12:00", slotDurationMinutes: 60 }],
   cells: gymCells({
     "12:00": "closed",
@@ -72,6 +74,7 @@ const sanctuary = (): RoomDay => ({
   code: "sanctuary-hall",
   name: "Sanctuary",
   capacity: 25,
+  photoUrls: [],
   templates: [{ start: "09:00", end: "17:00", slotDurationMinutes: 60 }],
   cells: gymCells(),
 });

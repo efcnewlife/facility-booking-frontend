@@ -132,6 +132,14 @@
     "next": "下一張",
     "zoom": "查看場地照片"
   },
+  "imagePreview": {
+    "dialog": "場地照片預覽",
+    "close": "關閉預覽",
+    "previous": "上一張",
+    "next": "下一張",
+    "zoom": "預覽場地照片",
+    "thumb": "照片 {{index}}"
+  },
   "profile": {
     "myProfile": "我的個人資料",
     "signOut": "登出",

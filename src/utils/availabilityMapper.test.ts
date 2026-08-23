@@ -32,6 +32,41 @@ describe("mapAvailabilityToRoomDays", () => {
     expect(rooms[0]?.cells.find((cell) => cell.start === "11:00")?.state).toBe("override");
   });
 
+  it("maps photoUrls onto the room header photos", () => {
+    const rooms = mapAvailabilityToRoomDays({
+      date: "2026-07-20",
+      items: [
+        {
+          id: "gym-id",
+          code: "gym",
+          name: "Gym",
+          capacity: 200,
+          photoUrls: ["https://cdn.example/a.jpg", "https://cdn.example/b.jpg"],
+          cells: [{ start: "09:00", end: "09:30", state: "available" }],
+        },
+        {
+          id: "chapel-id",
+          code: "chapel",
+          name: "Chapel",
+          capacity: 10,
+          photo_urls: ["https://cdn.example/c.jpg"],
+          cells: [{ start: "09:00", end: "09:30", state: "available" }],
+        },
+        {
+          id: "office-id",
+          code: "office",
+          name: "Office",
+          capacity: 4,
+          cells: [{ start: "09:00", end: "09:30", state: "available" }],
+        },
+      ],
+    });
+
+    expect(rooms[0]?.photoUrls).toEqual(["https://cdn.example/a.jpg", "https://cdn.example/b.jpg"]);
+    expect(rooms[1]?.photoUrls).toEqual(["https://cdn.example/c.jpg"]);
+    expect(rooms[2]?.photoUrls).toEqual([]);
+  });
+
   it("expands availability.am/pm hour windows into available 30-minute cells", () => {
     const rooms = mapAvailabilityToRoomDays({
       date: "2026-08-26",
