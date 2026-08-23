@@ -53,9 +53,8 @@ const BookingDetailsPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const queryKey = searchParams.toString();
-  const query = useMemo(() => parseBookingDetailsQuery(searchParams), [queryKey, searchParams]);
-  const roomsSearch = useMemo(() => parseRoomsSearchQuery(searchParams), [queryKey, searchParams]);
+  const query = useMemo(() => parseBookingDetailsQuery(searchParams), [searchParams]);
+  const roomsSearch = useMemo(() => parseRoomsSearchQuery(searchParams), [searchParams]);
 
   const [rooms, setRooms] = useState<RoomDay[]>([]);
   const [loading, setLoading] = useState(false);
@@ -78,7 +77,7 @@ const BookingDetailsPage = () => {
     } finally {
       setLoading(false);
     }
-  }, [query?.date, query?.end, query?.ministryId, query?.start, t]);
+  }, [query, t]);
 
   useEffect(() => {
     void loadAvailability();
