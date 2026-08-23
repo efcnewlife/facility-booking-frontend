@@ -16,9 +16,9 @@ import {
 import {
   bookRoom,
   canReviewBooking,
-  confirmBookingTimePrefill,
   clearUnconfirmedSelection,
   clockToMinutes,
+  confirmBookingTimePrefill,
   displayBlocks,
   emptyTimeBookInterval,
   emptyTimePointerAction,

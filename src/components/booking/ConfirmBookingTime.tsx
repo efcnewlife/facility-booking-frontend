@@ -1,12 +1,5 @@
 import { canConfirmBookingTime, type BookingInterval, type RoomDay } from "@/utils/timetableRules";
-import {
-  Button,
-  DatePicker,
-  Modal,
-  TimePicker,
-  type DatePickerValue,
-  type TimePickerValue,
-} from "@efcnewlife/newlife-ui";
+import { Button, Modal, TimePicker, type TimePickerValue } from "@efcnewlife/newlife-ui";
 import dayjs from "dayjs";
 import { useTranslation } from "react-i18next";
 
@@ -28,17 +21,6 @@ const fromTimePickerValue = (value: TimePickerValue): string => {
     return "";
   }
   return value.format("HH:mm");
-};
-
-const toDatePickerValue = (date: string): DatePickerValue => {
-  if (!date) {
-    return null;
-  }
-  const parsed = dayjs(date);
-  if (!parsed.isValid() || parsed.format("YYYY-MM-DD") !== date) {
-    return null;
-  }
-  return parsed;
 };
 
 interface ConfirmBookingTimeProps {
@@ -68,6 +50,7 @@ const ConfirmBookingTime = ({
 
   return (
     <Modal
+      className="mx-4 w-full max-w-md p-6"
       footer={
         <>
           <Button onClick={onCancel} size="sm" variant="outline">
@@ -91,31 +74,29 @@ const ConfirmBookingTime = ({
       onClose={onCancel}
       title={t("confirmBookingTime.title")}
     >
-      <div className="flex flex-wrap gap-4">
-        <DatePicker
-          clearable={false}
-          disabled
-          id="confirm-booking-date"
-          label={t("confirmBookingTime.date")}
-          value={toDatePickerValue(date)}
-          wrapperClassName="w-[148px] shrink-0"
-        />
-        <TimePicker
-          ampm
-          id="confirm-booking-start"
-          label={t("confirmBookingTime.start")}
-          onChange={(value) => onStartChange(fromTimePickerValue(value))}
-          value={toTimePickerValue(start)}
-          wrapperClassName="w-[148px] shrink-0"
-        />
-        <TimePicker
-          ampm
-          id="confirm-booking-end"
-          label={t("confirmBookingTime.end")}
-          onChange={(value) => onEndChange(fromTimePickerValue(value))}
-          value={toTimePickerValue(end)}
-          wrapperClassName="w-[148px] shrink-0"
-        />
+      <div className="flex flex-col gap-4">
+        <p className="m-0 text-lg text-on-surface">
+          <span className="font-medium">{t("confirmBookingTime.date")}: </span>
+          <span>{date}</span>
+        </p>
+        <div className="grid grid-cols-2 gap-4">
+          <TimePicker
+            ampm
+            id="confirm-booking-start"
+            label={t("confirmBookingTime.start")}
+            onChange={(value) => onStartChange(fromTimePickerValue(value))}
+            value={toTimePickerValue(start)}
+            wrapperClassName="w-full min-w-0"
+          />
+          <TimePicker
+            ampm
+            id="confirm-booking-end"
+            label={t("confirmBookingTime.end")}
+            onChange={(value) => onEndChange(fromTimePickerValue(value))}
+            value={toTimePickerValue(end)}
+            wrapperClassName="w-full min-w-0"
+          />
+        </div>
       </div>
     </Modal>
   );
