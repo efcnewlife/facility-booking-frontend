@@ -22,6 +22,7 @@ export const API_ENDPOINTS = {
   FACILITY: {
     AVAILABILITY: `${BOOKING_API_PREFIX}/facility/rooms/availability`,
     BOOKINGS: `${BOOKING_API_PREFIX}/facility/bookings`,
+    PREVIEW_QUOTE: `${BOOKING_API_PREFIX}/facility/preview-quote`,
     MY_BOOKINGS: `${BOOKING_API_PREFIX}/facility/bookings/mine`,
     booking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}`,
     cancelBooking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}/cancel`,
