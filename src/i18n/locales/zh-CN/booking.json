@@ -89,6 +89,7 @@
     "previousRooms": "上一组房间",
     "nextRooms": "下一组房间",
     "book": "预订",
+    "add": "加入",
     "available": "可预订",
     "unavailable": "不可预订",
     "closed": "关闭",
@@ -104,6 +105,14 @@
     "whenInvalid": "日期需为今天起一年内。若填写时间，须在同一天且开始早于结束。",
     "errorTitle": "无法继续",
     "successTitle": "预订已创建"
+  },
+  "confirmBookingTime": {
+    "title": "确认预订时间",
+    "date": "日期",
+    "start": "开始时间",
+    "end": "结束时间",
+    "cancel": "取消",
+    "confirm": "确认"
   },
   "bookingDetails": {
     "title": "预订详情",

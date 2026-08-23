@@ -135,6 +135,27 @@ export const isBookableCell = (room: RoomDay, cellStart: string, interval: Booki
   return emptyTimeBookInterval(room, cellStart) != null;
 };
 
+export const confirmBookingTimePrefill = (
+  room: RoomDay,
+  cellStart: string,
+  existing: BookingInterval | null
+): BookingInterval | null => {
+  if (existing) {
+    return existing;
+  }
+  return emptyTimeBookInterval(room, cellStart);
+};
+
+export const canConfirmBookingTime = (room: RoomDay, interval: BookingInterval | null): boolean => {
+  if (!interval) {
+    return false;
+  }
+  if (clockToMinutes(interval.end) <= clockToMinutes(interval.start)) {
+    return false;
+  }
+  return isRoomAvailable(room, interval);
+};
+
 export const bookRoom = (
   selection: TimetableSelection,
   room: RoomDay,

@@ -1,5 +1,6 @@
 import facilityService from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
+import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
 import { canOpenImagePreview } from "@/utils/imagePreview";
@@ -15,6 +16,7 @@ import {
 import {
   bookRoom,
   canReviewBooking,
+  confirmBookingTimePrefill,
   clearUnconfirmedSelection,
   clockToMinutes,
   displayBlocks,
@@ -26,6 +28,7 @@ import {
   scrollTargetClock,
   SLOT_MINUTES,
   visibleRooms,
+  type BookingInterval,
   type CapacityBand,
   type CellState,
   type HoverPreview,
@@ -158,6 +161,9 @@ const RoomFilterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
+  const [confirmRoom, setConfirmRoom] = useState<RoomDay | null>(null);
+  const [confirmStart, setConfirmStart] = useState("");
+  const [confirmEnd, setConfirmEnd] = useState("");
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
 
@@ -334,7 +340,7 @@ const RoomFilterPage = () => {
     return <Navigate replace to="/" />;
   }
 
-  const handleBook = (room: RoomDay, cellStart: string) => {
+  const handleAdd = (room: RoomDay, cellStart: string) => {
     if (!isBookableCell(room, cellStart, selection.interval)) {
       return;
     }
@@ -345,6 +351,52 @@ const RoomFilterPage = () => {
       setDraftStart(next.interval.start);
       setDraftEnd(next.interval.end);
     }
+  };
+
+  const handleOpenConfirmBookingTime = (room: RoomDay, cellStart: string) => {
+    if (!isBookableCell(room, cellStart, selection.interval)) {
+      return;
+    }
+    const prefill = confirmBookingTimePrefill(room, cellStart, selection.interval);
+    if (!prefill) {
+      return;
+    }
+    setHover(null);
+    setConfirmRoom(room);
+    setConfirmStart(prefill.start);
+    setConfirmEnd(prefill.end);
+  };
+
+  const handleAvailableAction = (room: RoomDay, cellStart: string) => {
+    if (appliedSpace === "single") {
+      handleOpenConfirmBookingTime(room, cellStart);
+      return;
+    }
+    handleAdd(room, cellStart);
+  };
+
+  const handleCancelConfirmBookingTime = () => {
+    setConfirmRoom(null);
+    setConfirmStart("");
+    setConfirmEnd("");
+  };
+
+  const handleConfirmBookingTime = (interval: BookingInterval) => {
+    if (!confirmRoom || !appliedDate) {
+      return;
+    }
+    navigate({
+      pathname: "/booking-details",
+      search: toBookingDetailsSearchParams({
+        date: appliedDate,
+        start: interval.start,
+        end: interval.end,
+        space: appliedSpace,
+        roomIds: [confirmRoom.id],
+        ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
+        ...(appliedRoom ? { room: appliedRoom } : {}),
+      }).toString(),
+    });
   };
 
   const pointerKindFromEvent = (event: { pointerType: string }): PointerKind => {
@@ -371,7 +423,7 @@ const RoomFilterPage = () => {
       setHover(target);
       return;
     }
-    handleBook(room, cellStart);
+    handleAvailableAction(room, cellStart);
   };
 
   const handleReviewBooking = () => {
@@ -559,16 +611,16 @@ const RoomFilterPage = () => {
             </div>
           </div>
           <div className="flex shrink-0 items-center gap-4">
-            <Button
-              className="whitespace-nowrap !border-[0.5px] !border-booking-primary !bg-cta !text-on-cta hover:!bg-cta hover:!text-on-cta"
-              disabled={!canReviewBooking(selection)}
-              onClick={handleReviewBooking}
-              size="xs"
-            >
-              {appliedSpace === "multiple"
-                ? t("timetable.reviewBookingCount", { count: selection.roomIds.length })
-                : t("timetable.reviewBooking")}
-            </Button>
+            {appliedSpace === "multiple" ? (
+              <Button
+                className="whitespace-nowrap !border-[0.5px] !border-booking-primary !bg-cta !text-on-cta hover:!bg-cta hover:!text-on-cta"
+                disabled={!canReviewBooking(selection)}
+                onClick={handleReviewBooking}
+                size="xs"
+              >
+                {t("timetable.reviewBookingCount", { count: selection.roomIds.length })}
+              </Button>
+            ) : null}
             <div className="flex shrink-0 gap-3">
               <Button
                 className="min-w-10"
@@ -708,7 +760,7 @@ const RoomFilterPage = () => {
                           }}
                           onClick={() => {
                             if (room && cell) {
-                              handleBook(room, cell.start);
+                              handleAvailableAction(room, cell.start);
                             }
                           }}
                           style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
@@ -739,10 +791,10 @@ const RoomFilterPage = () => {
                           {block.state === "available" && bookableStart ? (
                             <button
                               className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
-                              onClick={() => handleBook(room, block.start)}
+                              onClick={() => handleAvailableAction(room, block.start)}
                               type="button"
                             >
-                              {t("timetable.book")}
+                              {t(appliedSpace === "multiple" ? "timetable.add" : "timetable.book")}
                             </button>
                           ) : null}
                         </article>
@@ -755,6 +807,18 @@ const RoomFilterPage = () => {
           )}
         </div>
       </section>
+      {confirmRoom ? (
+        <ConfirmBookingTime
+          date={appliedDate}
+          end={confirmEnd}
+          onCancel={handleCancelConfirmBookingTime}
+          onConfirm={handleConfirmBookingTime}
+          onEndChange={setConfirmEnd}
+          onStartChange={setConfirmStart}
+          room={confirmRoom}
+          start={confirmStart}
+        />
+      ) : null}
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
     </main>
   );

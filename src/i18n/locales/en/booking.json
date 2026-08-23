@@ -89,6 +89,7 @@
     "previousRooms": "Previous rooms",
     "nextRooms": "Next rooms",
     "book": "BOOK",
+    "add": "ADD",
     "available": "Available",
     "unavailable": "Unavailable",
     "closed": "Closed",
@@ -104,6 +105,14 @@
     "whenInvalid": "Choose a date from today through one year ahead. If Time is set, it must stay on that day and start before end.",
     "errorTitle": "Unable to continue",
     "successTitle": "Booking created"
+  },
+  "confirmBookingTime": {
+    "title": "Confirm Booking Time",
+    "date": "Date",
+    "start": "Start Time",
+    "end": "End Time",
+    "cancel": "Cancel",
+    "confirm": "Confirm"
   },
   "bookingDetails": {
     "title": "Booking Details",
