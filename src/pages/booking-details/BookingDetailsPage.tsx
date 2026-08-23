@@ -60,7 +60,6 @@ const BookingDetailsPage = () => {
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [created, setCreated] = useState(false);
 
   const loadAvailability = useCallback(async () => {
     if (!query) {
@@ -84,11 +83,11 @@ const BookingDetailsPage = () => {
   }, [loadAvailability]);
 
   const canConfirm = useMemo(() => {
-    if (!query || loading || confirming || created) {
+    if (!query || loading || confirming) {
       return false;
     }
     return selectedRoomsCoverInterval(rooms, query);
-  }, [confirming, created, loading, query, rooms]);
+  }, [confirming, loading, query, rooms]);
 
   if (!query) {
     if (!roomsSearch?.date) {
@@ -112,7 +111,6 @@ const BookingDetailsPage = () => {
       return;
     }
     setSearchParams(toBookingDetailsSearchParams({ ...query, roomIds }), { replace: true });
-    setCreated(false);
   };
 
   const handleConfirm = async () => {
@@ -124,7 +122,7 @@ const BookingDetailsPage = () => {
     try {
       const startAt = combineDateAndTime(query.date, query.start);
       const endAt = combineDateAndTime(query.date, query.end);
-      await facilityService.createBooking({
+      const created = await facilityService.createBooking({
         startAt,
         endAt,
         ministryId: query.ministryId || null,
@@ -135,7 +133,7 @@ const BookingDetailsPage = () => {
           sequence: index,
         })),
       });
-      setCreated(true);
+      navigate(`/payment/${created.id}`);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.createError")));
     } finally {
@@ -157,11 +155,6 @@ const BookingDetailsPage = () => {
           {error ? (
             <p className="mb-4 text-sm font-medium text-error" role="alert">
               {error}
-            </p>
-          ) : null}
-          {created ? (
-            <p className="mb-4 text-sm font-medium text-booking-green" role="status">
-              {t("timetable.success")}
             </p>
           ) : null}
           {intervalUncovered ? (

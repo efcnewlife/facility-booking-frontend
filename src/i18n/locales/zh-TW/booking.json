@@ -132,6 +132,16 @@
     "tax": "HST 稅",
     "total": "總計"
   },
+  "payment": {
+    "title": "付款",
+    "instructionsTitle": "Interac e-Transfer",
+    "instructions": "請將下方總金額以加拿大 Interac e-Transfer 轉帳至 {{email}}，並在訊息中註明預訂編號。本頁不會代收或確認付款。",
+    "email": "booking@example.com",
+    "emailLabel": "轉帳至",
+    "total": "總計",
+    "backHome": "返回首頁",
+    "loadError": "無法載入此預訂。"
+  },
   "support": {
     "pageTitle": "支援"
   },

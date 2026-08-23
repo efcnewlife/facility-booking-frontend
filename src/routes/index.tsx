@@ -7,6 +7,7 @@ import LoginPage from "@/pages/login/LoginPage";
 import MyBookingsPage from "@/pages/my-bookings/MyBookingsPage";
 import MyMinistryPage from "@/pages/my-ministry/MyMinistryPage";
 import MyProfilePage from "@/pages/my-profile/MyProfilePage";
+import PaymentPage from "@/pages/payment/PaymentPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
 import StartBookingPage from "@/pages/start-booking/StartBookingPage";
 import { createBrowserRouter } from "react-router";
@@ -33,6 +34,10 @@ export const router = createBrowserRouter([
           {
             path: "/booking-details",
             element: <BookingDetailsPage />,
+          },
+          {
+            path: "/payment/:bookingId",
+            element: <PaymentPage />,
           },
           {
             path: "/my-bookings",
