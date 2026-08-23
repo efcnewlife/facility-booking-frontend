@@ -248,7 +248,12 @@ const RoomFilterPage = () => {
       return;
     }
     const clock = scrollTargetClock(roomsForScroll, interval);
-    scroller.scrollTop = GRID_SCROLL_PADDING_PX + (clockToMinutes(clock) / SLOT_MINUTES) * SLOT_HEIGHT_PX;
+    const top = GRID_SCROLL_PADDING_PX + (clockToMinutes(clock) / SLOT_MINUTES) * SLOT_HEIGHT_PX;
+    const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    scroller.scrollTo({
+      top,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
   }, [appliedDate, appliedEnd, appliedRoom, appliedStart, capacityBand, loading, rooms, view]);
 
   const handleUpdateSearch = useCallback(() => {
