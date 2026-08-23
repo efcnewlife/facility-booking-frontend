@@ -1,3 +1,5 @@
+import { isPaymentPath } from "./paymentPage";
+
 export type VisitAccess = "login" | "not-found" | "allow";
 
 const LOGIN_PATH = "/login";
@@ -39,7 +41,7 @@ export const visitAccess = ({ isAuthenticated, isMinistryMember, pathname }: Vis
     return "allow";
   }
 
-  if (!KNOWN_MEMBER_PATHS.has(path)) {
+  if (!KNOWN_MEMBER_PATHS.has(path) && !isPaymentPath(path)) {
     return "not-found";
   }
 

@@ -132,6 +132,16 @@
     "tax": "HST Tax",
     "total": "Total"
   },
+  "payment": {
+    "title": "Payment",
+    "instructionsTitle": "Interac e-Transfer",
+    "instructions": "Send a Canada Interac e-Transfer for the total below to {{email}}. Put the booking id in the message. This page does not collect or confirm payment.",
+    "email": "booking@example.com",
+    "emailLabel": "Send to",
+    "total": "Total",
+    "backHome": "Back to Home",
+    "loadError": "Failed to load this booking."
+  },
   "support": {
     "pageTitle": "Support"
   },

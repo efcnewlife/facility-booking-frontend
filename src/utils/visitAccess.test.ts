@@ -55,18 +55,41 @@ describe("visitAccess", () => {
     ).toBe("allow");
   });
 
-  it.each(["/", "/start-booking", "/contact", "/my-bookings", "/rooms", "/booking-details", "/my-profile"])(
-    "allows an authenticated member to open %s",
-    (pathname) => {
-      expect(
-        visitAccess({
-          isAuthenticated: true,
-          isMinistryMember: false,
-          pathname,
-        })
-      ).toBe("allow");
-    }
-  );
+  it.each([
+    "/",
+    "/start-booking",
+    "/contact",
+    "/my-bookings",
+    "/rooms",
+    "/booking-details",
+    "/my-profile",
+    "/payment/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  ])("allows an authenticated member to open %s", (pathname) => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        isMinistryMember: false,
+        pathname,
+      })
+    ).toBe("allow");
+  });
+
+  it("shows Not Found for Payment without a booking UUID", () => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        isMinistryMember: false,
+        pathname: "/payment",
+      })
+    ).toBe("not-found");
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        isMinistryMember: false,
+        pathname: "/payment/not-a-uuid",
+      })
+    ).toBe("not-found");
+  });
 });
 
 describe("isMinistryMemberFromList", () => {
