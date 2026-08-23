@@ -134,7 +134,12 @@ export const isBookableCell = (room: RoomDay, cellStart: string, interval: Booki
   return emptyTimeBookInterval(room, cellStart) != null;
 };
 
-export const bookRoom = (selection: TimetableSelection, room: RoomDay, cellStart: string, space: RoomsSpace): TimetableSelection => {
+export const bookRoom = (
+  selection: TimetableSelection,
+  room: RoomDay,
+  cellStart: string,
+  space: RoomsSpace
+): TimetableSelection => {
   const current = selection.interval;
   if (current && isCellInInterval(cellStart, current) && isRoomAvailable(room, current)) {
     if (space === "single") {
@@ -195,7 +200,7 @@ export const visibleRooms = (
   view: TimetableView,
   interval: BookingInterval | null,
   band: CapacityBand | null,
-  shortcut: RoomShortcutCode | undefined,
+  shortcut: RoomShortcutCode | undefined
 ): RoomDay[] => {
   const filtered = rooms.filter((room) => matchesCapacityBand(room, band) && matchesRoomShortcut(room, shortcut));
   if (view === "all") {
@@ -209,7 +214,7 @@ export const hasNoMatchingResults = (
   view: TimetableView,
   interval: BookingInterval | null,
   band: CapacityBand | null,
-  shortcut: RoomShortcutCode | undefined,
+  shortcut: RoomShortcutCode | undefined
 ): boolean => {
   return view === "available" && visibleRooms(rooms, view, interval, band, shortcut).length === 0;
 };
@@ -220,6 +225,28 @@ export const clearUnconfirmedSelection = (selection: TimetableSelection): Timeta
 
 export const removeSelectedRoom = (selection: TimetableSelection, roomId: string): TimetableSelection => {
   return { ...selection, roomIds: selection.roomIds.filter((id) => id !== roomId) };
+};
+
+export interface HoverPreview {
+  roomId: string;
+  cellStart: string;
+}
+
+export type PointerKind = "mouse" | "touch";
+
+export const emptyTimePointerAction = (
+  interval: BookingInterval | null,
+  pointerKind: PointerKind,
+  hover: HoverPreview | null,
+  target: HoverPreview
+): "preview" | "commit" => {
+  if (interval != null || pointerKind === "mouse") {
+    return "commit";
+  }
+  if (hover?.roomId === target.roomId && hover.cellStart === target.cellStart) {
+    return "commit";
+  }
+  return "preview";
 };
 
 export interface CellBlock extends TimeRange {
@@ -239,10 +266,22 @@ export const contiguousBlocks = (room: RoomDay): CellBlock[] => {
   return blocks;
 };
 
-export const displayBlocks = (room: RoomDay, interval: BookingInterval | null): CellBlock[] => {
-  const occupied = contiguousBlocks(room).filter((block) => block.state === "unavailable" || block.state === "override");
+export const displayBlocks = (
+  room: RoomDay,
+  interval: BookingInterval | null,
+  hover: HoverPreview | null = null
+): CellBlock[] => {
+  const occupied = contiguousBlocks(room).filter(
+    (block) => block.state === "unavailable" || block.state === "override"
+  );
   if (interval && isRoomAvailable(room, interval)) {
     return [...occupied, { start: interval.start, end: interval.end, state: "available" }];
+  }
+  if (!interval && hover?.roomId === room.id) {
+    const preview = emptyTimeBookInterval(room, hover.cellStart);
+    if (preview) {
+      return [...occupied, { start: preview.start, end: preview.end, state: "available" }];
+    }
   }
   return occupied;
 };

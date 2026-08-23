@@ -16,6 +16,8 @@ import {
   clearUnconfirmedSelection,
   clockToMinutes,
   displayBlocks,
+  emptyTimeBookInterval,
+  emptyTimePointerAction,
   hasNoMatchingResults,
   isBookableCell,
   minutesToClock,
@@ -23,6 +25,8 @@ import {
   visibleRooms,
   type CapacityBand,
   type CellState,
+  type HoverPreview,
+  type PointerKind,
   type RoomDay,
   type TimetableSelection,
   type TimetableView,
@@ -148,6 +152,7 @@ const RoomFilterPage = () => {
   });
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hover, setHover] = useState<HoverPreview | null>(null);
 
   const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
@@ -251,6 +256,7 @@ const RoomFilterPage = () => {
       next.room = appliedRoom;
     }
     setSearchParams(toRoomsSearchParams(next), { replace: true });
+    setHover(null);
     setSelection(
       clearUnconfirmedSelection({
         roomIds: selection.roomIds,
@@ -295,11 +301,39 @@ const RoomFilterPage = () => {
       return;
     }
     const next = bookRoom(selection, room, cellStart, appliedSpace);
+    setHover(null);
     setSelection(next);
     if (next.interval) {
       setDraftStart(next.interval.start);
       setDraftEnd(next.interval.end);
     }
+  };
+
+  const pointerKindFromEvent = (event: { pointerType: string }): PointerKind => {
+    return event.pointerType === "mouse" ? "mouse" : "touch";
+  };
+
+  const handleCellPointerEnter = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
+    if (event.pointerType !== "mouse" || selection.interval || emptyTimeBookInterval(room, cellStart) == null) {
+      return;
+    }
+    setHover({ roomId: room.id, cellStart });
+  };
+
+  const handleCellPointerUp = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
+    if (pointerKindFromEvent(event) === "mouse") {
+      return;
+    }
+    if (!isBookableCell(room, cellStart, selection.interval)) {
+      return;
+    }
+    const target = { roomId: room.id, cellStart };
+    const action = emptyTimePointerAction(selection.interval, "touch", hover, target);
+    if (action === "preview") {
+      setHover(target);
+      return;
+    }
+    handleBook(room, cellStart);
   };
 
   const handleReviewBooking = () => {
@@ -554,7 +588,15 @@ const RoomFilterPage = () => {
 
           {noMatching ? null : (
             <div className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain pt-4">
-              <div aria-label={t("timetable.searchBar")} className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}>
+              <div
+                aria-label={t("timetable.searchBar")}
+                className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
+                onPointerLeave={(event) => {
+                  if (event.pointerType === "mouse") {
+                    setHover(null);
+                  }
+                }}
+              >
                 <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
                 {hourLabels.map((label, hour) => (
                   <div
@@ -580,6 +622,21 @@ const RoomFilterPage = () => {
                         )}
                         disabled={!bookable}
                         key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
+                        onPointerEnter={(event) => {
+                          if (room && cell) {
+                            handleCellPointerEnter(room, cell.start, event);
+                          }
+                        }}
+                        onPointerDown={(event) => {
+                          if (pointerKindFromEvent(event) !== "mouse") {
+                            event.preventDefault();
+                          }
+                        }}
+                        onPointerUp={(event) => {
+                          if (room && cell) {
+                            handleCellPointerUp(room, cell.start, event);
+                          }
+                        }}
                         onClick={() => {
                           if (room && cell) {
                             handleBook(room, cell.start);
@@ -592,7 +649,7 @@ const RoomFilterPage = () => {
                   })
                 )}
                 {pagedRooms.map((room, roomIndex) =>
-                  displayBlocks(room, selection.interval).map((block) => {
+                  displayBlocks(room, selection.interval, hover).map((block) => {
                     const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                     const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
                     const bookableStart =
