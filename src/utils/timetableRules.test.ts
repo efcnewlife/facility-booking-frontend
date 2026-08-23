@@ -7,6 +7,7 @@ import {
   clearUnconfirmedSelection,
   displayBlocks,
   emptyTimeBookInterval,
+  emptyTimePointerAction,
   hasNoMatchingResults,
   isRoomAvailable,
   matchesCapacityBand,
@@ -222,7 +223,10 @@ describe("clearUnconfirmedSelection", () => {
 
 describe("removeSelectedRoom", () => {
   it("drops that room and keeps the rest", () => {
-    const selected: TimetableSelection = { roomIds: ["gym-id", "chapel-id"], interval: { start: "10:00", end: "11:00" } };
+    const selected: TimetableSelection = {
+      roomIds: ["gym-id", "chapel-id"],
+      interval: { start: "10:00", end: "11:00" },
+    };
     expect(removeSelectedRoom(selected, "gym-id").roomIds).toEqual(["chapel-id"]);
   });
 });
@@ -233,14 +237,67 @@ describe("displayBlocks", () => {
     expect(blocks.some((block) => block.state === "available")).toBe(false);
   });
 
+  it("paints a Template-duration Available preview only on the hovered room", () => {
+    const hover = { roomId: "gym-id", cellStart: "09:30" };
+    expect(displayBlocks(gym(), null, hover).filter((block) => block.state === "available")).toEqual([
+      { start: "09:30", end: "10:30", state: "available" },
+    ]);
+    expect(displayBlocks(chapel(), null, hover).some((block) => block.state === "available")).toBe(false);
+  });
+
+  it("does not preview Available that would cross midnight", () => {
+    const late = gym({
+      templates: [{ start: "22:00", end: "24:00", slotDurationMinutes: 60 }],
+      cells: gymCells({
+        "22:00": "available",
+        "22:30": "available",
+        "23:00": "available",
+        "23:30": "available",
+      }),
+    });
+    const blocks = displayBlocks(late, null, { roomId: "gym-id", cellStart: "23:30" });
+    expect(blocks.some((block) => block.state === "available")).toBe(false);
+  });
+
   it("paints Available only on the Booking interval", () => {
     const blocks = displayBlocks(gym(), { start: "10:00", end: "11:30" });
-    expect(blocks.filter((block) => block.state === "available")).toEqual([{ start: "10:00", end: "11:30", state: "available" }]);
+    expect(blocks.filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:30", state: "available" },
+    ]);
+  });
+
+  it("paints committed Available without hover on rooms that cover the interval", () => {
+    const interval = { start: "10:00", end: "11:00" };
+    expect(displayBlocks(gym(), interval).filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:00", state: "available" },
+    ]);
+    expect(displayBlocks(chapel(), interval).filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:00", state: "available" },
+    ]);
   });
 
   it("keeps Unavailable blocks when Time is set", () => {
     const occupied = gym({ cells: gymCells({ "13:00": "unavailable", "13:30": "unavailable" }) });
     const blocks = displayBlocks(occupied, { start: "10:00", end: "11:00" });
     expect(blocks).toContainEqual({ start: "13:00", end: "14:00", state: "unavailable" });
+  });
+});
+
+describe("emptyTimePointerAction", () => {
+  it("commits a mouse click without a prior preview", () => {
+    expect(emptyTimePointerAction(null, "mouse", null, { roomId: "gym-id", cellStart: "09:30" })).toBe("commit");
+  });
+
+  it("previews the first touch on a cell and commits the second tap on the same cell", () => {
+    const gymSlot = { roomId: "gym-id", cellStart: "09:30" };
+    expect(emptyTimePointerAction(null, "touch", null, gymSlot)).toBe("preview");
+    expect(emptyTimePointerAction(null, "touch", gymSlot, gymSlot)).toBe("commit");
+    expect(emptyTimePointerAction(null, "touch", gymSlot, { roomId: "gym-id", cellStart: "10:00" })).toBe("preview");
+  });
+
+  it("commits when Time is already set", () => {
+    expect(
+      emptyTimePointerAction({ start: "10:00", end: "11:00" }, "touch", null, { roomId: "gym-id", cellStart: "10:00" })
+    ).toBe("commit");
   });
 });
