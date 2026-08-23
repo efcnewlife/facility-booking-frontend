@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   MAX_SELECTED_ROOMS,
   bookRoom,
+  canConfirmBookingTime,
   canReviewBooking,
+  confirmBookingTimePrefill,
   capacityBandFor,
   clearUnconfirmedSelection,
   displayBlocks,
@@ -162,11 +164,45 @@ describe("bookRoom", () => {
     expect(next.roomIds).toHaveLength(MAX_SELECTED_ROOMS);
   });
 
-  it("replaces the shared interval when BOOK starts a different span", () => {
+  it("replaces the shared interval when ADD starts a different span", () => {
     const selected: TimetableSelection = { roomIds: ["chapel-id"], interval: { start: "10:00", end: "11:00" } };
     const next = bookRoom(selected, gym(), "14:00", "multiple");
     expect(next.interval).toEqual({ start: "14:00", end: "15:00" });
     expect(next.roomIds).toEqual(["gym-id"]);
+  });
+});
+
+describe("confirmBookingTimePrefill", () => {
+  it("prefills the existing Booking interval pair", () => {
+    expect(confirmBookingTimePrefill(gym(), "09:30", { start: "10:00", end: "11:30" })).toEqual({
+      start: "10:00",
+      end: "11:30",
+    });
+  });
+
+  it("prefills Slot start plus Template duration when Time is empty", () => {
+    expect(confirmBookingTimePrefill(gym(), "09:30", null)).toEqual({ start: "09:30", end: "10:30" });
+  });
+});
+
+describe("canConfirmBookingTime", () => {
+  it("rejects an interval shorter than Template duration", () => {
+    expect(canConfirmBookingTime(gym(), { start: "10:00", end: "10:30" })).toBe(false);
+  });
+
+  it("rejects Closed or Unavailable coverage", () => {
+    const occupied = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
+    expect(canConfirmBookingTime(occupied, { start: "10:00", end: "11:00" })).toBe(false);
+    expect(canConfirmBookingTime(gym(), { start: "07:00", end: "08:00" })).toBe(false);
+  });
+
+  it("rejects overnight or inverted times", () => {
+    expect(canConfirmBookingTime(gym(), { start: "23:00", end: "01:00" })).toBe(false);
+    expect(canConfirmBookingTime(gym(), { start: "11:00", end: "10:00" })).toBe(false);
+  });
+
+  it("allows a valid same-day interval", () => {
+    expect(canConfirmBookingTime(gym(), { start: "10:00", end: "11:30" })).toBe(true);
   });
 });
 

@@ -89,6 +89,7 @@
     "previousRooms": "上一組房間",
     "nextRooms": "下一組房間",
     "book": "預訂",
+    "add": "加入",
     "available": "可預訂",
     "unavailable": "不可預訂",
     "closed": "關閉",
@@ -104,6 +105,14 @@
     "whenInvalid": "日期需為今天起一年內。若有填寫時間，須在同一天且開始早於結束。",
     "errorTitle": "無法繼續",
     "successTitle": "預訂已建立"
+  },
+  "confirmBookingTime": {
+    "title": "確認預訂時間",
+    "date": "日期",
+    "start": "開始時間",
+    "end": "結束時間",
+    "cancel": "取消",
+    "confirm": "確認"
   },
   "bookingDetails": {
     "title": "預訂詳情",
