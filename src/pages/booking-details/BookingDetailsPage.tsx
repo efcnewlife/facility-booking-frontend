@@ -1,4 +1,5 @@
 import facilityService from "@/api/services/facilityService";
+import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import {
   parseBookingDetailsQuery,
   parseRoomsSearchQuery,
@@ -12,8 +13,6 @@ import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
-
-const DASH = "—";
 
 const combineDateAndTime = (date: string, time: string): string => {
   const clock = time === "24:00" ? "00:00" : time;
@@ -41,6 +40,11 @@ const messageFromUnknown = (err: unknown, fallback: string): string => {
   return fallback;
 };
 
+const bookingIntervalIso = (query: BookingDetailsQuery): { startAt: string; endAt: string } => ({
+  startAt: combineDateAndTime(query.date, query.start),
+  endAt: combineDateAndTime(query.date, query.end),
+});
+
 const selectedRoomsCoverInterval = (rooms: RoomDay[], query: BookingDetailsQuery): boolean => {
   const interval = { start: query.start, end: query.end };
   return query.roomIds.every((roomId) => {
@@ -57,30 +61,47 @@ const BookingDetailsPage = () => {
   const roomsSearch = useMemo(() => parseRoomsSearchQuery(searchParams), [searchParams]);
 
   const [rooms, setRooms] = useState<RoomDay[]>([]);
+  const [paymentSummary, setPaymentSummary] = useState<PaymentSummaryLabels>(() =>
+    mapPaymentSummary(null, i18nInstance.language)
+  );
   const [loading, setLoading] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadAvailability = useCallback(async () => {
+  const loadDraft = useCallback(async () => {
     if (!query) {
       return;
     }
     setLoading(true);
     setError(null);
+    setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     try {
       const items = await facilityService.getAvailability(query.date, query.ministryId);
       setRooms(items);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.loadError")));
       setRooms([]);
+    }
+    try {
+      const { startAt, endAt } = bookingIntervalIso(query);
+      const quote = await facilityService.previewQuote({
+        startAt,
+        endAt,
+        ministryId: query.ministryId || null,
+        isMissionAligned: Boolean(query.ministryId),
+        rooms: query.roomIds.map((facilityId) => ({ facilityId })),
+      });
+      setPaymentSummary(mapPaymentSummary(quote, i18nInstance.language));
+    } catch {
+      setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     } finally {
       setLoading(false);
     }
-  }, [query, t]);
+  }, [i18nInstance.language, query, t]);
 
   useEffect(() => {
-    void loadAvailability();
-  }, [loadAvailability]);
+    void loadDraft();
+  }, [loadDraft]);
 
   const canConfirm = useMemo(() => {
     if (!query || loading || confirming) {
@@ -120,12 +141,12 @@ const BookingDetailsPage = () => {
     setConfirming(true);
     setError(null);
     try {
-      const startAt = combineDateAndTime(query.date, query.start);
-      const endAt = combineDateAndTime(query.date, query.end);
+      const { startAt, endAt } = bookingIntervalIso(query);
       const created = await facilityService.createBooking({
         startAt,
         endAt,
         ministryId: query.ministryId || null,
+        isMissionAligned: Boolean(query.ministryId),
         rooms: query.roomIds.map((facilityId, index) => ({
           facilityId,
           startAt,
@@ -214,26 +235,30 @@ const BookingDetailsPage = () => {
           <div className="flex w-full flex-col items-center gap-[15px] rounded-[10px] border border-booking-grey bg-booking-bg px-[25px] py-10">
             <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
               <span>{t("bookingDetails.rate")}</span>
-              <span>{DASH}</span>
+              <span>{paymentSummary.rate}</span>
             </div>
             <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
               <span>{t("bookingDetails.ministryDiscount")}</span>
-              <span>{DASH}</span>
+              <span>{paymentSummary.ministryDiscount}</span>
+            </div>
+            <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
+              <span>{t("bookingDetails.surcharge")}</span>
+              <span>{paymentSummary.surcharge}</span>
             </div>
             <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
             <div className="flex w-[233px] justify-between text-base font-bold leading-5 text-booking-primary">
               <span>{t("bookingDetails.subtotal")}</span>
-              <span>{DASH}</span>
+              <span>{paymentSummary.subtotal}</span>
             </div>
             <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
             <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
               <span>{t("bookingDetails.tax")}</span>
-              <span>{DASH}</span>
+              <span>{paymentSummary.tax}</span>
             </div>
             <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
             <div className="flex w-[233px] justify-between text-base font-bold leading-5 text-booking-primary">
               <span>{t("bookingDetails.total")}</span>
-              <span>{DASH}</span>
+              <span>{paymentSummary.total}</span>
             </div>
             <Button className="mt-1" disabled={!canConfirm} onClick={() => void handleConfirm()}>
               {t("bookingDetails.confirm")}

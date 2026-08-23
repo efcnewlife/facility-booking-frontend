@@ -18,6 +18,34 @@ interface CreateBookingPayload {
   remark?: string;
 }
 
+interface PreviewQuotePayload {
+  startAt: string;
+  endAt: string;
+  ministryId?: string | null;
+  isMissionAligned?: boolean;
+  rooms: Array<{ facilityId: string }>;
+}
+
+interface ApiPreviewQuote {
+  subtotalAmount?: string | number | null;
+  subtotal_amount?: string | number | null;
+  discountAmount?: string | number | null;
+  discount_amount?: string | number | null;
+  surchargeAmount?: string | number | null;
+  surcharge_amount?: string | number | null;
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  currency?: string | null;
+}
+
+export interface MemberPreviewQuote {
+  subtotalAmount: string | number | null;
+  discountAmount: string | number | null;
+  surchargeAmount: string | number | null;
+  quotedAmount: string | number | null;
+  currency: string | null;
+}
+
 interface ApiBookingDetail {
   id?: string;
   status?: string;
@@ -54,6 +82,21 @@ class FacilityService {
       throw new Error(response.message || "Failed to load availability");
     }
     return mapAvailabilityToRoomDays(response.data);
+  }
+
+  async previewQuote(payload: PreviewQuotePayload): Promise<MemberPreviewQuote> {
+    const response = await httpClient.post<ApiPreviewQuote>(API_ENDPOINTS.FACILITY.PREVIEW_QUOTE, payload);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to load preview quote");
+    }
+    const data = response.data;
+    return {
+      subtotalAmount: data.subtotalAmount ?? data.subtotal_amount ?? null,
+      discountAmount: data.discountAmount ?? data.discount_amount ?? null,
+      surchargeAmount: data.surchargeAmount ?? data.surcharge_amount ?? null,
+      quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
+      currency: data.currency ?? null,
+    };
   }
 
   async createBooking(payload: CreateBookingPayload): Promise<{ id: string }> {

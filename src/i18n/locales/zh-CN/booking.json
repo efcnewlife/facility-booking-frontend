@@ -128,6 +128,7 @@
     "paymentSummary": "付款摘要",
     "rate": "费率",
     "ministryDiscount": "事工折扣",
+    "surcharge": "附加费",
     "subtotal": "小计",
     "tax": "HST 税",
     "total": "总计"
