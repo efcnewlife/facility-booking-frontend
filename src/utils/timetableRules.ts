@@ -29,6 +29,7 @@ export interface RoomDay {
   code: string;
   name: string;
   capacity: number;
+  photoUrls: string[];
   templates: RoomTemplateWindow[];
   cells: TimeCell[];
 }

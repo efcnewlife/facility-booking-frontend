@@ -132,6 +132,14 @@
     "next": "Next image",
     "zoom": "View room photos"
   },
+  "imagePreview": {
+    "dialog": "Room image preview",
+    "close": "Close preview",
+    "previous": "Previous image",
+    "next": "Next image",
+    "zoom": "Preview room image",
+    "thumb": "Photo {{index}}"
+  },
   "profile": {
     "myProfile": "My Profile",
     "signOut": "Sign out",

@@ -1,6 +1,8 @@
 import facilityService from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
+import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
+import { canOpenImagePreview } from "@/utils/imagePreview";
 import {
   isWhenValid,
   parseBookingDetailsQuery,
@@ -48,7 +50,7 @@ import dayjs from "dayjs";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MdArrowBack, MdArrowForward } from "react-icons/md";
+import { MdArrowBack, MdArrowForward, MdPhoto, MdZoomIn } from "react-icons/md";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
 const ROOMS_PER_PAGE = 4;
@@ -156,6 +158,7 @@ const RoomFilterPage = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
+  const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
 
   const appliedQuery = initialQuery;
@@ -605,7 +608,28 @@ const RoomFilterPage = () => {
                 paddedRooms.map((room, index) =>
                   room ? (
                     <article className="min-w-0 overflow-hidden bg-booking-primary" key={room.id}>
-                      <div className="h-[150px] w-full bg-booking-grey" />
+                      <div className="relative h-[150px] w-full bg-booking-grey">
+                        {canOpenImagePreview(room.photoUrls) ? (
+                          <button
+                            aria-label={t("imagePreview.zoom")}
+                            className="relative h-full w-full p-0"
+                            onClick={() => setPreviewUrls(room.photoUrls)}
+                            type="button"
+                          >
+                            <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
+                            <span className="pointer-events-none absolute top-2 right-2 flex size-9 items-center justify-center text-white">
+                              <MdZoomIn size={23} />
+                            </span>
+                          </button>
+                        ) : (
+                          <div
+                            aria-hidden
+                            className="flex size-full items-center justify-center text-booking-primary/40"
+                          >
+                            <MdPhoto size={48} />
+                          </div>
+                        )}
+                      </div>
                       <div className="flex items-center justify-between gap-2 px-[15px] py-3">
                         <span className="truncate text-base font-bold leading-none text-white">{room.name}</span>
                         <span className="flex shrink-0 items-center gap-[5px] text-xs font-medium text-brand-100">
@@ -731,6 +755,7 @@ const RoomFilterPage = () => {
           )}
         </div>
       </section>
+      {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
     </main>
   );
 };

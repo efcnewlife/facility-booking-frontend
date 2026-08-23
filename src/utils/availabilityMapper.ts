@@ -31,6 +31,8 @@ interface ApiRoomAvailabilityItem {
   code: string;
   name?: string | null;
   capacity?: number | null;
+  photoUrls?: string[];
+  photo_urls?: string[];
   templates?: ApiTemplateWindow[];
   cells?: ApiTimeCell[];
   availability?: {
@@ -156,6 +158,7 @@ export const mapAvailabilityToRoomDays = (payload: ApiRoomAvailabilityList): Roo
       code: item.code,
       name: item.name || item.code,
       capacity: item.capacity ?? 0,
+      photoUrls: (item.photoUrls ?? item.photo_urls ?? []).filter((url) => url.length > 0),
       templates,
       cells: closedDayCells().map((cell) => byStart.get(cell.start) ?? cell),
     };
