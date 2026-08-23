@@ -236,3 +236,46 @@ export const toRoomsSearchParams = (query: RoomsSearchQuery): URLSearchParams =>
   }
   return params;
 };
+
+export interface BookingDetailsQuery extends RoomsSearchQuery {
+  start: string;
+  end: string;
+  roomIds: string[];
+}
+
+const MAX_BOOKING_DETAIL_ROOMS = 3;
+
+const parseRoomIdsParam = (params: URLSearchParams): string[] => {
+  const raw = params.get("rooms");
+  if (!raw) {
+    return [];
+  }
+  return raw
+    .split(",")
+    .map((id) => id.trim())
+    .filter((id) => id.length > 0)
+    .slice(0, MAX_BOOKING_DETAIL_ROOMS);
+};
+
+export const parseBookingDetailsQuery = (params: URLSearchParams): BookingDetailsQuery | null => {
+  const search = parseRoomsSearchQuery(params);
+  if (!search?.start || !search.end) {
+    return null;
+  }
+  const roomIds = parseRoomIdsParam(params);
+  if (roomIds.length === 0) {
+    return null;
+  }
+  return {
+    ...search,
+    start: search.start,
+    end: search.end,
+    roomIds,
+  };
+};
+
+export const toBookingDetailsSearchParams = (query: BookingDetailsQuery): URLSearchParams => {
+  const params = toRoomsSearchParams(query);
+  params.set("rooms", query.roomIds.join(","));
+  return params;
+};

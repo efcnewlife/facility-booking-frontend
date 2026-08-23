@@ -8,6 +8,7 @@ const KNOWN_MEMBER_PATHS = new Set([
   "/",
   "/start-booking",
   "/rooms",
+  "/booking-details",
   "/my-bookings",
   "/my-profile",
   SUPPORT_PATH,

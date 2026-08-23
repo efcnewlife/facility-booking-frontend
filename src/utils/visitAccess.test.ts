@@ -55,7 +55,7 @@ describe("visitAccess", () => {
     ).toBe("allow");
   });
 
-  it.each(["/", "/start-booking", "/contact", "/my-bookings", "/rooms", "/my-profile"])(
+  it.each(["/", "/start-booking", "/contact", "/my-bookings", "/rooms", "/booking-details", "/my-profile"])(
     "allows an authenticated member to open %s",
     (pathname) => {
       expect(

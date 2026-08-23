@@ -29,32 +29,48 @@ A booking for one start–end interval on a single calendar day. The date must b
 _Avoid_: one-off as the canonical term, unbounded future dates, overnight or next-day as One-time
 
 **When**:
-The Start booking step for the One-time date and optional start and end. Date is required to continue. Start and end are either both empty or a complete pair; a single bound is invalid. They seed Search Bar Time and do not lock the Timetable.
+The Start booking step for the One-time date and optional start and end. Date is required to continue. Start and end are either both empty or a complete pair; a single bound is invalid. They seed Search Bar Start Time and End Time and do not lock the Timetable.
 _Avoid_: treating start and end as required to Search, treating When as a date range, allowing only start or only end
 
 **Timetable**:
-The post-Search screen: rooms across the top, hours down the side, for one calendar day from 00:00 to 24:00. The route stays `/rooms`.
+The post-Search screen: rooms across the top, hours down the side, for one calendar day from 00:00 to 24:00. The route stays `/rooms`. On entry and after Update search, the grid scrolls to the Booking interval Start Time if that pair is set, otherwise to the earliest non-Closed Slot among visible rooms. Closed gray blocks stay on the axis; scrolling does not crop them.
 _Avoid_: Time Table, Calendar as this screen's name, Rooms as the member-facing screen name, cropping the day to open hours only
 
 **Search Bar**:
-The editable summary of Start booking answers on the Timetable (Ministry, Date, Repetition, Time, # of rooms) plus Update search. Time shows the Booking interval, including a later Timetable pick that differs from When. The Ministry field is hidden unless the person is a Ministry member of at least one active ministry they can book for. When the field shows and the search is Non-ministry, it shows None and they may attach such a ministry. Holding the Owner position does not by itself show this field. Update search applies Search Bar changes (date, ministry, Single/Multiple, Room shortcut, and Time typed in the bar). BOOK still updates Time immediately. Repetition stays One-time in this slice. Update search clears any selection that is not yet confirmed.
-_Avoid_: a read-only recap, treating When start–end as frozen after Search, showing Ministry for Owner position alone, treating pending-only applicants as able to attach a ministry, applying Search Bar fields without Update search, keeping a previous day's rooms after Update search
+The editable summary of Start booking answers on the Timetable, in this order: Ministry, Repetition, Date, Start Time, End Time, # of rooms, plus Update search. Start Time and End Time together are the Booking interval, including a later Timetable pick that differs from When. The Ministry field is hidden unless the person is a Ministry member of at least one active ministry they can book for. When the field shows and the search is Non-ministry, it shows None and they may attach such a ministry. Holding the Owner position does not by itself show this field. Update search applies Search Bar changes (date, ministry, Single/Multiple, Room shortcut, and Start Time / End Time typed in the bar). BOOK and ADD still update Start Time and End Time immediately. Repetition stays One-time in this slice. Update search clears any selection that is not yet confirmed.
+_Avoid_: a read-only recap, treating When start–end as frozen after Search, showing Ministry for Owner position alone, treating pending-only applicants as able to attach a ministry, applying Search Bar fields without Update search, keeping a previous day's rooms after Update search, a single merged Time field as the Search Bar control, Date before Repetition
 
 **Booking Details**:
-The confirm popup opened by Review Booking. Date is that one calendar day. Each Space row has Edit and Remove: Remove drops that room (zero rooms closes Details); Edit closes Details and returns to the Timetable with the current selection. This slice confirms the booking; it does not collect payment.
-_Avoid_: confirm modal as the product name, Confirm & Pay, treating the mock two-day date as the rule, a separate per-room edit mode
+The confirm page after Single Confirm Booking Time, or after Multiple Review Booking. The route is `/booking-details`. Date, Start Time, End Time, rooms, and ministry travel in the query as a draft snapshot, not a lock and not a cart. Each visit (including a pasted URL) reloads availability and Payment Summary from the backend. If any selected room cannot cover the Booking interval, Confirm stays disabled and the member can return to the Timetable. Confirm calls create booking; success goes to Payment. Create failure stays on this page. Date is that one calendar day. Each Space row has Edit and Remove: Remove drops that room (zero rooms returns to the Timetable); Edit returns to the Timetable with the current selection.
+_Avoid_: confirm modal as the product name, treating the query as a reservation, a shopping cart, treating Booking Details as a Timetable popup, treating the mock two-day date as the rule, a separate per-room edit mode, charging a card here
+
+**Payment Summary**:
+The Booking Details aside that shows rate, ministry discount, tax, and total. The backend calculates the money; the client displays it.
+_Avoid_: calculating totals only in the browser, treating this aside as the Interac instructions screen
+
+**Payment**:
+The page after a successful create booking. The route uses the booking id. It shows Canada Interac e-Transfer instructions and a placeholder email, plus the backend total. It does not collect or verify payment. The member continues with Back to Home.
+_Avoid_: Confirm & Pay, a payment processor, treating this page as Booking Details, a second submit that marks the booking paid
 
 **Review Booking**:
-The Timetable CTA that opens Booking Details. Single and Multiple both use it. It is disabled until at least one room is selected. Single keeps at most one room (a later BOOK replaces it). Multiple allows one to three rooms.
-_Avoid_: opening Booking Details from BOOK alone, Review as the name of the popup, requiring two rooms for Multiple
+The Multiple-only Timetable CTA that opens the Booking Details page. The label includes how many rooms are selected. It is disabled until at least one room is added. Multiple allows one to three rooms.
+_Avoid_: Review Booking on Single, Review as the name of Booking Details, requiring two rooms for Multiple, opening Booking Details from ADD alone
 
 **Booking interval**:
-The single start–end all selected rooms share in one One-time booking. It is Search Bar Time and Booking Details Time.
+The single start–end all selected rooms share in one One-time booking. It is Search Bar Start Time and End Time, Confirm Booking Time, and Booking Details Time.
 _Avoid_: per-room times inside one One-time booking, a min–max span with a gap
 
+**Confirm Booking Time**:
+The Single overlay after BOOK. It shows Date (the Search Bar date, not editable) plus Start Time and End Time. The member sets the Booking interval, then continues to the Booking Details page. It always opens on BOOK, including when Start Time and End Time are already filled.
+_Avoid_: Choose time, Booking Details as this overlay, skipping this overlay on Single when Time is already set, opening it from Multiple ADD, letting Date change here
+
 **BOOK**:
-The control on an Available block. It selects that room. With a Booking interval already set, Available means the room covers that whole interval and the interval is at least that room's Template duration; BOOK does not change Time. With no Booking interval yet, BOOK seeds Time from the clicked Slot start for exactly that room's Template duration (click 09:30–10:00 and duration 60 → 09:30–10:30). Clicking a different Available block still changes the shared Booking interval the same way. It does not open Booking Details or create the booking.
-_Avoid_: treating BOOK as Confirm, snapping empty-Time BOOK to the template's start_time chunk
+The control on a Single Available block. It selects that room and always opens Confirm Booking Time. It does not open Booking Details or create the booking.
+_Avoid_: treating BOOK as Confirm, BOOK on Multiple, snapping empty-Time BOOK to the template's start_time chunk without Confirm Booking Time
+
+**ADD**:
+The control on a Multiple Available block. It adds that room to the selection, at most three. With a Booking interval already set, Available means the room covers that whole interval and the interval is at least that room's Template duration; ADD does not change Start Time and End Time. With no Booking interval yet, ADD seeds Start Time and End Time from the clicked Slot start for exactly that room's Template duration. A later ADD on a different span replaces the shared Booking interval and keeps only that room. It does not open Confirm Booking Time, Booking Details, or create the booking.
+_Avoid_: BOOK as the Multiple block control, treating ADD as Confirm
 
 **Slot**:
 The Timetable visual time step: 30 minutes, all day. It is the ruler, not the bookable duration.
@@ -65,7 +81,15 @@ How long one empty-Time BOOK chunk is for that room that day: `slot_duration_min
 _Avoid_: using Template duration as the visual row height, requiring the Booking interval to align to template start_time, rejecting an interval equal to duration
 
 **Available**:
-A Timetable span the member may BOOK. If Time is empty: a free chunk starting at the clicked Slot, length Template duration (and not crossing midnight). If Time is set: the room is free for the whole Booking interval, and that interval is at least the room's Template duration.
+A Timetable span the member may BOOK or ADD. If Start Time and End Time are empty: hover (or a first tap on touch) previews a free chunk on that room only, starting at the Slot, length Template duration (and not crossing midnight); that preview is not a selection and does not paint other rooms. BOOK or ADD then commits that chunk as the Booking interval. If Start Time and End Time are set: the room is free for the whole Booking interval, and that interval is at least the room's Template duration; those rooms show Available without hover.
+
+**Room photo**:
+The picture of a room on the Timetable column header. Opening it shows Image preview. If the room has no picture, the header shows a photo icon, not an image and not a text label.
+_Avoid_: Gallery as the product name, a "No photo" caption, treating a missing picture as an empty gray box with no icon
+
+**Image preview**:
+The overlay that enlarges Room photos, with thumbs and previous/next when there is more than one picture. Close returns to the Timetable.
+_Avoid_: Gallery modal as the product name, a separate route for the photos
 
 **Unavailable**:
 A Timetable block that is inside open hours but cannot be booked because another booking holds it. Not Closed, not Override.

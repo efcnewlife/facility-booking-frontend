@@ -3,7 +3,9 @@ import ministryService from "@/api/services/ministryService";
 import type { MinistryItem } from "@/types/ministry";
 import {
   isWhenValid,
+  parseBookingDetailsQuery,
   parseRoomsSearchQuery,
+  toBookingDetailsSearchParams,
   toRoomsSearchParams,
   type RoomsSearchQuery,
   type RoomsSpace,
@@ -17,7 +19,6 @@ import {
   hasNoMatchingResults,
   isBookableCell,
   minutesToClock,
-  removeSelectedRoom,
   SLOT_MINUTES,
   visibleRooms,
   type CapacityBand,
@@ -32,7 +33,6 @@ import {
   Button,
   cn,
   DatePicker,
-  Modal,
   Select,
   Spinner,
   TimePicker,
@@ -44,7 +44,7 @@ import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdArrowBack, MdArrowForward } from "react-icons/md";
-import { Navigate, useSearchParams } from "react-router";
+import { Navigate, useNavigate, useSearchParams } from "react-router";
 
 const ROOMS_PER_PAGE = 4;
 const CAPACITY_BANDS: CapacityBand[] = ["1-10", "10-25", "25-50", "50+"];
@@ -53,12 +53,6 @@ const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] ga
 
 const isActiveMinistry = (item: MinistryItem): boolean => {
   return item.status === "active" && item.isActive !== false;
-};
-
-const combineDateAndTime = (date: string, time: string): string => {
-  const clock = time === "24:00" ? "00:00" : time;
-  const day = time === "24:00" ? moment(date, "YYYY-MM-DD").add(1, "day") : moment(date, "YYYY-MM-DD");
-  return moment(`${day.format("YYYY-MM-DD")} ${clock}`, "YYYY-MM-DD HH:mm").toISOString();
 };
 
 const formatClock = (clock: string, locale: string): string => {
@@ -128,8 +122,10 @@ const CapacityIcon = () => (
 
 const RoomFilterPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
+  const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = parseRoomsSearchQuery(searchParams);
+  const initialDetails = parseBookingDetailsQuery(searchParams);
 
   const [draftDate, setDraftDate] = useState(initialQuery?.date ?? "");
   const [draftStart, setDraftStart] = useState(initialQuery?.start ?? "");
@@ -142,14 +138,16 @@ const RoomFilterPage = () => {
   const [rooms, setRooms] = useState<RoomDay[]>([]);
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
   const [selection, setSelection] = useState<TimetableSelection>({
-    roomIds: [],
-    interval: initialQuery?.start && initialQuery?.end ? { start: initialQuery.start, end: initialQuery.end } : null,
+    roomIds: initialDetails?.roomIds ?? [],
+    interval:
+      initialDetails != null
+        ? { start: initialDetails.start, end: initialDetails.end }
+        : initialQuery?.start && initialQuery?.end
+          ? { start: initialQuery.start, end: initialQuery.end }
+          : null,
   });
-  const [detailsOpen, setDetailsOpen] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
@@ -220,7 +218,6 @@ const RoomFilterPage = () => {
     ...pagedRooms,
     ...Array.from({ length: Math.max(0, ROOMS_PER_PAGE - pagedRooms.length) }, () => null),
   ];
-  const selectedFromAll = rooms.filter((room) => selection.roomIds.includes(room.id));
 
   useEffect(() => {
     setPageIndex(0);
@@ -260,8 +257,6 @@ const RoomFilterPage = () => {
         interval: draftStart && draftEnd ? { start: draftStart, end: draftEnd } : null,
       })
     );
-    setDetailsOpen(false);
-    setSuccessMessage(null);
     setError(null);
   }, [
     appliedRoom,
@@ -305,52 +300,25 @@ const RoomFilterPage = () => {
       setDraftStart(next.interval.start);
       setDraftEnd(next.interval.end);
     }
-    setSuccessMessage(null);
   };
 
-  const handleRemoveRoom = (roomId: string) => {
-    const next = removeSelectedRoom(selection, roomId);
-    setSelection(next);
-    if (next.roomIds.length === 0) {
-      setDetailsOpen(false);
-    }
-  };
-
-  const handleConfirm = async () => {
+  const handleReviewBooking = () => {
     if (!canReviewBooking(selection) || !selection.interval || !appliedDate) {
       return;
     }
-    setConfirming(true);
-    setError(null);
-    try {
-      const startAt = combineDateAndTime(appliedDate, selection.interval.start);
-      const endAt = combineDateAndTime(appliedDate, selection.interval.end);
-      await facilityService.createBooking({
-        startAt,
-        endAt,
-        ministryId: appliedMinistryId || null,
-        rooms: selection.roomIds.map((facilityId, index) => ({
-          facilityId,
-          startAt,
-          endAt,
-          sequence: index,
-        })),
-      });
-      setSuccessMessage(t("timetable.success"));
-      setSelection({ roomIds: [], interval: selection.interval });
-      setDetailsOpen(false);
-      await loadAvailability();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t("timetable.createError"));
-    } finally {
-      setConfirming(false);
-    }
+    navigate({
+      pathname: "/booking-details",
+      search: toBookingDetailsSearchParams({
+        date: appliedDate,
+        start: selection.interval.start,
+        end: selection.interval.end,
+        space: appliedSpace,
+        roomIds: selection.roomIds,
+        ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
+        ...(appliedRoom ? { room: appliedRoom } : {}),
+      }).toString(),
+    });
   };
-
-  const formattedDate = moment(appliedDate).locale(i18nInstance.language).format("dddd, MMMM D, YYYY");
-  const formattedInterval = selection.interval
-    ? `${formatClock(selection.interval.start, i18nInstance.language)} – ${formatClock(selection.interval.end, i18nInstance.language)}`
-    : "";
 
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-12">
@@ -470,16 +438,6 @@ const RoomFilterPage = () => {
           width="full"
         />
       ) : null}
-      {successMessage ? (
-        <Alert
-          className="mt-4 shrink-0"
-          message={successMessage}
-          size="sm"
-          title={t("timetable.successTitle")}
-          variant="success"
-          width="full"
-        />
-      ) : null}
 
       <section className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[10px] bg-surface px-4 py-5 xl:px-[42px] xl:pt-7 xl:pb-4">
         <div className="flex shrink-0 items-center justify-between gap-6 bg-surface pb-3">
@@ -531,7 +489,7 @@ const RoomFilterPage = () => {
             <Button
               className="whitespace-nowrap !border-[0.5px] !border-booking-primary !bg-cta !text-on-cta hover:!bg-cta hover:!text-on-cta"
               disabled={!canReviewBooking(selection)}
-              onClick={() => setDetailsOpen(true)}
+              onClick={handleReviewBooking}
               size="xs"
             >
               {appliedSpace === "multiple"
@@ -670,59 +628,6 @@ const RoomFilterPage = () => {
           )}
         </div>
       </section>
-
-      <Modal
-        className="max-w-[960px] p-8"
-        footer={
-          <Button disabled={confirming} onClick={() => void handleConfirm()}>
-            {t("bookingDetails.confirm")}
-          </Button>
-        }
-        isOpen={detailsOpen && canReviewBooking(selection)}
-        onClose={() => setDetailsOpen(false)}
-        title={t("bookingDetails.title")}
-      >
-        <dl>
-          <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
-            <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.date")}</dt>
-            <dd className="m-0 text-xl font-normal leading-[26px]">{formattedDate}</dd>
-          </div>
-          <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
-            <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.repetition")}</dt>
-            <dd className="m-0 text-xl font-normal leading-[26px]">{t("bookingDetails.oneTime")}</dd>
-          </div>
-          <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
-            <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.time")}</dt>
-            <dd className="m-0 text-xl font-normal leading-[26px]">{formattedInterval}</dd>
-          </div>
-          <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
-            <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.space")}</dt>
-            <dd className="m-0 text-xl font-normal leading-[26px]">
-              <div className="flex flex-col gap-4">
-                {selectedFromAll.map((room, index) => (
-                  <div
-                    className={cn(
-                      "grid w-full grid-cols-[1fr_auto] items-center gap-4",
-                      index > 0 && "border-t border-gray-300 pt-4"
-                    )}
-                    key={room.id}
-                  >
-                    <span>{room.name}</span>
-                    <span className="flex flex-col gap-2">
-                      <Button onClick={() => setDetailsOpen(false)} size="xs" variant="outline">
-                        {t("bookingDetails.edit")}
-                      </Button>
-                      <Button onClick={() => handleRemoveRoom(room.id)} size="xs" variant="outline">
-                        {t("bookingDetails.remove")}
-                      </Button>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </dd>
-          </div>
-        </dl>
-      </Modal>
     </main>
   );
 };
