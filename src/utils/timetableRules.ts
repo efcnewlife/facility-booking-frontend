@@ -223,6 +223,24 @@ export const clearUnconfirmedSelection = (selection: TimetableSelection): Timeta
   return { roomIds: [], interval: selection.interval };
 };
 
+export const scrollTargetClock = (rooms: RoomDay[], interval: BookingInterval | null): string => {
+  if (interval) {
+    return interval.start;
+  }
+  let earliest = Number.POSITIVE_INFINITY;
+  for (const room of rooms) {
+    for (const cell of room.cells) {
+      if (cell.state !== "closed") {
+        earliest = Math.min(earliest, clockToMinutes(cell.start));
+      }
+    }
+  }
+  if (!Number.isFinite(earliest)) {
+    return "00:00";
+  }
+  return minutesToClock(earliest);
+};
+
 export const removeSelectedRoom = (selection: TimetableSelection, roomId: string): TimetableSelection => {
   return { ...selection, roomIds: selection.roomIds.filter((id) => id !== roomId) };
 };

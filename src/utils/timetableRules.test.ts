@@ -12,6 +12,7 @@ import {
   isRoomAvailable,
   matchesCapacityBand,
   removeSelectedRoom,
+  scrollTargetClock,
   visibleRooms,
   type BookingInterval,
   type RoomDay,
@@ -280,6 +281,41 @@ describe("displayBlocks", () => {
     const occupied = gym({ cells: gymCells({ "13:00": "unavailable", "13:30": "unavailable" }) });
     const blocks = displayBlocks(occupied, { start: "10:00", end: "11:00" });
     expect(blocks).toContainEqual({ start: "13:00", end: "14:00", state: "unavailable" });
+  });
+});
+
+describe("scrollTargetClock", () => {
+  it("uses Start Time when the Booking interval pair is set", () => {
+    expect(scrollTargetClock([gym(), chapel()], { start: "10:00", end: "11:30" })).toBe("10:00");
+  });
+
+  it("uses the earliest non-Closed Slot among the rooms when Time is empty", () => {
+    const lateGym = gym({
+      cells: gymCells({
+        "00:00": "closed",
+        "00:30": "closed",
+        "08:00": "unavailable",
+        "08:30": "unavailable",
+      }),
+    });
+    const earlyChapel = gym({
+      id: "chapel-id",
+      code: "chapel",
+      name: "Chapel",
+      cells: gymCells({
+        "00:00": "closed",
+        "07:30": "available",
+        "08:00": "available",
+      }),
+    });
+    expect(scrollTargetClock([lateGym, earlyChapel], null)).toBe("07:30");
+  });
+
+  it("falls back to 00:00 when every Slot is Closed", () => {
+    const closed = gym({
+      cells: gym().cells.map((cell) => ({ ...cell, state: "closed" as const })),
+    });
+    expect(scrollTargetClock([closed], null)).toBe("00:00");
   });
 });
 
