@@ -114,7 +114,14 @@
     "space": "空间",
     "edit": "编辑",
     "remove": "移除",
-    "confirm": "确认"
+    "confirm": "确认",
+    "unavailable": "有房间无法覆盖此时段。请返回时间表修改草稿。",
+    "paymentSummary": "付款摘要",
+    "rate": "费率",
+    "ministryDiscount": "事工折扣",
+    "subtotal": "小计",
+    "tax": "HST 税",
+    "total": "总计"
   },
   "support": {
     "pageTitle": "支持"

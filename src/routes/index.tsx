@@ -1,5 +1,6 @@
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AuthenticatedLayout from "@/layout/AuthenticatedLayout";
+import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import ContactPage from "@/pages/contact/ContactPage";
 import HomePage from "@/pages/home/HomePage";
 import LoginPage from "@/pages/login/LoginPage";
@@ -28,6 +29,10 @@ export const router = createBrowserRouter([
           {
             path: "/rooms",
             element: <RoomFilterPage />,
+          },
+          {
+            path: "/booking-details",
+            element: <BookingDetailsPage />,
           },
           {
             path: "/my-bookings",

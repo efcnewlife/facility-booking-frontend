@@ -114,7 +114,14 @@
     "space": "Space",
     "edit": "Edit",
     "remove": "Remove",
-    "confirm": "Confirm"
+    "confirm": "Confirm",
+    "unavailable": "One or more rooms cannot cover this time. Return to the Timetable to change the draft.",
+    "paymentSummary": "Payment Summary",
+    "rate": "Rate",
+    "ministryDiscount": "Ministry discount",
+    "subtotal": "Subtotal",
+    "tax": "HST Tax",
+    "total": "Total"
   },
   "support": {
     "pageTitle": "Support"
