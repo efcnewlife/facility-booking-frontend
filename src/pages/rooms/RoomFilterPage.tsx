@@ -1,6 +1,6 @@
 import facilityService from "@/api/services/facilityService";
-import ImagePreview from "@/components/booking/ImagePreview";
 import ministryService from "@/api/services/ministryService";
+import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import {
@@ -617,7 +617,7 @@ const RoomFilterPage = () => {
                             type="button"
                           >
                             <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
-                            <span className="pointer-events-none absolute bottom-2 right-2 flex size-9 items-center justify-center text-white">
+                            <span className="pointer-events-none absolute top-2 right-2 flex size-9 items-center justify-center text-white">
                               <MdZoomIn size={23} />
                             </span>
                           </button>
