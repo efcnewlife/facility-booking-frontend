@@ -1,4 +1,5 @@
 import AuthLocaleSelect from "@/components/auth/AuthLocaleSelect";
+import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
 import MicrosoftColorIcon from "@/components/auth/MicrosoftColorIcon";
 import { ENV_CONFIG, IS_MICROSOFT_LOGIN_ENABLED, IS_SHOW_DEV_LOGIN } from "@/config/env";
 import { useAuth } from "@/context/AuthContext";
@@ -60,7 +61,7 @@ const LoginPage = () => {
         />
       </div>
 
-      <div className="relative flex min-h-screen items-center justify-center px-8 py-14">
+      <div className="relative flex min-h-screen flex-col items-center justify-center px-8 py-14">
         <div
           className={cn(
             "flex w-full max-w-[480px] flex-col items-center rounded-[36px] bg-surface px-12 pb-14 pt-14",
@@ -153,6 +154,11 @@ const LoginPage = () => {
             </div>
           )}
         </div>
+
+        <LegalDocumentLinks
+          className="mt-8"
+          linkClassName="text-sm font-medium text-on-surface-variant underline-offset-2 hover:text-on-surface hover:underline"
+        />
       </div>
     </div>
   );

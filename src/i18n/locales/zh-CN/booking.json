@@ -19,6 +19,30 @@
     "specialRequest": "有特殊需求吗？",
     "contactSupport": "联系支持"
   },
+  "legalDocument": {
+    "linksAria": "法律文件",
+    "termsOfService": {
+      "title": "服务条款",
+      "link": "服务条款"
+    },
+    "privacyPolicy": {
+      "title": "隐私政策",
+      "link": "隐私政策"
+    },
+    "loading": "加载中…",
+    "empty": {
+      "title": "尚未提供",
+      "body": "此文件尚未发布，请稍后再试。"
+    },
+    "notFound": {
+      "title": "找不到文件",
+      "body": "此法律文件目前无法使用。"
+    },
+    "error": {
+      "title": "无法加载文件",
+      "body": "加载此页面时发生错误，请稍后再试。"
+    }
+  },
   "myMinistry": {
     "pageTitle": "我的事工"
   },

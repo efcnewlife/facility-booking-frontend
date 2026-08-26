@@ -27,6 +27,10 @@ export const API_ENDPOINTS = {
     booking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}`,
     cancelBooking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}/cancel`,
   },
+  CONTENT: {
+    LEGAL_DOCUMENT: (product: string, kind: string) =>
+      `${BOOKING_API_PREFIX}/content/legal-document/${product}/${kind}`,
+  },
 } as const;
 
 export const HTTP_STATUS = {

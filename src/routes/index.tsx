@@ -1,8 +1,10 @@
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 import AuthenticatedLayout from "@/layout/AuthenticatedLayout";
+import PublicLegalLayout from "@/layout/PublicLegalLayout";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import ContactPage from "@/pages/contact/ContactPage";
 import HomePage from "@/pages/home/HomePage";
+import LegalDocumentPage from "@/pages/legal-document/LegalDocumentPage";
 import LoginPage from "@/pages/login/LoginPage";
 import MyBookingsPage from "@/pages/my-bookings/MyBookingsPage";
 import MyMinistryPage from "@/pages/my-ministry/MyMinistryPage";
@@ -66,5 +68,18 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+  {
+    element: <PublicLegalLayout />,
+    children: [
+      {
+        path: "/terms-of-service",
+        element: <LegalDocumentPage kind="terms_of_service" />,
+      },
+      {
+        path: "/privacy-policy",
+        element: <LegalDocumentPage kind="privacy_policy" />,
+      },
+    ],
   },
 ]);

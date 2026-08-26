@@ -12,6 +12,18 @@ _Avoid_: Landing, Find Space, dashboard, treating Home as Q1
 The member-facing help page for special requests.
 _Avoid_: Contact as the canonical nav name
 
+**Terms of Service**:
+The Facility Booking Legal Document of kind Terms of Service: living localized Markdown. Visitors may read it without signing in, including from a Footer link to a public page. The app does not record acceptance.
+_Avoid_: acceptance checkbox as required to book in this slice, treating Support as the legal document, a Portal-only document with no member copy
+
+**Privacy Policy**:
+The Facility Booking Legal Document of kind Privacy Policy. Same public-read and Footer-page pattern as Terms of Service; it is a distinct document, not a section of Terms of Service.
+_Avoid_: merging privacy copy into Terms of Service, treating Support as the privacy page
+
+**Public legal page**:
+An unauthenticated route that shows one Facility Booking Legal Document (Terms of Service or Privacy Policy). Paths are `/terms-of-service` and `/privacy-policy`. Footer links to these pages; it does not inline the full Markdown. Login places the same two text links under the sign-in card (not a full SupportFooter). An active document with empty body shows an empty state. A soft-deleted or missing document is not found. Locale follows the app language (Accept-Language), not a URL locale param.
+_Avoid_: Footer modal as the reading surface, requiring login to open the page, treating empty body as not found, SupportFooter on Login as the only way to discover the links
+
 **Not Found**:
 The page an authenticated member sees for an unknown path, or a path they are not allowed to open. Unknown and unauthorized look the same; there is no separate forbidden page. It offers a way back to Home. Unauthenticated visitors never see this — they go to login.
 _Avoid_: redirecting unknown paths to Home, 403 as the member-facing response, showing Not Found before login
