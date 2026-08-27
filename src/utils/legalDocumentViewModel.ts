@@ -1,9 +1,13 @@
 export type LegalDocumentViewState =
-  { status: "content"; body: string } | { status: "empty" } | { status: "not_found" } | { status: "error" };
+  | { status: "content"; body: string; effectiveDate: string }
+  | { status: "empty" }
+  | { status: "not_found" }
+  | { status: "error" };
 
 interface LegalDocumentFetchInput {
   httpStatus?: number;
   body?: string | null;
+  effectiveDate?: string | null;
 }
 
 export const mapLegalDocumentFetchResult = (input: LegalDocumentFetchInput): LegalDocumentViewState => {
@@ -20,5 +24,10 @@ export const mapLegalDocumentFetchResult = (input: LegalDocumentFetchInput): Leg
     return { status: "empty" };
   }
 
-  return { status: "content", body };
+  const effectiveDate = input.effectiveDate?.trim() ?? "";
+  if (effectiveDate === "") {
+    return { status: "error" };
+  }
+
+  return { status: "content", body, effectiveDate };
 };

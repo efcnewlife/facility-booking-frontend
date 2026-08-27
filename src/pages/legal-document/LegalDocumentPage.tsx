@@ -1,10 +1,10 @@
 import { legalDocumentService } from "@/api/services/legalDocumentService";
 import type { LegalDocumentKind } from "@/types/legalDocument";
+import { format_profile_date } from "@/utils/bookingFormat";
 import type { LegalDocumentViewState } from "@/utils/legalDocumentViewModel";
-import { isSafeMarkdownLink } from "@/utils/safeMarkdownLink";
+import { MarkdownPreview } from "@efcnewlife/newlife-ui";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import ReactMarkdown from "react-markdown";
 
 interface LegalDocumentPageProps {
   kind: LegalDocumentKind;
@@ -43,35 +43,14 @@ const LegalDocumentPage = ({ kind }: LegalDocumentPageProps) => {
       )}
 
       {viewState?.status === "content" && (
-        <article className="mt-8 text-on-surface">
-          <ReactMarkdown
-            components={{
-              h1: ({ children }) => <h2 className="mt-8 text-xl font-bold first:mt-0">{children}</h2>,
-              h2: ({ children }) => <h3 className="mt-6 text-lg font-semibold">{children}</h3>,
-              h3: ({ children }) => <h4 className="mt-4 text-base font-semibold">{children}</h4>,
-              p: ({ children }) => <p className="mt-3 text-base leading-relaxed">{children}</p>,
-              ul: ({ children }) => <ul className="mt-3 list-disc space-y-1 pl-6">{children}</ul>,
-              ol: ({ children }) => <ol className="mt-3 list-decimal space-y-1 pl-6">{children}</ol>,
-              li: ({ children }) => <li className="text-base leading-relaxed">{children}</li>,
-              a: ({ children, href }) =>
-                isSafeMarkdownLink(href) ? (
-                  <a
-                    className="font-medium text-booking-secondary underline"
-                    href={href}
-                    rel="noopener noreferrer"
-                    target="_blank"
-                  >
-                    {children}
-                  </a>
-                ) : (
-                  <span className="font-medium text-booking-secondary">{children}</span>
-                ),
-              strong: ({ children }) => <strong className="font-semibold">{children}</strong>,
-            }}
-          >
-            {viewState.body}
-          </ReactMarkdown>
-        </article>
+        <>
+          <p className="mt-3 text-center text-sm text-on-surface-variant">
+            {t("legalDocument.effectiveDate", { date: format_profile_date(viewState.effectiveDate) })}
+          </p>
+          <article className="mt-8 text-on-surface">
+            <MarkdownPreview value={viewState.body} profile="legal" />
+          </article>
+        </>
       )}
 
       {viewState?.status === "empty" && (

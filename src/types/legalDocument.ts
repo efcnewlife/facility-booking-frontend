@@ -11,4 +11,5 @@ export interface PublicLegalDocument {
   product: string;
   kind: string;
   body: string;
+  effectiveDate: string;
 }

@@ -30,6 +30,7 @@
       "link": "Privacy Policy"
     },
     "loading": "Loading…",
+    "effectiveDate": "Effective Date: {{date}}",
     "empty": {
       "title": "Not available yet",
       "body": "This document has not been published yet. Please check back later."
