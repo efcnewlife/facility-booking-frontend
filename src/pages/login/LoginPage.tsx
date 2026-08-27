@@ -1,6 +1,6 @@
 import AuthLocaleSelect from "@/components/auth/AuthLocaleSelect";
-import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
 import MicrosoftColorIcon from "@/components/auth/MicrosoftColorIcon";
+import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
 import { ENV_CONFIG, IS_MICROSOFT_LOGIN_ENABLED, IS_SHOW_DEV_LOGIN } from "@/config/env";
 import { useAuth } from "@/context/AuthContext";
 import { Checkbox, cn, Input } from "@efcnewlife/newlife-ui";

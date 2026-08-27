@@ -1,5 +1,5 @@
-import { SUPPORT_PATH } from "@/utils/visitAccess";
 import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
+import { SUPPORT_PATH } from "@/utils/visitAccess";
 import { cn } from "@efcnewlife/newlife-ui";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
