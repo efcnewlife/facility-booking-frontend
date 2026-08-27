@@ -17,13 +17,13 @@ const PublicLegalHeader = () => {
         </Link>
 
         <div className="flex min-w-0 flex-wrap items-center justify-end gap-4 sm:gap-6">
+          <AuthLocaleSelect />
           <Link
             className="whitespace-nowrap text-sm font-semibold leading-none text-booking-secondary transition-colors hover:text-booking-primary"
             to="/login"
           >
             {t("nav.signIn")}
           </Link>
-          <AuthLocaleSelect />
         </div>
       </div>
     </header>
