@@ -13,6 +13,7 @@ export const legalDocumentService = {
       return mapLegalDocumentFetchResult({
         httpStatus: response.code,
         body: response.data.body,
+        effectiveDate: response.data.effectiveDate,
       });
     } catch (error) {
       const apiError = error as ApiError;

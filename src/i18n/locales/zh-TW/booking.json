@@ -30,6 +30,7 @@
       "link": "隱私權政策"
     },
     "loading": "載入中…",
+    "effectiveDate": "生效日期：{{date}}",
     "empty": {
       "title": "尚未提供",
       "body": "此文件尚未發布，請稍後再試。"

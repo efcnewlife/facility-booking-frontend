@@ -21,8 +21,12 @@ The Facility Booking Legal Document of kind Privacy Policy. Same public-read and
 _Avoid_: merging privacy copy into Terms of Service, treating Support as the privacy page
 
 **Public legal page**:
-An unauthenticated route that shows one Facility Booking Legal Document (Terms of Service or Privacy Policy). Paths are `/terms-of-service` and `/privacy-policy`. Footer links to these pages; it does not inline the full Markdown. Login places the same two text links under the sign-in card (not a full SupportFooter). An active document with empty body shows an empty state. A soft-deleted or missing document is not found. Locale follows the app language (Accept-Language), not a URL locale param.
-_Avoid_: Footer modal as the reading surface, requiring login to open the page, treating empty body as not found, SupportFooter on Login as the only way to discover the links
+An unauthenticated route that shows one Facility Booking Legal Document (Terms of Service or Privacy Policy). Paths are `/terms-of-service` and `/privacy-policy`. Footer links to these pages; it does not inline the full Markdown. Login places the same two text links under the sign-in card (not a full SupportFooter). When content exists, the page shows the document Effective Date under the title (i18n label + formatted calendar day), then the body via MarkdownPreview (`legal` profile). An active document with empty body shows an empty state. A soft-deleted or missing document is not found. Locale follows the app language (Accept-Language), not a URL locale param. Last Updated is not the public "in force since" line (Effective Date is).
+_Avoid_: Footer modal as the reading surface, requiring login to open the page, treating empty body as not found, SupportFooter on Login as the only way to discover the links, a host-local Markdown renderer that diverges from MarkdownPreview, putting Effective Date only inside the Markdown body, showing Last Updated as Effective Date
+
+**Effective Date**:
+The calendar day the Facility Booking Legal Document's current wording takes effect. Shown on the Public legal page when content is available.
+_Avoid_: Last Updated as the in-force date, Effective from / Effective to range
 
 **Not Found**:
 The page an authenticated member sees for an unknown path, or a path they are not allowed to open. Unknown and unauthorized look the same; there is no separate forbidden page. It offers a way back to Home. Unauthenticated visitors never see this — they go to login.

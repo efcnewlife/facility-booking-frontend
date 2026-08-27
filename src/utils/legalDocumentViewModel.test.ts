@@ -2,16 +2,34 @@ import { describe, expect, it } from "vitest";
 import { mapLegalDocumentFetchResult } from "./legalDocumentViewModel";
 
 describe("mapLegalDocumentFetchResult", () => {
-  it("returns content when the body has Markdown", () => {
-    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "# Terms\n\nHello" })).toEqual({
+  it("returns content with Effective Date when the body has Markdown", () => {
+    expect(
+      mapLegalDocumentFetchResult({
+        httpStatus: 200,
+        body: "# Terms\n\nHello",
+        effectiveDate: "2026-01-15",
+      })
+    ).toEqual({
       status: "content",
       body: "# Terms\n\nHello",
+      effectiveDate: "2026-01-15",
     });
   });
 
   it("returns empty when the active document has a blank body", () => {
-    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "" })).toEqual({ status: "empty" });
-    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "   \n  " })).toEqual({ status: "empty" });
+    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "", effectiveDate: "2026-01-15" })).toEqual({
+      status: "empty",
+    });
+    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "   \n  ", effectiveDate: "2026-01-15" })).toEqual({
+      status: "empty",
+    });
+  });
+
+  it("returns error when content body is present but Effective Date is missing", () => {
+    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "# Terms" })).toEqual({ status: "error" });
+    expect(mapLegalDocumentFetchResult({ httpStatus: 200, body: "# Terms", effectiveDate: "  " })).toEqual({
+      status: "error",
+    });
   });
 
   it("returns not_found for HTTP 404", () => {
