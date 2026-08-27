@@ -1,12 +1,23 @@
-import AuthLocaleSelect from "@/components/auth/AuthLocaleSelect";
+import { useAuth } from "@/context/AuthContext";
+import { MinistryMembershipProvider } from "@/context/MinistryMembershipContext";
+import { resolvePublicLegalChrome } from "@/utils/resolvePublicLegalChrome";
 import { Outlet } from "react-router";
+import PublicLegalHeader from "./PublicLegalHeader";
+import TopNavBar from "./TopNavBar";
 
 const PublicLegalLayout = () => {
+  const { isAuthenticated, isLoading } = useAuth();
+  const chrome = resolvePublicLegalChrome({ isLoading, isAuthenticated });
+
   return (
     <div className="min-h-screen bg-surface-container">
-      <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
-        <AuthLocaleSelect />
-      </div>
+      {chrome === "top_nav_bar" ? (
+        <MinistryMembershipProvider>
+          <TopNavBar />
+        </MinistryMembershipProvider>
+      ) : (
+        <PublicLegalHeader />
+      )}
       <Outlet />
     </div>
   );
