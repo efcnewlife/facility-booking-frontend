@@ -19,6 +19,30 @@
     "specialRequest": "Have a special request?",
     "contactSupport": "Contact Support"
   },
+  "legalDocument": {
+    "linksAria": "Legal documents",
+    "termsOfService": {
+      "title": "Terms of Service",
+      "link": "Terms of Service"
+    },
+    "privacyPolicy": {
+      "title": "Privacy Policy",
+      "link": "Privacy Policy"
+    },
+    "loading": "Loading…",
+    "empty": {
+      "title": "Not available yet",
+      "body": "This document has not been published yet. Please check back later."
+    },
+    "notFound": {
+      "title": "Document not found",
+      "body": "This legal document is not available."
+    },
+    "error": {
+      "title": "Unable to load document",
+      "body": "Something went wrong while loading this page. Please try again later."
+    }
+  },
   "myMinistry": {
     "pageTitle": "My Ministry"
   },

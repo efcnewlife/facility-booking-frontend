@@ -1,3 +1,4 @@
+import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
 import { SUPPORT_PATH } from "@/utils/visitAccess";
 import { cn } from "@efcnewlife/newlife-ui";
 import { useTranslation } from "react-i18next";
@@ -28,6 +29,10 @@ const SupportFooter = ({ className }: SupportFooterProps) => {
             {t("footer.contactSupport")}
           </Link>
         </div>
+        <LegalDocumentLinks
+          className="w-full sm:w-auto"
+          linkClassName="text-sm font-semibold text-booking-secondary underline-offset-2 hover:underline"
+        />
       </div>
     </footer>
   );
