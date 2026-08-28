@@ -130,10 +130,13 @@ const StartBookingPage = () => {
     if (!isMinistry) {
       setMinistryId(null);
     }
-    const next = nextStep("ministry_choice", { ...answers, isMinistryBooking: isMinistry }, now);
-    if (next && next !== "rooms") {
-      goToStep(next, isMinistry);
-    }
+    setSearchParams(
+      {
+        [STEP_QUERY_KEY]: "ministry_choice",
+        [MINISTRY_QUERY_KEY]: isMinistry ? "1" : "0",
+      },
+      { replace: true }
+    );
   };
 
   const handleBack = () => {
