@@ -1,4 +1,5 @@
 import ministryService from "@/api/services/ministryService";
+import { useMinistryMembership } from "@/context/MinistryMembershipContext";
 import i18n from "@/i18n";
 import type { AssignablePosition, LocaleItem, MinistryCatalogItem, OrgUserSearchItem } from "@/types/ministry";
 import {
@@ -9,9 +10,11 @@ import {
   type CreateMinistryValidationKey,
 } from "@/utils/createMinistryForm";
 import { resolveMinistryApplicationErrorMessage } from "@/utils/ministryApplicationErrors";
+import { MY_MINISTRY_PATH } from "@/utils/visitAccess";
 import { Alert, Button, ComboBox, Input, ModalForm, type ModalFormHandle, Select } from "@efcnewlife/newlife-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { useNavigate } from "react-router";
 
 interface CreateMinistryModalProps {
   isOpen: boolean;
@@ -43,6 +46,8 @@ const formatUserLabel = (item: OrgUserSearchItem): string => {
 
 const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMinistryModalProps) => {
   const { t } = useTranslation("booking");
+  const navigate = useNavigate();
+  const { refreshMembership } = useMinistryMembership();
   const modalRef = useRef<ModalFormHandle>(null);
   const [phase, setPhase] = useState<"form" | "confirmation">("form");
   const [positions, setPositions] = useState<AssignablePosition[]>([]);
@@ -160,6 +165,11 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
     onClose();
   };
 
+  const handleGoToMyMinistry = () => {
+    onClose();
+    navigate(MY_MINISTRY_PATH);
+  };
+
   const validationMessage = (key: CreateMinistryValidationKey): string => t(`startBooking.errors.${key}`);
 
   const handleSubmit = async () => {
@@ -216,6 +226,7 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
           })),
         ],
       });
+      await refreshMembership();
       setPhase("confirmation");
     } catch (err) {
       setError(resolveMinistryApplicationErrorMessage(err));
@@ -229,9 +240,14 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
       className="max-w-2xl w-full mx-4 p-6"
       footer={
         phase === "confirmation" ? (
-          <Button onClick={handleClose} size="sm" variant="primary">
-            {t("startBooking.createMinistry.close")}
-          </Button>
+          <>
+            <Button onClick={handleClose} size="sm" variant="outline">
+              {t("startBooking.createMinistry.close")}
+            </Button>
+            <Button onClick={handleGoToMyMinistry} size="sm" variant="primary">
+              {t("startBooking.createMinistry.goToMyMinistry")}
+            </Button>
+          </>
         ) : (
           <>
             <Button onClick={handleClose} size="sm" variant="outline">

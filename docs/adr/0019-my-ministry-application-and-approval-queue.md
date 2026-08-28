@@ -15,6 +15,7 @@ Create Ministry collects ministry type, optional target audiences, and at least 
 ## Consequences
 
 - Routes under `/my-ministry` and `/my-ministry/approvals/:id`; TopNav keeps existing My Ministry entry (`ministryOnly` visibility unchanged in spirit).
+- After Create Ministry submit succeeds, `MinistryMembershipContext` refreshes so TopNav shows **My Ministry** while the confirmation modal is still open; confirmation footer is **Close** (left) and **Go to My Ministry** (right, primary) → `/my-ministry` (default **My applications** tab). Scope: `CreateMinistryModal` only, not resubmit.
 - Depends on core-api member approval APIs and Graph mail (ADR 0012 in `newlife-core-api`).
 - Depends on post-login `next` allowlist for approval paths (#39).
 - Expands scope of issue #2 beyond list-only stub.
