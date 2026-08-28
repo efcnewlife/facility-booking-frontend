@@ -33,8 +33,23 @@ export interface MinistryMember {
 export interface MinistryDetail extends MinistryItem {
   ownerPositionId?: string | null;
   ministryTypeId?: string | null;
+  submittedAt?: string | null;
+  submittedById?: string | null;
   translations: MinistryTranslation[];
   members: MinistryMember[];
+}
+
+export interface MinistryApprovalPendingListResponse {
+  items: MinistryItem[];
+}
+
+export interface ApproveMinistryApplicationPayload {
+  comment?: string;
+}
+
+export interface RejectMinistryApplicationPayload {
+  rejectionReason: string;
+  comment?: string;
 }
 
 export interface MinistryListResponse {

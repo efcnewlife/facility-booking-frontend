@@ -77,7 +77,49 @@
       }
     },
     "approvals": {
-      "comingSoon": "您担任负责职位时，待审核的申请会显示在这里。"
+      "empty": "目前没有待您审核的事工申请。",
+      "review": "查看申请",
+      "errors": {
+        "title": "无法加载待审核项目",
+        "loadList": "加载待审核申请失败。",
+        "loadDetail": "加载事工申请失败。",
+        "invalidRoute": "此审核链接无效。",
+        "approve": "核准事工申请失败。",
+        "reject": "拒绝事工申请失败。",
+        "forbidden": "您无权核准或拒绝此申请。",
+        "notPending": "此事工申请已不再待审核。"
+      },
+      "detail": {
+        "backToQueue": "返回待审核列表",
+        "summaryTitle": "事工摘要",
+        "ministryType": "事工类型",
+        "targetAudiences": "目标对象",
+        "priorityBooking": "优先预订",
+        "priorityBookingYes": "是",
+        "priorityBookingNo": "否",
+        "submittedAt": "提交日期",
+        "purpose": "目的",
+        "stewardsTitle": "同工",
+        "noStewards": "尚未列出同工。",
+        "approve": "核准",
+        "reject": "拒绝",
+        "selfApproveNotice": "此申请由您提交，且您也是负责职位的现任者。您可以核准自己的申请。",
+        "memberRoles": {
+          "primary": "主要同工",
+          "secondary": "次要同工",
+          "unknown": "同工"
+        }
+      },
+      "approve": {
+        "title": "核准事工申请",
+        "comment": "备注（选填）"
+      },
+      "reject": {
+        "title": "拒绝事工申请",
+        "reason": "拒绝原因",
+        "reasonRequired": "必须填写拒绝原因。",
+        "comment": "备注（选填）"
+      }
     }
   },
   "notFound": {

@@ -1,3 +1,4 @@
+import { isMinistryApprovalDetailPath } from "./ministryApprovalPath";
 import { isPaymentPath } from "./paymentPage";
 
 export type VisitAccess = "login" | "not-found" | "allow";
@@ -19,7 +20,7 @@ const KNOWN_MEMBER_PATHS = new Set([
 
 interface VisitAccessInput {
   isAuthenticated: boolean;
-  isMinistryMember: boolean;
+  canAccessMyMinistry: boolean;
   pathname: string;
 }
 
@@ -30,7 +31,7 @@ const normalizePathname = (pathname: string): string => {
   return pathname;
 };
 
-export const visitAccess = ({ isAuthenticated, isMinistryMember, pathname }: VisitAccessInput): VisitAccess => {
+export const visitAccess = ({ isAuthenticated, canAccessMyMinistry, pathname }: VisitAccessInput): VisitAccess => {
   const path = normalizePathname(pathname);
 
   if (!isAuthenticated) {
@@ -41,11 +42,11 @@ export const visitAccess = ({ isAuthenticated, isMinistryMember, pathname }: Vis
     return "allow";
   }
 
-  if (!KNOWN_MEMBER_PATHS.has(path) && !isPaymentPath(path)) {
+  if (!KNOWN_MEMBER_PATHS.has(path) && !isPaymentPath(path) && !isMinistryApprovalDetailPath(path)) {
     return "not-found";
   }
 
-  if (path === MY_MINISTRY_PATH && !isMinistryMember) {
+  if (path === MY_MINISTRY_PATH && !canAccessMyMinistry) {
     return "not-found";
   }
 

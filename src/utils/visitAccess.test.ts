@@ -6,7 +6,7 @@ describe("visitAccess", () => {
     expect(
       visitAccess({
         isAuthenticated: false,
-        isMinistryMember: false,
+        canAccessMyMinistry: false,
         pathname: "/login",
       })
     ).toBe("allow");
@@ -18,7 +18,7 @@ describe("visitAccess", () => {
       expect(
         visitAccess({
           isAuthenticated: false,
-          isMinistryMember: false,
+          canAccessMyMinistry: false,
           pathname,
         })
       ).toBe("login");
@@ -29,30 +29,50 @@ describe("visitAccess", () => {
     expect(
       visitAccess({
         isAuthenticated: true,
-        isMinistryMember: false,
+        canAccessMyMinistry: false,
         pathname: "/mystery",
       })
     ).toBe("not-found");
   });
 
-  it("shows Not Found when an authenticated member who is not a Ministry member opens My Ministry", () => {
+  it("shows Not Found when an authenticated member without My Ministry access opens My Ministry", () => {
     expect(
       visitAccess({
         isAuthenticated: true,
-        isMinistryMember: false,
+        canAccessMyMinistry: false,
         pathname: "/my-ministry",
       })
     ).toBe("not-found");
   });
 
-  it("allows a Ministry member to open My Ministry", () => {
+  it("allows a member with My Ministry access to open My Ministry", () => {
     expect(
       visitAccess({
         isAuthenticated: true,
-        isMinistryMember: true,
+        canAccessMyMinistry: true,
         pathname: "/my-ministry",
       })
     ).toBe("allow");
+  });
+
+  it("allows an authenticated member to open a ministry approval detail path", () => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        canAccessMyMinistry: false,
+        pathname: "/my-ministry/approvals/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      })
+    ).toBe("allow");
+  });
+
+  it("shows Not Found for an invalid ministry approval detail path", () => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        canAccessMyMinistry: false,
+        pathname: "/my-ministry/approvals/not-a-uuid",
+      })
+    ).toBe("not-found");
   });
 
   it.each([
@@ -68,7 +88,7 @@ describe("visitAccess", () => {
     expect(
       visitAccess({
         isAuthenticated: true,
-        isMinistryMember: false,
+        canAccessMyMinistry: false,
         pathname,
       })
     ).toBe("allow");
@@ -78,14 +98,14 @@ describe("visitAccess", () => {
     expect(
       visitAccess({
         isAuthenticated: true,
-        isMinistryMember: false,
+        canAccessMyMinistry: false,
         pathname: "/payment",
       })
     ).toBe("not-found");
     expect(
       visitAccess({
         isAuthenticated: true,
-        isMinistryMember: false,
+        canAccessMyMinistry: false,
         pathname: "/payment/not-a-uuid",
       })
     ).toBe("not-found");

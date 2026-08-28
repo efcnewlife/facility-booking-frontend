@@ -77,7 +77,49 @@
       }
     },
     "approvals": {
-      "comingSoon": "Pending approvals for your owner positions will appear here."
+      "empty": "You do not have any ministry applications waiting for your approval.",
+      "review": "Review application",
+      "errors": {
+        "title": "Unable to load approvals",
+        "loadList": "Failed to load pending approvals.",
+        "loadDetail": "Failed to load the ministry application.",
+        "invalidRoute": "This approval link is invalid.",
+        "approve": "Failed to approve the ministry application.",
+        "reject": "Failed to reject the ministry application.",
+        "forbidden": "You are not allowed to approve or reject this application.",
+        "notPending": "This ministry application is no longer pending approval."
+      },
+      "detail": {
+        "backToQueue": "Back to pending approvals",
+        "summaryTitle": "Ministry summary",
+        "ministryType": "Ministry type",
+        "targetAudiences": "Target audiences",
+        "priorityBooking": "Priority booking",
+        "priorityBookingYes": "Yes",
+        "priorityBookingNo": "No",
+        "submittedAt": "Submitted",
+        "purpose": "Purpose",
+        "stewardsTitle": "Stewards",
+        "noStewards": "No stewards listed.",
+        "approve": "Approve",
+        "reject": "Reject",
+        "selfApproveNotice": "You submitted this application and are also the owner-position incumbent. You may approve your own application.",
+        "memberRoles": {
+          "primary": "Primary steward",
+          "secondary": "Secondary steward",
+          "unknown": "Steward"
+        }
+      },
+      "approve": {
+        "title": "Approve ministry application",
+        "comment": "Comment (optional)"
+      },
+      "reject": {
+        "title": "Reject ministry application",
+        "reason": "Rejection reason",
+        "reasonRequired": "A rejection reason is required.",
+        "comment": "Comment (optional)"
+      }
     }
   },
   "notFound": {

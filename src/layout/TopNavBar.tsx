@@ -34,7 +34,7 @@ const TopNavBar = () => {
   const { t } = useTranslation("booking");
   const { pathname } = useLocation();
   const { logout } = useAuth();
-  const { isMinistryMember } = useMinistryMembership();
+  const { canAccessMyMinistry } = useMinistryMembership();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -60,7 +60,7 @@ const TopNavBar = () => {
     await logout();
   };
 
-  const visibleNavItems = NAV_ITEMS.filter((item) => !item.ministryOnly || isMinistryMember);
+  const visibleNavItems = NAV_ITEMS.filter((item) => !item.ministryOnly || canAccessMyMinistry);
 
   return (
     <header className="sticky top-0 z-40 shrink-0 bg-surface">
