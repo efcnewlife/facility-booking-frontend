@@ -8,37 +8,36 @@ layer(base);
 @source "../node_modules/@efcnewlife/newlife-ui/dist";
 
 /*
- * Facility Booking — color system
+ * Facility Booking — color system (Figma EFC Booking APP – V3)
  *
- * Figma tokens (EFC Booking APP):
- *   Primary   #1e283f  — headings, CTA label, clicked states
- *   Secondary #1865d8  — links, checkbox, primary button hover
- *   Yellow    #fab148  — secondary / login CTA fill
- *   White     #ffffff
- *   BG        #e9f3f5  — page background
- *   Text      #6b6b6b  — body / muted
- *   Light grey #f4f4f4 — inputs, surfaces
+ * See docs/adr/0020-figma-v3-color-tokens.md for Figma → host mapping.
  *
  * Layers follow @efcnewlife/newlife-ui M3 contract (theme/token-contract.md):
- *   primitives (brand-*, gray-*, …) → roles (primary, surface, …) → Tailwind utilities
+ *   primitives (brand-*, gray-*, booking-*, …) → roles (primary, surface, …) → Tailwind utilities
  */
 
 @theme {
   --font-*: initial;
   --font-figtree: Figtree, sans-serif;
 
-  /* Figma / app semantic primitives */
+  /* Figma V3 semantic primitives */
   --color-booking-primary: #1e283f;
   --color-booking-secondary: #1865d8;
-  --color-booking-yellow: #fab148;
-  --color-booking-bg: #e9f3f5;
-  --color-booking-text: #6b6b6b;
-  --color-booking-light-grey: #f4f4f4;
+  --color-booking-secondary-hover: #0043a6;
+  --color-booking-yellow: #ffb941;
+  --color-booking-yellow-hover: #d99013;
+  --color-booking-light-blue: #dfedff;
+  --color-booking-bg: var(--color-booking-light-blue);
+  --color-booking-text: #7b7b7b;
+  --color-booking-light-grey: #d8d8d8;
   --color-booking-green: #068731;
-  --color-booking-grey: #d9d9d9;
+  --color-booking-grey: #d8d8d8;
   --color-booking-selected-day: var(--color-booking-yellow);
 
-  /* Brand scale — derived from Figma Secondary (#1865d8) */
+  /* Login landing gradient (Figma Landing frame) */
+  --background-image-booking-login: linear-gradient(180deg, #d8f8fb 10%, #d1f2cd 79.876%);
+
+  /* Brand scale — derived from Figma Blue-Secondary (#1865d8) */
   --color-brand-25: #f2f7fd;
   --color-brand-50: #e8f1fc;
   --color-brand-100: #d1e3f9;
@@ -46,20 +45,20 @@ layer(base);
   --color-brand-300: #75abed;
   --color-brand-400: #478fe7;
   --color-brand-500: #1865d8;
-  --color-brand-600: #1451ad;
+  --color-brand-600: #0043a6;
   --color-brand-700: #0f3d82;
   --color-brand-800: #0a2957;
   --color-brand-900: #05152c;
   --color-brand-950: #030a16;
 
-  /* Neutral scale — aligned with Figma BG / text / primary */
+  /* Neutral scale — aligned with Figma Light Blue / Grey / Navy */
   --color-gray-25: #fcfdfd;
-  --color-gray-50: #e9f3f5;
-  --color-gray-100: #f4f4f4;
+  --color-gray-50: #dfedff;
+  --color-gray-100: #dfedff;
   --color-gray-200: #e0e0e0;
   --color-gray-300: #c8c8c8;
   --color-gray-400: #9a9a9a;
-  --color-gray-500: #6b6b6b;
+  --color-gray-500: #7b7b7b;
   --color-gray-600: #525252;
   --color-gray-700: #3a4459;
   --color-gray-800: #1e283f;
@@ -72,9 +71,9 @@ layer(base);
   --color-warning-100: #fdeacc;
   --color-warning-200: #fbd599;
   --color-warning-300: #f9c066;
-  --color-warning-400: #fab148;
-  --color-warning-500: #fab148;
-  --color-warning-600: #e89a30;
+  --color-warning-400: #ffb941;
+  --color-warning-500: #ffb941;
+  --color-warning-600: #d99013;
   --color-warning-700: #c47f24;
   --color-warning-800: #9f6419;
   --color-warning-900: #7a4a0f;
@@ -86,25 +85,25 @@ layer(base);
   --color-blue-light-300: #75abed;
   --color-blue-light-400: #478fe7;
   --color-blue-light-500: #1865d8;
-  --color-blue-light-600: #1451ad;
+  --color-blue-light-600: #0043a6;
   --color-blue-light-700: #0f3d82;
   --color-blue-light-800: #0a2957;
   --color-blue-light-900: #05152c;
 
-  /* M3 role overrides (Figma → newlife-ui contract) */
+  /* M3 role overrides (Figma V3 → newlife-ui contract) */
   --color-primary: var(--color-booking-secondary);
   --color-on-primary: var(--color-white);
-  --color-primary-hover: var(--color-brand-600);
+  --color-primary-hover: var(--color-booking-secondary-hover);
   --color-primary-container: var(--color-brand-50);
   --color-on-primary-container: var(--color-booking-primary);
 
   --color-surface: var(--color-white);
   --color-on-surface: var(--color-booking-primary);
   --color-on-surface-variant: var(--color-booking-text);
-  --color-surface-variant: var(--color-booking-light-grey);
-  --color-surface-container: var(--color-booking-bg);
+  --color-surface-variant: var(--color-booking-light-blue);
+  --color-surface-container: var(--color-booking-light-blue);
   --color-surface-container-high: var(--color-gray-dark);
-  --color-surface-dim: var(--color-booking-bg);
+  --color-surface-dim: var(--color-booking-light-blue);
 
   --color-info: var(--color-booking-secondary);
   --color-on-info: var(--color-white);
@@ -116,7 +115,7 @@ layer(base);
   --color-warning-container: var(--color-warning-50);
   --color-on-warning-container: var(--color-booking-primary);
 
-  --color-outline: var(--color-gray-300);
+  --color-outline: var(--color-booking-text);
   --color-outline-variant: var(--color-gray-200);
   --color-outline-focus: var(--color-brand-300);
 
@@ -127,10 +126,10 @@ layer(base);
   /* App-specific: Figma Secondary Button (yellow CTA) */
   --color-cta: var(--color-booking-yellow);
   --color-on-cta: var(--color-booking-primary);
-  --color-cta-hover: var(--color-white);
-  --color-on-cta-hover: var(--color-booking-secondary);
-  --color-cta-active: var(--color-booking-primary);
-  --color-on-cta-active: var(--color-white);
+  --color-cta-hover: var(--color-booking-yellow-hover);
+  --color-on-cta-hover: var(--color-booking-primary);
+  --color-cta-active: var(--color-booking-light-grey);
+  --color-on-cta-active: var(--color-booking-primary);
 
   --shadow-login-card: 0px 6px 8.8px 0px rgba(0, 0, 0, 0.25);
 }
@@ -155,6 +154,18 @@ layer(base);
   --color-success-container: color-mix(in srgb, var(--color-success-500) 15%, transparent);
   --color-warning-container: color-mix(in srgb, var(--color-warning-500) 15%, transparent);
   --color-info-container: color-mix(in srgb, var(--color-info) 15%, transparent);
+}
+
+@utility btn-booking-secondary {
+  @apply border border-booking-primary bg-cta text-on-cta;
+
+  &:hover:not(:disabled) {
+    @apply bg-cta-hover text-on-cta-hover;
+  }
+
+  &:active:not(:disabled) {
+    @apply bg-cta-active text-on-cta-active;
+  }
 }
 
 @layer base {
