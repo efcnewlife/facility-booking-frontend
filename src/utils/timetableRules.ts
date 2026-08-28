@@ -241,6 +241,10 @@ export const hasNoMatchingResults = (
   return view === "available" && visibleRooms(rooms, view, interval, band, shortcut).length === 0;
 };
 
+export const isTimetableInitialLoad = (loading: boolean, roomCount: number): boolean => {
+  return loading && roomCount === 0;
+};
+
 export const clearUnconfirmedSelection = (selection: TimetableSelection): TimetableSelection => {
   return { roomIds: [], interval: selection.interval };
 };

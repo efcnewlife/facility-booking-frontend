@@ -24,6 +24,7 @@ import {
   emptyTimePointerAction,
   hasNoMatchingResults,
   isBookableCell,
+  isTimetableInitialLoad,
   minutesToClock,
   scrollTargetClock,
   SLOT_MINUTES,
@@ -161,7 +162,7 @@ const RoomFilterPage = () => {
           ? { start: initialQuery.start, end: initialQuery.end }
           : null,
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(initialQuery?.date));
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
   const [confirmRoom, setConfirmRoom] = useState<RoomDay | null>(null);
@@ -231,6 +232,8 @@ const RoomFilterPage = () => {
     [appliedRoom, capacityBand, rooms, selection.interval, view]
   );
   const noMatching = hasNoMatchingResults(rooms, view, selection.interval, capacityBand, appliedRoom);
+  const isInitialLoad = isTimetableInitialLoad(loading, rooms.length);
+  const showNoMatching = noMatching && !isInitialLoad;
   const pageCount = Math.max(1, Math.ceil(listedRooms.length / ROOMS_PER_PAGE));
   const safePage = Math.min(pageIndex, pageCount - 1);
   const pagedRooms = listedRooms.slice(safePage * ROOMS_PER_PAGE, safePage * ROOMS_PER_PAGE + ROOMS_PER_PAGE);
@@ -646,166 +649,175 @@ const RoomFilterPage = () => {
           </div>
         </div>
 
-        {loading && rooms.length === 0 ? (
-          <Spinner className="mt-6 shrink-0" showText size="sm" text={t("startBooking.loading")} />
-        ) : null}
-
         <div className="flex min-h-0 flex-1 flex-col">
-          <div className="shrink-0 border-b-4 border-booking-primary bg-surface pt-[13px] pb-4">
-            <div className={TIMETABLE_TRACK}>
-              <div />
-              {noMatching ? (
-                <div className="col-span-4 flex h-[168px] items-center justify-center bg-gray-300 text-base font-bold leading-normal text-gray-500">
-                  {t("timetable.noMatchingResults")}
-                </div>
-              ) : (
-                paddedRooms.map((room, index) =>
-                  room ? (
-                    <article className="min-w-0 overflow-hidden bg-booking-primary" key={room.id}>
-                      <div className="relative h-[150px] w-full bg-booking-grey">
-                        {canOpenImagePreview(room.photoUrls) ? (
-                          <button
-                            aria-label={t("imagePreview.zoom")}
-                            className="relative h-full w-full p-0"
-                            onClick={() => setPreviewUrls(room.photoUrls)}
-                            type="button"
-                          >
-                            <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
-                            <span className="pointer-events-none absolute top-2 right-2 flex size-9 items-center justify-center text-white">
-                              <MdZoomIn size={23} />
-                            </span>
-                          </button>
-                        ) : (
-                          <div
-                            aria-hidden
-                            className="flex size-full items-center justify-center text-booking-primary/40"
-                          >
-                            <MdPhoto size={48} />
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center justify-between gap-2 px-[15px] py-3">
-                        <span className="truncate text-base font-bold leading-none text-white">{room.name}</span>
-                        <span className="flex shrink-0 items-center gap-[5px] text-xs font-medium text-brand-100">
-                          <CapacityIcon />
-                          <span>{room.capacity}</span>
-                        </span>
-                      </div>
-                    </article>
-                  ) : (
-                    <article className="min-w-0 bg-transparent" key={`empty-${index}`} />
-                  )
-                )
-              )}
+          {isInitialLoad ? (
+            <div aria-busy="true" className="flex min-h-[min(420px,50vh)] flex-1 items-center justify-center">
+              <Spinner showText size="sm" text={t("startBooking.loading")} />
             </div>
-          </div>
-
-          {noMatching ? null : (
-            <div className="relative min-h-0 flex-1">
-              {loading && rooms.length > 0 ? (
-                <div aria-busy="true" className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70">
-                  <Spinner showText size="sm" text={t("startBooking.loading")} />
-                </div>
-              ) : null}
-              <div
-                className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-4"
-                ref={gridScrollRef}
-              >
-                <div
-                  aria-label={t("timetable.searchBar")}
-                  className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
-                  onPointerLeave={(event) => {
-                    if (event.pointerType === "mouse") {
-                      setHover(null);
-                    }
-                  }}
-                >
-                  <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
-                  {hourLabels.map((label, hour) => (
-                    <div
-                      className="col-start-1 flex items-start justify-end pr-3 text-right text-xs font-medium leading-none whitespace-nowrap text-booking-primary"
-                      key={label}
-                      style={{ gridRow: hour * 2 + 1 }}
-                    >
-                      <span className="-translate-y-1/2">{formatClock(label, i18nInstance.language)}</span>
+          ) : (
+            <>
+              <div className="shrink-0 border-b-4 border-booking-primary bg-surface pt-[13px] pb-4">
+                <div className={TIMETABLE_TRACK}>
+                  <div />
+                  {showNoMatching ? (
+                    <div className="col-span-4 flex h-[168px] items-center justify-center bg-gray-300 text-base font-bold leading-normal text-gray-500">
+                      {t("timetable.noMatchingResults")}
                     </div>
-                  ))}
-                  {paddedRooms.map((room, roomIndex) =>
-                    Array.from({ length: 48 }, (_, cellIndex) => {
-                      const cell = room?.cells[cellIndex];
-                      const bookable = room && cell ? isBookableCell(room, cell.start, selection.interval) : false;
-                      return (
-                        <button
-                          className={cn(
-                            "relative border-t border-gray-300",
-                            cellIndex % 2 === 0 && "border-t-gray-400",
-                            cellIndex === 47 && "border-b border-gray-300",
-                            cell?.state === "closed" && "bg-gray-200",
-                            bookable && "cursor-pointer"
-                          )}
-                          disabled={!bookable}
-                          key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
-                          onPointerEnter={(event) => {
-                            if (room && cell) {
-                              handleCellPointerEnter(room, cell.start, event);
-                            }
-                          }}
-                          onPointerDown={(event) => {
-                            if (pointerKindFromEvent(event) !== "mouse") {
-                              event.preventDefault();
-                            }
-                          }}
-                          onPointerUp={(event) => {
-                            if (room && cell) {
-                              handleCellPointerUp(room, cell.start, event);
-                            }
-                          }}
-                          onClick={() => {
-                            if (room && cell) {
-                              handleAvailableAction(room, cell.start);
-                            }
-                          }}
-                          style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
-                          type="button"
-                        />
-                      );
-                    })
-                  )}
-                  {pagedRooms.map((room, roomIndex) =>
-                    displayBlocks(room, selection.interval, hover).map((block) => {
-                      const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
-                      const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
-                      const bookableStart =
-                        block.state === "available" && isBookableCell(room, block.start, selection.interval);
-                      return (
-                        <article
-                          className={eventClassName(block.state)}
-                          key={`${room.id}-${block.start}-${block.state}`}
-                          style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
-                        >
-                          <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                            <p className="m-0 text-base font-bold leading-normal">{t(`timetable.${block.state}`)}</p>
-                            <p className="m-0 text-xs font-medium leading-none">
-                              {formatClock(block.start, i18nInstance.language)} –{" "}
-                              {formatClock(block.end, i18nInstance.language)}
-                            </p>
+                  ) : (
+                    paddedRooms.map((room, index) =>
+                      room ? (
+                        <article className="min-w-0 overflow-hidden bg-booking-primary" key={room.id}>
+                          <div className="relative h-[150px] w-full bg-booking-grey">
+                            {canOpenImagePreview(room.photoUrls) ? (
+                              <button
+                                aria-label={t("imagePreview.zoom")}
+                                className="relative h-full w-full p-0"
+                                onClick={() => setPreviewUrls(room.photoUrls)}
+                                type="button"
+                              >
+                                <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
+                                <span className="pointer-events-none absolute top-2 right-2 flex size-9 items-center justify-center text-white">
+                                  <MdZoomIn size={23} />
+                                </span>
+                              </button>
+                            ) : (
+                              <div
+                                aria-hidden
+                                className="flex size-full items-center justify-center text-booking-primary/40"
+                              >
+                                <MdPhoto size={48} />
+                              </div>
+                            )}
                           </div>
-                          {block.state === "available" && bookableStart ? (
-                            <button
-                              className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
-                              onClick={() => handleAvailableAction(room, block.start)}
-                              type="button"
-                            >
-                              {t(appliedSpace === "multiple" ? "timetable.add" : "timetable.book")}
-                            </button>
-                          ) : null}
+                          <div className="flex items-center justify-between gap-2 px-[15px] py-3">
+                            <span className="truncate text-base font-bold leading-none text-white">{room.name}</span>
+                            <span className="flex shrink-0 items-center gap-[5px] text-xs font-medium text-brand-100">
+                              <CapacityIcon />
+                              <span>{room.capacity}</span>
+                            </span>
+                          </div>
                         </article>
-                      );
-                    })
+                      ) : (
+                        <article className="min-w-0 bg-transparent" key={`empty-${index}`} />
+                      )
+                    )
                   )}
                 </div>
               </div>
-            </div>
+
+              {showNoMatching ? null : (
+                <div className="relative min-h-0 flex-1">
+                  {loading && rooms.length > 0 ? (
+                    <div
+                      aria-busy="true"
+                      className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70"
+                    >
+                      <Spinner showText size="sm" text={t("startBooking.loading")} />
+                    </div>
+                  ) : null}
+                  <div
+                    className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-4"
+                    ref={gridScrollRef}
+                  >
+                    <div
+                      aria-label={t("timetable.searchBar")}
+                      className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
+                      onPointerLeave={(event) => {
+                        if (event.pointerType === "mouse") {
+                          setHover(null);
+                        }
+                      }}
+                    >
+                      <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
+                      {hourLabels.map((label, hour) => (
+                        <div
+                          className="col-start-1 flex items-start justify-end pr-3 text-right text-xs font-medium leading-none whitespace-nowrap text-booking-primary"
+                          key={label}
+                          style={{ gridRow: hour * 2 + 1 }}
+                        >
+                          <span className="-translate-y-1/2">{formatClock(label, i18nInstance.language)}</span>
+                        </div>
+                      ))}
+                      {paddedRooms.map((room, roomIndex) =>
+                        Array.from({ length: 48 }, (_, cellIndex) => {
+                          const cell = room?.cells[cellIndex];
+                          const bookable = room && cell ? isBookableCell(room, cell.start, selection.interval) : false;
+                          return (
+                            <button
+                              className={cn(
+                                "relative border-t border-gray-300",
+                                cellIndex % 2 === 0 && "border-t-gray-400",
+                                cellIndex === 47 && "border-b border-gray-300",
+                                cell?.state === "closed" && "bg-gray-200",
+                                bookable && "cursor-pointer"
+                              )}
+                              disabled={!bookable}
+                              key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
+                              onPointerEnter={(event) => {
+                                if (room && cell) {
+                                  handleCellPointerEnter(room, cell.start, event);
+                                }
+                              }}
+                              onPointerDown={(event) => {
+                                if (pointerKindFromEvent(event) !== "mouse") {
+                                  event.preventDefault();
+                                }
+                              }}
+                              onPointerUp={(event) => {
+                                if (room && cell) {
+                                  handleCellPointerUp(room, cell.start, event);
+                                }
+                              }}
+                              onClick={() => {
+                                if (room && cell) {
+                                  handleAvailableAction(room, cell.start);
+                                }
+                              }}
+                              style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
+                              type="button"
+                            />
+                          );
+                        })
+                      )}
+                      {pagedRooms.map((room, roomIndex) =>
+                        displayBlocks(room, selection.interval, hover).map((block) => {
+                          const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
+                          const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
+                          const bookableStart =
+                            block.state === "available" && isBookableCell(room, block.start, selection.interval);
+                          return (
+                            <article
+                              className={eventClassName(block.state)}
+                              key={`${room.id}-${block.start}-${block.state}`}
+                              style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
+                            >
+                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                <p className="m-0 text-base font-bold leading-normal">
+                                  {t(`timetable.${block.state}`)}
+                                </p>
+                                <p className="m-0 text-xs font-medium leading-none">
+                                  {formatClock(block.start, i18nInstance.language)} –{" "}
+                                  {formatClock(block.end, i18nInstance.language)}
+                                </p>
+                              </div>
+                              {block.state === "available" && bookableStart ? (
+                                <button
+                                  className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
+                                  onClick={() => handleAvailableAction(room, block.start)}
+                                  type="button"
+                                >
+                                  {t(appliedSpace === "multiple" ? "timetable.add" : "timetable.book")}
+                                </button>
+                              ) : null}
+                            </article>
+                          );
+                        })
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </>
           )}
         </div>
       </section>
