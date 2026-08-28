@@ -47,7 +47,7 @@ const RoomGridCard = ({
 
         {variant === "by_room" ? (
           <button
-            className="h-9 min-w-[130px] shrink-0 rounded-[24px] bg-cta px-3 text-sm font-bold text-on-cta transition-colors hover:bg-cta-hover hover:text-on-cta-hover"
+            className="btn-booking-secondary h-9 min-w-[130px] shrink-0 rounded-[24px] px-3 text-sm font-bold"
             onClick={() => onSeeAvailability?.(room)}
             type="button"
           >

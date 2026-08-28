@@ -60,7 +60,10 @@ const ROOMS_PER_PAGE = 4;
 const SLOT_HEIGHT_PX = 40;
 const GRID_SCROLL_PADDING_PX = 16;
 const CAPACITY_BANDS: CapacityBand[] = ["1-10", "10-25", "25-50", "50+"];
-const SEARCH_LABEL_CLASS = "mb-[3px] text-xs font-medium leading-none text-inverse-on-surface";
+const SEARCH_LABEL_CLASS = "mb-[3px] text-xs font-medium leading-none text-booking-light-grey";
+const SEARCH_CONTROL_CLASS = "border-outline bg-surface";
+const SEARCH_SECONDARY_BUTTON_CLASS =
+  "btn-booking-secondary inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50";
 const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] gap-x-[30px]";
 
 const isActiveMinistry = (item: MinistryItem): boolean => {
@@ -459,6 +462,7 @@ const RoomFilterPage = () => {
         <div className="flex min-w-0 flex-wrap items-end gap-2.5">
           {showMinistryField ? (
             <Select
+              className={SEARCH_CONTROL_CLASS}
               clearable
               id="timetable-ministry"
               label={t("timetable.ministry")}
@@ -476,7 +480,7 @@ const RoomFilterPage = () => {
             />
           ) : null}
           <Select
-            className="opacity-100"
+            className={cn("opacity-100", SEARCH_CONTROL_CLASS)}
             clearable={false}
             disabled
             id="timetable-repetition"
@@ -489,6 +493,7 @@ const RoomFilterPage = () => {
             wrapperClassName="w-[124px] shrink-0"
           />
           <DatePicker
+            className={SEARCH_CONTROL_CLASS}
             clearable={false}
             id="timetable-date"
             label={t("timetable.date")}
@@ -504,6 +509,7 @@ const RoomFilterPage = () => {
           />
           <TimePicker
             ampm
+            className={SEARCH_CONTROL_CLASS}
             id="timetable-start"
             label={t("timetable.start")}
             labelClassName={SEARCH_LABEL_CLASS}
@@ -515,6 +521,7 @@ const RoomFilterPage = () => {
           />
           <TimePicker
             ampm
+            className={SEARCH_CONTROL_CLASS}
             id="timetable-end"
             label={t("timetable.end")}
             labelClassName={SEARCH_LABEL_CLASS}
@@ -525,6 +532,7 @@ const RoomFilterPage = () => {
             wrapperClassName="w-[148px] shrink-0"
           />
           <Select
+            className={SEARCH_CONTROL_CLASS}
             clearable={false}
             id="timetable-space"
             label={t("timetable.roomsCount")}
@@ -541,15 +549,9 @@ const RoomFilterPage = () => {
           />
         </div>
         <span className="shrink-0" id="timetable-update-search">
-          <Button
-            btnType="button"
-            className="whitespace-nowrap !border-[0.5px] !border-booking-primary !bg-cta !text-on-cta hover:!bg-cta hover:!text-on-cta"
-            disabled={loading}
-            onClick={handleUpdateSearch}
-            size="xs"
-          >
+          <button className={SEARCH_SECONDARY_BUTTON_CLASS} disabled={loading} type="submit">
             {t("timetable.updateSearch")}
-          </Button>
+          </button>
         </span>
       </form>
 
@@ -612,14 +614,14 @@ const RoomFilterPage = () => {
           </div>
           <div className="flex shrink-0 items-center gap-4">
             {appliedSpace === "multiple" ? (
-              <Button
-                className="whitespace-nowrap !border-[0.5px] !border-booking-primary !bg-cta !text-on-cta hover:!bg-cta hover:!text-on-cta"
+              <button
+                className={SEARCH_SECONDARY_BUTTON_CLASS}
                 disabled={!canReviewBooking(selection)}
                 onClick={handleReviewBooking}
-                size="xs"
+                type="button"
               >
                 {t("timetable.reviewBookingCount", { count: selection.roomIds.length })}
-              </Button>
+              </button>
             ) : null}
             <div className="flex shrink-0 gap-3">
               <Button
