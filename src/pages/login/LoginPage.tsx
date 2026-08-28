@@ -3,7 +3,7 @@ import MicrosoftColorIcon from "@/components/auth/MicrosoftColorIcon";
 import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
 import { ENV_CONFIG, IS_MICROSOFT_LOGIN_ENABLED, IS_SHOW_DEV_LOGIN } from "@/config/env";
 import { useAuth } from "@/context/AuthContext";
-import { Checkbox, cn, Input } from "@efcnewlife/newlife-ui";
+import { Button, Checkbox, cn, Input } from "@efcnewlife/newlife-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { resolvePostLoginNext } from "@/utils/resolvePostLoginNext";
@@ -51,17 +51,9 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-surface-container">
+    <div className="relative min-h-screen w-full overflow-hidden bg-booking-login">
       <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
         <AuthLocaleSelect />
-      </div>
-
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
-        <img
-          alt=""
-          className="absolute left-0 top-[-10%] h-[110%] w-full max-w-none object-cover"
-          src="/images/login/gradient-bg.png"
-        />
       </div>
 
       <div className="relative flex min-h-screen flex-col items-center justify-center px-8 py-14">
@@ -90,15 +82,17 @@ const LoginPage = () => {
                 </p>
               )}
 
-              <button
-                className="flex h-14 w-[320px] items-center justify-center gap-3 rounded-[30px] bg-cta text-xl font-bold text-on-cta transition-colors hover:bg-cta-hover hover:text-on-cta-hover hover:ring-1 hover:ring-inset hover:ring-primary active:bg-cta-active active:text-on-cta-active disabled:cursor-not-allowed disabled:opacity-60"
+              <Button
+                btnType="button"
+                className="w-full max-w-[320px]"
                 disabled={isLoading}
                 onClick={handleMicrosoftSignIn}
-                type="button"
+                size="sm"
+                startIcon={<MicrosoftColorIcon className="size-[22px] shrink-0" />}
+                variant="outline"
               >
-                <MicrosoftColorIcon className="size-6 shrink-0" />
                 {isLoading ? t("auth:microsoftSigningIn") : t("auth:signInWithMicrosoft")}
-              </button>
+              </Button>
 
               <div className="mt-6 flex w-full items-center justify-center [&_span]:text-base">
                 <Checkbox checked={rememberMe} onChange={setRememberMe} label={t("auth:keepMeLoggedIn")} />
@@ -146,13 +140,15 @@ const LoginPage = () => {
                   </div>
                 )}
 
-                <button
-                  className="flex h-14 w-full items-center justify-center rounded-[30px] border border-gray-dark bg-surface text-xl font-bold text-gray-dark transition-colors hover:bg-surface-variant disabled:cursor-not-allowed disabled:opacity-60"
+                <Button
+                  btnType="submit"
+                  className="w-full"
                   disabled={isLoading || !isDevEmailValid}
-                  type="submit"
+                  size="sm"
+                  variant="outline"
                 >
                   {isLoading ? t("auth:signingIn") : t("auth:signInWithEmailDev")}
-                </button>
+                </Button>
               </form>
             </div>
           )}
