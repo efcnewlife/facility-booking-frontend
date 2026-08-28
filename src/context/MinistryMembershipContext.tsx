@@ -1,11 +1,12 @@
 import { ministryService } from "@/api/services/ministryService";
 import { isMinistryMemberFromList } from "@/utils/visitAccess";
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useState } from "react";
 
 interface MinistryMembershipContextType {
   isMinistryMember: boolean;
   canAccessMyMinistry: boolean;
   isLoading: boolean;
+  refreshMembership: () => Promise<void>;
 }
 
 const MinistryMembershipContext = createContext<MinistryMembershipContextType | undefined>(undefined);
@@ -19,42 +20,50 @@ export const MinistryMembershipProvider = ({ children }: MinistryMembershipProvi
   const [canAccessMyMinistry, setCanAccessMyMinistry] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
+  const loadMembership = useCallback(async (isCancelled?: () => boolean): Promise<void> => {
+    const cancelled = () => isCancelled?.() ?? false;
+
+    try {
+      const [mineResult, pendingResult] = await Promise.all([
+        ministryService.listMine(true),
+        ministryService.listPendingApprovalsForMe().catch(() => ({ items: [] })),
+      ]);
+      if (cancelled()) {
+        return;
+      }
+      const hasMinistries = isMinistryMemberFromList(mineResult.items || []);
+      const hasPendingApprovals = (pendingResult.items || []).length > 0;
+      setIsMinistryMember(hasMinistries);
+      setCanAccessMyMinistry(hasMinistries || hasPendingApprovals);
+    } catch {
+      if (!cancelled()) {
+        setIsMinistryMember(false);
+        setCanAccessMyMinistry(false);
+      }
+    }
+  }, []);
+
+  const refreshMembership = useCallback(async (): Promise<void> => {
+    await loadMembership();
+  }, [loadMembership]);
+
   useEffect(() => {
     let cancelled = false;
 
-    const loadMembership = async () => {
-      try {
-        const [mineResult, pendingResult] = await Promise.all([
-          ministryService.listMine(true),
-          ministryService.listPendingApprovalsForMe().catch(() => ({ items: [] })),
-        ]);
-        if (!cancelled) {
-          const hasMinistries = isMinistryMemberFromList(mineResult.items || []);
-          const hasPendingApprovals = (pendingResult.items || []).length > 0;
-          setIsMinistryMember(hasMinistries);
-          setCanAccessMyMinistry(hasMinistries || hasPendingApprovals);
-        }
-      } catch {
-        if (!cancelled) {
-          setIsMinistryMember(false);
-          setCanAccessMyMinistry(false);
-        }
-      } finally {
-        if (!cancelled) {
-          setIsLoading(false);
-        }
+    void (async () => {
+      await loadMembership(() => cancelled);
+      if (!cancelled) {
+        setIsLoading(false);
       }
-    };
-
-    void loadMembership();
+    })();
 
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadMembership]);
 
   return (
-    <MinistryMembershipContext.Provider value={{ isMinistryMember, canAccessMyMinistry, isLoading }}>
+    <MinistryMembershipContext.Provider value={{ isMinistryMember, canAccessMyMinistry, isLoading, refreshMembership }}>
       {children}
     </MinistryMembershipContext.Provider>
   );
