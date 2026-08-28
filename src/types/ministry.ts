@@ -16,6 +16,27 @@ export interface AssignablePosition {
   code?: string | null;
   team?: string | null;
   office?: string | null;
+  incumbentUserId?: string | null;
+}
+
+export interface MinistryCatalogItem {
+  id: string;
+  code: string;
+  name?: string | null;
+}
+
+export interface MinistryCatalogListResponse {
+  items: MinistryCatalogItem[];
+}
+
+export interface OrgUserSearchItem {
+  id: string;
+  email?: string | null;
+  displayName?: string | null;
+}
+
+export interface OrgUserSearchListResponse {
+  items: OrgUserSearchItem[];
 }
 
 export interface AssignablePositionListResponse {
@@ -35,13 +56,15 @@ export interface LocaleListResponse {
 
 export interface CreateMinistryApplicationPayload {
   ownerPositionId: string;
+  ministryTypeId: string;
+  targetAudienceIds?: string[];
   hasPriorityBooking?: boolean;
   translations: Array<{
     localeId: string;
     name: string;
     description?: string;
   }>;
-  members?: Array<{
+  members: Array<{
     userId: string;
     memberRole: "primary" | "secondary";
   }>;

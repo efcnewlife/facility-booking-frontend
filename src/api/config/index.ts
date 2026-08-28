@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
   ORG: {
     ASSIGNABLE_POSITIONS: `${BOOKING_API_PREFIX}/org/positions/assignable`,
     LOCALES: `${BOOKING_API_PREFIX}/org/locales`,
+    USER_SEARCH: `${BOOKING_API_PREFIX}/org/users/search`,
   },
   FACILITY: {
     AVAILABILITY: `${BOOKING_API_PREFIX}/facility/rooms/availability`,

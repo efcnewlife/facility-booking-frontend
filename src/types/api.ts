@@ -18,6 +18,7 @@ export interface ApiError {
   message: string;
   details?: {
     detail?: string;
+    error_code?: string;
     debug_detail?: unknown;
     url?: string;
     message?: string;
