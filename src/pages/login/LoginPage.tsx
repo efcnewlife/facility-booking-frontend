@@ -3,10 +3,10 @@ import MicrosoftColorIcon from "@/components/auth/MicrosoftColorIcon";
 import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
 import { ENV_CONFIG, IS_MICROSOFT_LOGIN_ENABLED, IS_SHOW_DEV_LOGIN } from "@/config/env";
 import { useAuth } from "@/context/AuthContext";
+import { resolvePostLoginNext } from "@/utils/resolvePostLoginNext";
 import { Button, Checkbox, cn, Input } from "@efcnewlife/newlife-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { resolvePostLoginNext } from "@/utils/resolvePostLoginNext";
 import { useNavigate, useSearchParams } from "react-router";
 
 const LoginPage = () => {
@@ -51,40 +51,45 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="relative min-h-screen w-full overflow-hidden bg-booking-login">
-      <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
-        <AuthLocaleSelect />
+    <div className="relative flex min-h-screen w-full flex-col overflow-hidden bg-booking-login">
+      <div className="absolute top-4 left-4 z-10 sm:top-6 sm:left-6 lg:left-12">
+        <img
+          alt={t("booking:nav.logoAlt")}
+          className="h-[39px] w-auto max-w-[min(180px,40vw)] object-contain object-left"
+          src="/images/logo/booking-app-logo.png"
+        />
       </div>
 
-      <div className="relative flex min-h-screen flex-col items-center justify-center px-8 py-14">
+      <div className="absolute top-4 right-4 z-10 sm:top-6 sm:right-6">
+        <AuthLocaleSelect className="w-[180px]" />
+      </div>
+
+      <div className="relative flex flex-1 flex-col items-center justify-center px-4 pb-14 pt-6 sm:px-8">
         <div
           className={cn(
-            "flex w-full max-w-[480px] flex-col items-center rounded-[36px] bg-surface px-12 pb-14 pt-14",
+            "flex w-full max-w-[438px] flex-col items-center rounded-[25px] bg-surface px-[30px] py-10 sm:px-10",
             "shadow-login-card"
           )}
         >
-          <div className="mb-12 flex flex-col items-center text-center">
-            <img
-              alt="EFC New Life"
-              className="h-auto w-full max-w-[320px] object-contain"
-              src="/images/logo/main-light-wide.png"
-            />
-            <h1 className="mt-6 text-3xl font-bold tracking-tight text-on-surface">{t("booking:appTitle")}</h1>
-          </div>
+          <img
+            alt={t("booking:footer.churchLogoAlt")}
+            className="mb-[30px] h-auto w-full max-w-[213px] object-contain"
+            src="/images/logo/church-logo.png"
+          />
 
-          {error && <p className="mb-6 text-center text-base font-medium text-error">{error}</p>}
+          {error && <p className="mb-5 w-full text-center text-[17.5px] font-medium text-error">{error}</p>}
 
           {IS_MICROSOFT_LOGIN_ENABLED && (
             <>
               {!IS_SHOW_DEV_LOGIN && (
-                <p className="mb-6 text-center text-base font-medium text-on-surface-variant">
+                <p className="mb-5 text-center text-[17.5px] font-medium text-on-surface-variant">
                   {t("auth:signInPromptMicrosoft")}
                 </p>
               )}
 
               <Button
                 btnType="button"
-                className="w-full max-w-[320px]"
+                className="w-full !rounded-full"
                 disabled={isLoading}
                 onClick={handleMicrosoftSignIn}
                 size="sm"
@@ -94,69 +99,64 @@ const LoginPage = () => {
                 {isLoading ? t("auth:microsoftSigningIn") : t("auth:signInWithMicrosoft")}
               </Button>
 
-              <div className="mt-6 flex w-full items-center justify-center [&_span]:text-base">
+              <div className="mt-5 flex w-full items-center justify-center [&_span]:text-[17.5px]">
                 <Checkbox checked={rememberMe} onChange={setRememberMe} label={t("auth:keepMeLoggedIn")} />
               </div>
             </>
           )}
 
           {!IS_MICROSOFT_LOGIN_ENABLED && !IS_SHOW_DEV_LOGIN && (
-            <p className="mb-6 text-center text-base font-medium text-on-surface-variant">
+            <p className="text-center text-[17.5px] font-medium text-on-surface-variant">
               {t("auth:microsoftNotConfiguredEnv")}
             </p>
           )}
 
           {IS_SHOW_DEV_LOGIN && (
-            <div className={cn("w-full", IS_MICROSOFT_LOGIN_ENABLED && "mt-8")}>
-              {IS_MICROSOFT_LOGIN_ENABLED && (
-                <div className="relative mb-6 py-2">
-                  <div aria-hidden="true" className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-outline-variant" />
-                  </div>
-                  <div className="relative flex justify-center text-xs">
-                    <span className="bg-surface px-2 text-on-surface-variant">{t("auth:devEmailSignInSection")}</span>
-                  </div>
-                </div>
-              )}
+            <details className={cn("w-full", IS_MICROSOFT_LOGIN_ENABLED && "mt-[30px]")}>
+              <summary className="cursor-pointer text-center text-[15px] font-medium text-on-surface-variant">
+                {t("auth:devEmailSignInSection")}
+              </summary>
 
-              <p className="mb-4 text-center text-base font-medium text-on-surface-variant">
-                {t("auth:signInPromptDev")}
-              </p>
+              <div className="mt-5">
+                <p className="mb-5 text-center text-[17.5px] font-medium text-on-surface-variant">
+                  {t("auth:signInPromptDev")}
+                </p>
 
-              <form className="space-y-4" onSubmit={handleDevSignIn}>
-                <Input
-                  id="dev-email"
-                  label={t("auth:email")}
-                  onChange={(event) => setDevEmail(event.target.value)}
-                  placeholder="dev@local.test"
-                  required
-                  type="email"
-                  value={devEmail}
-                />
+                <form className="space-y-5" onSubmit={handleDevSignIn}>
+                  <Input
+                    id="dev-email"
+                    label={t("auth:email")}
+                    onChange={(event) => setDevEmail(event.target.value)}
+                    placeholder="dev@local.test"
+                    required
+                    type="email"
+                    value={devEmail}
+                  />
 
-                {!IS_MICROSOFT_LOGIN_ENABLED && (
-                  <div className="flex w-full items-center justify-center [&_span]:text-base">
-                    <Checkbox checked={rememberMe} onChange={setRememberMe} label={t("auth:keepMeLoggedIn")} />
-                  </div>
-                )}
+                  {!IS_MICROSOFT_LOGIN_ENABLED && (
+                    <div className="flex w-full items-center justify-center [&_span]:text-[17.5px]">
+                      <Checkbox checked={rememberMe} onChange={setRememberMe} label={t("auth:keepMeLoggedIn")} />
+                    </div>
+                  )}
 
-                <Button
-                  btnType="submit"
-                  className="w-full"
-                  disabled={isLoading || !isDevEmailValid}
-                  size="sm"
-                  variant="outline"
-                >
-                  {isLoading ? t("auth:signingIn") : t("auth:signInWithEmailDev")}
-                </Button>
-              </form>
-            </div>
+                  <Button
+                    btnType="submit"
+                    className="w-full"
+                    disabled={isLoading || !isDevEmailValid}
+                    size="md"
+                    variant="outline"
+                  >
+                    {isLoading ? t("auth:signingIn") : t("auth:signInWithEmailDev")}
+                  </Button>
+                </form>
+              </div>
+            </details>
           )}
         </div>
 
         <LegalDocumentLinks
-          className="mt-8"
-          linkClassName="text-sm font-medium text-on-surface-variant underline-offset-2 hover:text-on-surface hover:underline"
+          className="mt-[30px]"
+          linkClassName="text-[15px] font-medium text-booking-text underline-offset-2 hover:text-booking-secondary hover:underline"
         />
       </div>
     </div>

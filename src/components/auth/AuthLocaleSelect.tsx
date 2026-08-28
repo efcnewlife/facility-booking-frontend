@@ -1,7 +1,12 @@
 import AppLocaleSelect from "@/components/auth/AppLocaleSelect";
+import { cn } from "@efcnewlife/newlife-ui";
 
-const AuthLocaleSelect = () => {
-  return <AppLocaleSelect className="w-[180px]" id="auth-locale-select" />;
+interface AuthLocaleSelectProps {
+  className?: string;
+}
+
+const AuthLocaleSelect = ({ className }: AuthLocaleSelectProps) => {
+  return <AppLocaleSelect className={cn("w-full sm:w-[180px]", className)} id="auth-locale-select" />;
 };
 
 export default AuthLocaleSelect;
