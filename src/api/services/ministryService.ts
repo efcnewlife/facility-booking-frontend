@@ -1,14 +1,17 @@
 import { API_ENDPOINTS } from "@/api/config";
 import type { ApiError } from "@/types/api";
 import type {
+  ApproveMinistryApplicationPayload,
   AssignablePositionListResponse,
   CreateMinistryApplicationPayload,
   LocaleItem,
   LocaleListResponse,
+  MinistryApprovalPendingListResponse,
   MinistryCatalogListResponse,
   MinistryDetail,
   MinistryListResponse,
   OrgUserSearchListResponse,
+  RejectMinistryApplicationPayload,
   UpdateMinistryApplicationPayload,
 } from "@/types/ministry";
 import { httpClient } from "./httpClient";
@@ -102,6 +105,18 @@ class MinistryService {
     }
   }
 
+  async listPendingApprovalsForMe(): Promise<MinistryApprovalPendingListResponse> {
+    const response = await httpClient.get<MinistryApprovalPendingListResponse>(
+      API_ENDPOINTS.MINISTRY.PENDING_APPROVALS_FOR_ME
+    );
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to load pending approvals");
+    }
+    return {
+      items: response.data.items || [],
+    };
+  }
+
   async getApplicationDetail(ministryId: string): Promise<MinistryDetail> {
     const response = await httpClient.get<MinistryDetail>(API_ENDPOINTS.MINISTRY.APPLICATION_DETAIL(ministryId));
     if (!response.success || !response.data) {
@@ -133,6 +148,34 @@ class MinistryService {
     const response = await httpClient.post<void>(API_ENDPOINTS.MINISTRY.RESUBMIT_APPLICATION(ministryId));
     if (!response.success) {
       throw new Error(response.message || "Failed to resubmit ministry application");
+    }
+  }
+
+  async approveApplication(ministryId: string, payload: ApproveMinistryApplicationPayload = {}): Promise<void> {
+    try {
+      const response = await httpClient.post<void>(API_ENDPOINTS.MINISTRY.APPROVE_APPLICATION(ministryId), payload);
+      if (!response.success) {
+        throw new Error(response.message || "Failed to approve ministry application");
+      }
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+      throw error instanceof Error ? error : new Error("Failed to approve ministry application");
+    }
+  }
+
+  async rejectApplication(ministryId: string, payload: RejectMinistryApplicationPayload): Promise<void> {
+    try {
+      const response = await httpClient.post<void>(API_ENDPOINTS.MINISTRY.REJECT_APPLICATION(ministryId), payload);
+      if (!response.success) {
+        throw new Error(response.message || "Failed to reject ministry application");
+      }
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+      throw error instanceof Error ? error : new Error("Failed to reject ministry application");
     }
   }
 }

@@ -8,6 +8,7 @@ import LegalDocumentPage from "@/pages/legal-document/LegalDocumentPage";
 import LoginPage from "@/pages/login/LoginPage";
 import MyBookingsPage from "@/pages/my-bookings/MyBookingsPage";
 import MyMinistryPage from "@/pages/my-ministry/MyMinistryPage";
+import MinistryApprovalDetailPage from "@/pages/my-ministry/MinistryApprovalDetailPage";
 import MyProfilePage from "@/pages/my-profile/MyProfilePage";
 import PaymentPage from "@/pages/payment/PaymentPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
@@ -56,6 +57,10 @@ export const router = createBrowserRouter([
           {
             path: "/my-ministry",
             element: <MyMinistryPage />,
+          },
+          {
+            path: "/my-ministry/approvals/:ministryId",
+            element: <MinistryApprovalDetailPage />,
           },
           {
             path: "*",

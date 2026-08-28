@@ -18,7 +18,7 @@ const LoadingScreen = () => {
 
 const AuthenticatedChrome = () => {
   const { isAuthenticated } = useAuth();
-  const { isMinistryMember, isLoading } = useMinistryMembership();
+  const { canAccessMyMinistry, isLoading } = useMinistryMembership();
   const { pathname } = useLocation();
 
   const isMyMinistryPath = pathname === MY_MINISTRY_PATH || pathname === `${MY_MINISTRY_PATH}/`;
@@ -28,7 +28,7 @@ const AuthenticatedChrome = () => {
 
   const access = visitAccess({
     isAuthenticated,
-    isMinistryMember,
+    canAccessMyMinistry,
     pathname,
   });
 

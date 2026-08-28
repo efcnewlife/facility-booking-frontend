@@ -77,7 +77,49 @@
       }
     },
     "approvals": {
-      "comingSoon": "您擔任負責職位時，待審核的申請會顯示在這裡。"
+      "empty": "目前沒有待您審核的事工申請。",
+      "review": "查看申請",
+      "errors": {
+        "title": "無法載入待審核項目",
+        "loadList": "載入待審核申請失敗。",
+        "loadDetail": "載入事工申請失敗。",
+        "invalidRoute": "此審核連結無效。",
+        "approve": "核准事工申請失敗。",
+        "reject": "拒絕事工申請失敗。",
+        "forbidden": "您無權核准或拒絕此申請。",
+        "notPending": "此事工申請已不再待審核。"
+      },
+      "detail": {
+        "backToQueue": "返回待審核列表",
+        "summaryTitle": "事工摘要",
+        "ministryType": "事工類型",
+        "targetAudiences": "目標對象",
+        "priorityBooking": "優先預訂",
+        "priorityBookingYes": "是",
+        "priorityBookingNo": "否",
+        "submittedAt": "提交日期",
+        "purpose": "目的",
+        "stewardsTitle": "同工",
+        "noStewards": "尚未列出同工。",
+        "approve": "核准",
+        "reject": "拒絕",
+        "selfApproveNotice": "此申請由您提交，且您也是負責職位的現任者。您可以核准自己的申請。",
+        "memberRoles": {
+          "primary": "主要同工",
+          "secondary": "次要同工",
+          "unknown": "同工"
+        }
+      },
+      "approve": {
+        "title": "核准事工申請",
+        "comment": "備註（選填）"
+      },
+      "reject": {
+        "title": "拒絕事工申請",
+        "reason": "拒絕原因",
+        "reasonRequired": "必須填寫拒絕原因。",
+        "comment": "備註（選填）"
+      }
     }
   },
   "notFound": {

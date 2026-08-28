@@ -4,6 +4,7 @@ import { createContext, type ReactNode, useContext, useEffect, useState } from "
 
 interface MinistryMembershipContextType {
   isMinistryMember: boolean;
+  canAccessMyMinistry: boolean;
   isLoading: boolean;
 }
 
@@ -15,6 +16,7 @@ interface MinistryMembershipProviderProps {
 
 export const MinistryMembershipProvider = ({ children }: MinistryMembershipProviderProps) => {
   const [isMinistryMember, setIsMinistryMember] = useState(false);
+  const [canAccessMyMinistry, setCanAccessMyMinistry] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -22,13 +24,20 @@ export const MinistryMembershipProvider = ({ children }: MinistryMembershipProvi
 
     const loadMembership = async () => {
       try {
-        const result = await ministryService.listMine(true);
+        const [mineResult, pendingResult] = await Promise.all([
+          ministryService.listMine(true),
+          ministryService.listPendingApprovalsForMe().catch(() => ({ items: [] })),
+        ]);
         if (!cancelled) {
-          setIsMinistryMember(isMinistryMemberFromList(result.items || []));
+          const hasMinistries = isMinistryMemberFromList(mineResult.items || []);
+          const hasPendingApprovals = (pendingResult.items || []).length > 0;
+          setIsMinistryMember(hasMinistries);
+          setCanAccessMyMinistry(hasMinistries || hasPendingApprovals);
         }
       } catch {
         if (!cancelled) {
           setIsMinistryMember(false);
+          setCanAccessMyMinistry(false);
         }
       } finally {
         if (!cancelled) {
@@ -45,7 +54,7 @@ export const MinistryMembershipProvider = ({ children }: MinistryMembershipProvi
   }, []);
 
   return (
-    <MinistryMembershipContext.Provider value={{ isMinistryMember, isLoading }}>
+    <MinistryMembershipContext.Provider value={{ isMinistryMember, canAccessMyMinistry, isLoading }}>
       {children}
     </MinistryMembershipContext.Provider>
   );
