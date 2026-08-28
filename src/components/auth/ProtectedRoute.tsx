@@ -1,10 +1,12 @@
-import { Navigate, Outlet } from "react-router";
+import { Navigate, Outlet, useLocation } from "react-router";
 import { useAuth } from "@/context/AuthContext";
+import { buildLoginPathWithNext } from "@/utils/resolvePostLoginNext";
 import { useTranslation } from "react-i18next";
 
 const ProtectedRoute = () => {
   const { t } = useTranslation();
   const { isAuthenticated, isLoading } = useAuth();
+  const location = useLocation();
 
   if (isLoading) {
     return (
@@ -15,7 +17,8 @@ const ProtectedRoute = () => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate replace to="/login" />;
+    const returnPath = `${location.pathname}${location.search}`;
+    return <Navigate replace to={buildLoginPathWithNext(returnPath)} />;
   }
 
   return <Outlet />;

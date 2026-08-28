@@ -6,14 +6,17 @@ import { useAuth } from "@/context/AuthContext";
 import { Checkbox, cn, Input } from "@efcnewlife/newlife-ui";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
+import { resolvePostLoginNext } from "@/utils/resolvePostLoginNext";
+import { useNavigate, useSearchParams } from "react-router";
 
 const LoginPage = () => {
   const { t } = useTranslation();
   const [rememberMe, setRememberMe] = useState(false);
   const [devEmail, setDevEmail] = useState(ENV_CONFIG.DEV_LOGIN_EMAIL);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { loginWithMicrosoft, loginAsDevUser, isLoading, error, isAuthenticated, clearError } = useAuth();
+  const postLoginPath = resolvePostLoginNext(searchParams.get("next"));
 
   const isDevEmailValid = useMemo(() => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -22,15 +25,15 @@ const LoginPage = () => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/", { replace: true });
+      navigate(postLoginPath, { replace: true });
     }
-  }, [isAuthenticated, navigate]);
+  }, [isAuthenticated, navigate, postLoginPath]);
 
   const handleMicrosoftSignIn = async () => {
     clearError();
     try {
       await loginWithMicrosoft(rememberMe);
-      navigate("/", { replace: true });
+      navigate(postLoginPath, { replace: true });
     } catch (signInError) {
       console.error(signInError);
     }
@@ -41,7 +44,7 @@ const LoginPage = () => {
     clearError();
     try {
       await loginAsDevUser({ email: devEmail, rememberMe });
-      navigate("/", { replace: true });
+      navigate(postLoginPath, { replace: true });
     } catch (signInError) {
       console.error(signInError);
     }
