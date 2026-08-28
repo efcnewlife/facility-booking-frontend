@@ -11,6 +11,7 @@ import {
   emptyTimeBookInterval,
   emptyTimePointerAction,
   hasNoMatchingResults,
+  isTimetableInitialLoad,
   isRoomAvailable,
   matchesCapacityBand,
   removeSelectedRoom,
@@ -251,6 +252,18 @@ describe("hasNoMatchingResults", () => {
     const occupied = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
     expect(hasNoMatchingResults([occupied], "available", { start: "10:00", end: "11:00" }, null, undefined)).toBe(true);
     expect(hasNoMatchingResults([occupied], "all", { start: "10:00", end: "11:00" }, null, undefined)).toBe(false);
+  });
+
+  it("is true when availability has not loaded yet", () => {
+    expect(hasNoMatchingResults([], "available", null, null, undefined)).toBe(true);
+  });
+});
+
+describe("isTimetableInitialLoad", () => {
+  it("is true only while the first availability fetch is in flight", () => {
+    expect(isTimetableInitialLoad(true, 0)).toBe(true);
+    expect(isTimetableInitialLoad(true, 2)).toBe(false);
+    expect(isTimetableInitialLoad(false, 0)).toBe(false);
   });
 });
 
