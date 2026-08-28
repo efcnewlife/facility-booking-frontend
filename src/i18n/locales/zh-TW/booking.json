@@ -46,7 +46,39 @@
     }
   },
   "myMinistry": {
-    "pageTitle": "我的事工"
+    "pageTitle": "我的事工",
+    "tabs": {
+      "ariaLabel": "我的事工區塊",
+      "applications": "我的申請",
+      "approvals": "待我審核"
+    },
+    "applications": {
+      "empty": "您目前還沒有事工申請。",
+      "unnamed": "未命名事工",
+      "ministryType": "類型：{{type}}",
+      "rejectionReason": "拒絕原因",
+      "startBooking": "開始預訂",
+      "status": {
+        "pendingApproval": "待審核",
+        "rejected": "已拒絕",
+        "active": "已啟用",
+        "unknown": "未知"
+      },
+      "resubmit": {
+        "action": "編輯並重新提交",
+        "title": "重新提交事工申請",
+        "submit": "重新提交申請"
+      },
+      "errors": {
+        "title": "無法載入申請",
+        "loadList": "無法載入您的事工申請。",
+        "loadResubmit": "無法載入要編輯的申請。",
+        "resubmit": "重新提交事工申請失敗。"
+      }
+    },
+    "approvals": {
+      "comingSoon": "您擔任負責職位時，待審核的申請會顯示在這裡。"
+    }
   },
   "notFound": {
     "title": "找不到頁面",

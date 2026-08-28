@@ -6,8 +6,10 @@ import type {
   LocaleItem,
   LocaleListResponse,
   MinistryCatalogListResponse,
+  MinistryDetail,
   MinistryListResponse,
   OrgUserSearchListResponse,
+  UpdateMinistryApplicationPayload,
 } from "@/types/ministry";
 import { httpClient } from "./httpClient";
 
@@ -97,6 +99,40 @@ class MinistryService {
         throw error;
       }
       throw error instanceof Error ? error : new Error("Failed to create ministry application");
+    }
+  }
+
+  async getApplicationDetail(ministryId: string): Promise<MinistryDetail> {
+    const response = await httpClient.get<MinistryDetail>(API_ENDPOINTS.MINISTRY.APPLICATION_DETAIL(ministryId));
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to load ministry application");
+    }
+    return {
+      ...response.data,
+      translations: response.data.translations || [],
+      members: response.data.members || [],
+      targetAudiences: response.data.targetAudiences || [],
+    };
+  }
+
+  async updateRejectedApplication(ministryId: string, payload: UpdateMinistryApplicationPayload): Promise<void> {
+    try {
+      const response = await httpClient.put<void>(API_ENDPOINTS.MINISTRY.APPLICATION(ministryId), payload);
+      if (!response.success) {
+        throw new Error(response.message || "Failed to update ministry application");
+      }
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+      throw error instanceof Error ? error : new Error("Failed to update ministry application");
+    }
+  }
+
+  async resubmitApplication(ministryId: string): Promise<void> {
+    const response = await httpClient.post<void>(API_ENDPOINTS.MINISTRY.RESUBMIT_APPLICATION(ministryId));
+    if (!response.success) {
+      throw new Error(response.message || "Failed to resubmit ministry application");
     }
   }
 }
