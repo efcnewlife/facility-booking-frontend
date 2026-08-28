@@ -46,7 +46,39 @@
     }
   },
   "myMinistry": {
-    "pageTitle": "My Ministry"
+    "pageTitle": "My Ministry",
+    "tabs": {
+      "ariaLabel": "My Ministry sections",
+      "applications": "My applications",
+      "approvals": "Pending my approval"
+    },
+    "applications": {
+      "empty": "You do not have any ministry applications yet.",
+      "unnamed": "Untitled ministry",
+      "ministryType": "Type: {{type}}",
+      "rejectionReason": "Rejection reason",
+      "startBooking": "Start booking",
+      "status": {
+        "pendingApproval": "Pending approval",
+        "rejected": "Rejected",
+        "active": "Active",
+        "unknown": "Unknown"
+      },
+      "resubmit": {
+        "action": "Edit and resubmit",
+        "title": "Resubmit ministry application",
+        "submit": "Resubmit application"
+      },
+      "errors": {
+        "title": "Unable to load applications",
+        "loadList": "Failed to load your ministry applications.",
+        "loadResubmit": "Failed to load the application for editing.",
+        "resubmit": "Failed to resubmit the ministry application."
+      }
+    },
+    "approvals": {
+      "comingSoon": "Pending approvals for your owner positions will appear here."
+    }
   },
   "notFound": {
     "title": "Page not found",

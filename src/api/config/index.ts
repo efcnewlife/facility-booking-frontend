@@ -12,6 +12,9 @@ export const API_ENDPOINTS = {
   MINISTRY: {
     MINE: `${BOOKING_API_PREFIX}/ministry/ministries/mine`,
     APPLICATIONS: `${BOOKING_API_PREFIX}/ministry/applications`,
+    APPLICATION: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/applications/${ministryId}`,
+    RESUBMIT_APPLICATION: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/applications/${ministryId}/submit`,
+    APPLICATION_DETAIL: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/approvals/${ministryId}`,
     MINISTRY_TYPES: `${BOOKING_API_PREFIX}/ministry/catalog/ministry-types`,
     TARGET_AUDIENCES: `${BOOKING_API_PREFIX}/ministry/catalog/target-audiences`,
   },
