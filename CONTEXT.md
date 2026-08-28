@@ -37,8 +37,40 @@ The page an authenticated member sees for an unknown path, or a path they are no
 _Avoid_: redirecting unknown paths to Home, 403 as the member-facing response, showing Not Found before login
 
 **My Ministry**:
-The member-facing place for a Ministry member to see the ministries they are listed on, including pending and rejected records.
-_Avoid_: the Start booking ministry picker, Support, Contact
+The member-facing place for a Ministry member to see the ministries they are listed on, including pending and rejected records. It has tabs for applications they submitted and, when they are an Owner-position incumbent, pending approvals waiting on them.
+_Avoid_: the approval queue as a separate top-level nav item, showing only active ministries
+
+**Application notification email**:
+An Outlook message sent from a fixed system mailbox to the Owner-position incumbent when a member submits a Ministry Application. It contains a deep link into the booking approval detail page. Body is bilingual: English first, then Chinese.
+_Avoid_: applicant confirmation as the same email, portal notification as this email, single-language-only templates in this slice
+
+**Application decision email**:
+An Outlook message to the applicant when a Ministry Application is approved or rejected. My Ministry also shows the updated status. Body is bilingual: English first, then Chinese.
+_Avoid_: treating this as the incumbent notification, in-app-only with no email
+
+**Application submit confirmation email**:
+An Outlook message to the applicant right after submit, summarizing the Ministry Application and linking to My Ministry. Body is bilingual: English first, then Chinese.
+_Avoid_: duplicating the incumbent notification, replacing My Ministry status updates
+
+**Target audience (application)**:
+Optional atomic catalog labels on booking create (multi-select). When present, `all_ages` cannot combine with other labels. Schedule is not collected on booking create.
+_Avoid_: merged poster phrases as one code, requiring audience for every ministry type
+
+**Ministry Application**:
+A Ministry in the pending-approval lifecycle after the member submits from booking. A Ministry Approver decides it; approving makes that Ministry Active so it can appear in Start booking / Search Bar Ministry.
+_Avoid_: Application as a synonym for an Active Ministry, treating Approval as the Application itself
+
+**Ministry Approver**:
+A person who may approve or reject a Ministry Application: the current incumbent of that Ministry's Owner position, or a user granted ministry approval authority in the admin portal.
+_Avoid_: incumbent-only as the sole rule, RBAC-only as the sole rule
+
+**Ministry approval queue**:
+The booking member view of Ministry Applications waiting on the signed-in user as Owner-position incumbent. Email links land on a detail page inside this queue after Microsoft sign-in.
+_Avoid_: the admin portal Approvals menu, treating the queue as My Ministry applications the user submitted
+
+**Steward picker search**:
+The booking create form finds secondary stewards among active auth users by email or display name (minimum query length, capped results). The applicant cannot select themselves as secondary.
+_Avoid_: invite-by-email without an existing auth user, searching Member Person records
 
 **Start booking**:
 The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then When, then Space needed. Search leaves this flow for the Timetable.
