@@ -11,7 +11,16 @@ import {
 } from "@/utils/createMinistryForm";
 import { resolveMinistryApplicationErrorMessage } from "@/utils/ministryApplicationErrors";
 import { MY_MINISTRY_PATH } from "@/utils/visitAccess";
-import { Alert, Button, ComboBox, Input, ModalForm, type ModalFormHandle, Select } from "@efcnewlife/newlife-ui";
+import {
+  Alert,
+  Button,
+  ComboBox,
+  Input,
+  ModalForm,
+  Select,
+  TextArea,
+  type ModalFormHandle,
+} from "@efcnewlife/newlife-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
@@ -379,13 +388,14 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
             required
             value={secondaryStewardIds}
           />
-          <Input
+          <TextArea
             id="create-ministry-purpose"
             label={t("startBooking.createMinistry.purpose")}
-            onChange={(event) => setPurpose(event.target.value)}
+            onChange={setPurpose}
             placeholder={t("startBooking.createMinistry.purposePlaceholder")}
             required
             value={purpose}
+            rows={4}
           />
           <Alert
             message={t("startBooking.createMinistry.approvalMessage")}
