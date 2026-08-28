@@ -1,10 +1,13 @@
 import { API_ENDPOINTS } from "@/api/config";
+import type { ApiError } from "@/types/api";
 import type {
   AssignablePositionListResponse,
   CreateMinistryApplicationPayload,
   LocaleItem,
   LocaleListResponse,
+  MinistryCatalogListResponse,
   MinistryListResponse,
+  OrgUserSearchListResponse,
 } from "@/types/ministry";
 import { httpClient } from "./httpClient";
 
@@ -24,6 +27,10 @@ const mapLocaleItem = (item: LocaleApiItem): LocaleItem => ({
   regionCode: item.regionCode ?? item.region_code ?? null,
   isDefault: item.isDefault ?? item.is_default ?? false,
 });
+
+const isApiError = (error: unknown): error is ApiError => {
+  return Boolean(error && typeof error === "object" && "code" in error && typeof (error as ApiError).code === "number");
+};
 
 class MinistryService {
   async listMine(includePending = true): Promise<MinistryListResponse> {
@@ -54,12 +61,43 @@ class MinistryService {
     };
   }
 
-  async createApplication(payload: CreateMinistryApplicationPayload): Promise<{ id: string }> {
-    const response = await httpClient.post<{ id: string }>(API_ENDPOINTS.MINISTRY.APPLICATIONS, payload);
+  async listMinistryTypes(): Promise<MinistryCatalogListResponse> {
+    const response = await httpClient.get<MinistryCatalogListResponse>(API_ENDPOINTS.MINISTRY.MINISTRY_TYPES);
     if (!response.success || !response.data) {
-      throw new Error(response.message || "Failed to create ministry application");
+      throw new Error(response.message || "Failed to load ministry types");
     }
     return response.data;
+  }
+
+  async listTargetAudiences(): Promise<MinistryCatalogListResponse> {
+    const response = await httpClient.get<MinistryCatalogListResponse>(API_ENDPOINTS.MINISTRY.TARGET_AUDIENCES);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to load target audiences");
+    }
+    return response.data;
+  }
+
+  async searchUsers(query: string): Promise<OrgUserSearchListResponse> {
+    const response = await httpClient.get<OrgUserSearchListResponse>(API_ENDPOINTS.ORG.USER_SEARCH, { q: query });
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to search users");
+    }
+    return response.data;
+  }
+
+  async createApplication(payload: CreateMinistryApplicationPayload): Promise<{ id: string }> {
+    try {
+      const response = await httpClient.post<{ id: string }>(API_ENDPOINTS.MINISTRY.APPLICATIONS, payload);
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to create ministry application");
+      }
+      return response.data;
+    } catch (error) {
+      if (isApiError(error)) {
+        throw error;
+      }
+      throw error instanceof Error ? error : new Error("Failed to create ministry application");
+    }
   }
 }
 

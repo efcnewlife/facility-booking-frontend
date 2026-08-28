@@ -1,8 +1,16 @@
 import ministryService from "@/api/services/ministryService";
 import i18n from "@/i18n";
-import type { AssignablePosition, LocaleItem } from "@/types/ministry";
-import { Alert, Button, Input, ModalForm, type ModalFormHandle, Select } from "@efcnewlife/newlife-ui";
-import { useEffect, useMemo, useRef, useState } from "react";
+import type { AssignablePosition, LocaleItem, MinistryCatalogItem, OrgUserSearchItem } from "@/types/ministry";
+import {
+  applyTargetAudienceSelection,
+  canSelectSecondarySteward,
+  shouldSearchSecondaryStewards,
+  validateCreateMinistryForm,
+  type CreateMinistryValidationKey,
+} from "@/utils/createMinistryForm";
+import { resolveMinistryApplicationErrorMessage } from "@/utils/ministryApplicationErrors";
+import { Alert, Button, ComboBox, Input, ModalForm, type ModalFormHandle, Select } from "@efcnewlife/newlife-ui";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface CreateMinistryModalProps {
@@ -24,46 +32,126 @@ const resolveLocaleId = (locales: LocaleItem[]): string => {
   return match?.id || "";
 };
 
+const formatUserLabel = (item: OrgUserSearchItem): string => {
+  const name = item.displayName?.trim();
+  const email = item.email?.trim();
+  if (name && email) {
+    return `${name} (${email})`;
+  }
+  return name || email || item.id;
+};
+
 const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMinistryModalProps) => {
   const { t } = useTranslation("booking");
   const modalRef = useRef<ModalFormHandle>(null);
   const [phase, setPhase] = useState<"form" | "confirmation">("form");
   const [positions, setPositions] = useState<AssignablePosition[]>([]);
   const [locales, setLocales] = useState<LocaleItem[]>([]);
+  const [ministryTypes, setMinistryTypes] = useState<MinistryCatalogItem[]>([]);
+  const [targetAudiences, setTargetAudiences] = useState<MinistryCatalogItem[]>([]);
   const [ministryName, setMinistryName] = useState("");
+  const [ministryTypeId, setMinistryTypeId] = useState("");
   const [ownerPositionId, setOwnerPositionId] = useState("");
   const [purpose, setPurpose] = useState("");
+  const [targetAudienceIds, setTargetAudienceIds] = useState<string[]>([]);
+  const [secondaryStewardIds, setSecondaryStewardIds] = useState<string[]>([]);
+  const [stewardUsersById, setStewardUsersById] = useState<Record<string, OrgUserSearchItem>>({});
+  const [stewardSearchQuery, setStewardSearchQuery] = useState("");
+  const [stewardSearchLoading, setStewardSearchLoading] = useState(false);
+  const [stewardSearchResults, setStewardSearchResults] = useState<OrgUserSearchItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const defaultLocaleId = useMemo(() => resolveLocaleId(locales), [locales]);
 
+  const resetForm = useCallback(() => {
+    setPhase("form");
+    setMinistryName("");
+    setMinistryTypeId("");
+    setOwnerPositionId("");
+    setPurpose("");
+    setTargetAudienceIds([]);
+    setSecondaryStewardIds([]);
+    setStewardUsersById({});
+    setStewardSearchQuery("");
+    setStewardSearchResults([]);
+    setError(null);
+  }, []);
+
   useEffect(() => {
     if (!isOpen) {
       return;
     }
-    setPhase("form");
-    setMinistryName("");
-    setOwnerPositionId("");
-    setPurpose("");
-    setError(null);
+    resetForm();
     const loadForm = async () => {
       setLoading(true);
       try {
-        const [positionResult, localeResult] = await Promise.all([
+        const [positionResult, localeResult, ministryTypeResult, targetAudienceResult] = await Promise.all([
           ministryService.listAssignablePositions(),
           ministryService.listLocales(),
+          ministryService.listMinistryTypes(),
+          ministryService.listTargetAudiences(),
         ]);
         setPositions(positionResult.items || []);
         setLocales(localeResult.items || []);
+        setMinistryTypes(ministryTypeResult.items || []);
+        setTargetAudiences(targetAudienceResult.items || []);
       } catch (err) {
-        setError(err instanceof Error ? err.message : t("startBooking.errors.loadCreateForm"));
+        setError(resolveMinistryApplicationErrorMessage(err, "startBooking.errors.loadCreateForm"));
       } finally {
         setLoading(false);
       }
     };
     void loadForm();
-  }, [isOpen, t]);
+  }, [isOpen, resetForm]);
+
+  useEffect(() => {
+    if (!shouldSearchSecondaryStewards(stewardSearchQuery)) {
+      setStewardSearchResults([]);
+      return;
+    }
+
+    const timeout = window.setTimeout(() => {
+      void (async () => {
+        setStewardSearchLoading(true);
+        try {
+          const result = await ministryService.searchUsers(stewardSearchQuery.trim());
+          const filtered = (result.items || []).filter((item) => canSelectSecondarySteward(item.id, userId));
+          setStewardSearchResults(filtered);
+          setStewardUsersById((current) => {
+            const next = { ...current };
+            filtered.forEach((item) => {
+              next[item.id] = item;
+            });
+            return next;
+          });
+        } catch {
+          setStewardSearchResults([]);
+        } finally {
+          setStewardSearchLoading(false);
+        }
+      })();
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [stewardSearchQuery, userId]);
+
+  const stewardComboBoxOptions = useMemo(() => {
+    const merged = new Map<string, OrgUserSearchItem>();
+    secondaryStewardIds.forEach((id) => {
+      const existing = stewardUsersById[id];
+      if (existing) {
+        merged.set(id, existing);
+      }
+    });
+    stewardSearchResults.forEach((item) => {
+      merged.set(item.id, item);
+    });
+    return Array.from(merged.values()).map((item) => ({
+      value: item.id,
+      label: formatUserLabel(item),
+    }));
+  }, [secondaryStewardIds, stewardSearchResults, stewardUsersById]);
 
   const handleClose = () => {
     if (phase === "confirmation") {
@@ -72,19 +160,43 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
     onClose();
   };
 
+  const validationMessage = (key: CreateMinistryValidationKey): string => t(`startBooking.errors.${key}`);
+
   const handleSubmit = async () => {
     if (phase === "confirmation") {
       return;
     }
-    if (!ministryName.trim() || !ownerPositionId || !purpose.trim() || !defaultLocaleId) {
-      setError(t("startBooking.errors.createMinistryValidation"));
+
+    const validationKey = validateCreateMinistryForm(
+      {
+        ministryName,
+        ministryTypeId,
+        ownerPositionId,
+        purpose,
+        localeId: defaultLocaleId,
+        targetAudienceIds,
+        secondaryStewardIds,
+      },
+      targetAudiences,
+      userId
+    );
+    if (validationKey) {
+      setError(validationMessage(validationKey));
       return;
     }
+
+    if (!userId) {
+      setError(validationMessage("createMinistryValidation"));
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
       await ministryService.createApplication({
         ownerPositionId,
+        ministryTypeId,
+        targetAudienceIds,
         hasPriorityBooking: true,
         translations: [
           {
@@ -93,18 +205,20 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
             description: purpose.trim(),
           },
         ],
-        members: userId
-          ? [
-              {
-                userId,
-                memberRole: "primary",
-              },
-            ]
-          : [],
+        members: [
+          {
+            userId,
+            memberRole: "primary",
+          },
+          ...secondaryStewardIds.map((stewardUserId) => ({
+            userId: stewardUserId,
+            memberRole: "secondary" as const,
+          })),
+        ],
       });
       setPhase("confirmation");
     } catch (err) {
-      setError(err instanceof Error ? err.message : t("startBooking.errors.createMinistry"));
+      setError(resolveMinistryApplicationErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -159,6 +273,52 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
             value={ministryName}
           />
           <Select
+            id="create-ministry-type"
+            label={t("startBooking.createMinistry.ministryType")}
+            labels={{
+              noOptions: t("startBooking.createMinistry.ministryTypeEmpty"),
+              searchOptions: t("startBooking.createMinistry.ministryTypeSearch"),
+            }}
+            onChange={(value) => {
+              setMinistryTypeId(typeof value === "string" ? value : "");
+            }}
+            options={ministryTypes.map((item) => ({
+              value: item.id,
+              label: item.name || item.code,
+            }))}
+            placeholder={t("startBooking.createMinistry.ministryTypePlaceholder")}
+            required
+            searchable
+            value={ministryTypeId || null}
+          />
+          <ComboBox<string>
+            filterFunction={() => true}
+            id="create-ministry-target-audiences"
+            label={t("startBooking.createMinistry.targetAudiences")}
+            hint={t("startBooking.createMinistry.targetAudiencesHint")}
+            multiple
+            onChange={(value) => {
+              const nextIds = value ?? [];
+              const added = nextIds.find((id) => !targetAudienceIds.includes(id));
+              const removed = targetAudienceIds.find((id) => !nextIds.includes(id));
+              if (added) {
+                setTargetAudienceIds(applyTargetAudienceSelection(targetAudienceIds, added, targetAudiences, true));
+                return;
+              }
+              if (removed) {
+                setTargetAudienceIds(applyTargetAudienceSelection(targetAudienceIds, removed, targetAudiences, false));
+                return;
+              }
+              setTargetAudienceIds(nextIds);
+            }}
+            options={targetAudiences.map((item) => ({
+              value: item.id,
+              label: item.name || item.code,
+            }))}
+            placeholder={t("startBooking.createMinistry.targetAudiencesPlaceholder")}
+            value={targetAudienceIds}
+          />
+          <Select
             id="create-ministry-owner"
             label={t("startBooking.createMinistry.ownerPosition")}
             labels={{
@@ -185,6 +345,23 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
             required
             searchable
             value={ownerPositionId || null}
+          />
+          <ComboBox<string>
+            filterFunction={() => true}
+            hint={t("startBooking.createMinistry.secondaryStewardsSearchHint")}
+            id="create-ministry-secondary-stewards"
+            label={t("startBooking.createMinistry.secondaryStewards")}
+            loading={stewardSearchLoading}
+            multiple
+            onChange={(value) => {
+              const nextIds = (value ?? []).filter((id) => canSelectSecondarySteward(id, userId));
+              setSecondaryStewardIds(nextIds);
+            }}
+            onQueryChange={setStewardSearchQuery}
+            options={stewardComboBoxOptions}
+            placeholder={t("startBooking.createMinistry.secondaryStewardsPlaceholder")}
+            required
+            value={secondaryStewardIds}
           />
           <Input
             id="create-ministry-purpose"
