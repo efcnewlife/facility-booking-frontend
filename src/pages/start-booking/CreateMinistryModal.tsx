@@ -246,7 +246,7 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
 
   return (
     <ModalForm
-      className="max-w-2xl w-full mx-4 p-6"
+      className="max-w-2xl w-full mx-4 bg-surface-container p-6"
       footer={
         phase === "confirmation" ? (
           <>
