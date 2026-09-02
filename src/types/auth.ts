@@ -28,7 +28,7 @@ export interface LoginResponse {
   rememberMe?: boolean;
 }
 
-export interface DevLoginCredentials {
+export interface MockLoginCredentials {
   email: string;
   rememberMe?: boolean;
 }

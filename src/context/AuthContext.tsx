@@ -1,8 +1,7 @@
 import { ensureMsalReady, MSAL_LOGIN_SCOPES } from "@/auth/msalInstance";
 import { authService } from "@/api/services/authService";
-import { IS_SKIP_AUTH } from "@/config/env";
 import i18n from "@/i18n";
-import type { AuthState, DevLoginCredentials, User } from "@/types/auth";
+import type { AuthState, MockLoginCredentials, User } from "@/types/auth";
 import { createContext, type ReactNode, useContext, useEffect, useReducer } from "react";
 
 type AuthAction =
@@ -14,7 +13,7 @@ type AuthAction =
 
 interface AuthContextType extends AuthState {
   loginWithMicrosoft: (rememberMe: boolean) => Promise<void>;
-  loginAsDevUser: (credentials: DevLoginCredentials) => Promise<void>;
+  loginAsMockUser: (credentials: MockLoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
 }
@@ -76,20 +75,6 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
   useEffect(() => {
     const initializeAuth = async () => {
-      if (IS_SKIP_AUTH) {
-        const devUser = authService.getUser();
-        const devToken = authService.getToken();
-        if (devUser && devToken) {
-          dispatch({
-            type: "AUTH_SUCCESS",
-            payload: { user: devUser, token: devToken },
-          });
-        } else {
-          dispatch({ type: "AUTH_FAILURE", payload: "" });
-        }
-        return;
-      }
-
       if (!authService.isAuthenticated()) {
         const hasAccessToken = Boolean(authService.getToken());
         const hasRefreshToken = Boolean(authService.getRefreshToken());
@@ -161,10 +146,10 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     }
   };
 
-  const loginAsDevUser = async (credentials: DevLoginCredentials) => {
+  const loginAsMockUser = async (credentials: MockLoginCredentials) => {
     try {
       dispatch({ type: "AUTH_START" });
-      const response = authService.loginAsDevUser(credentials);
+      const response = await authService.loginAsMockUser(credentials);
 
       if (response.success && response.data) {
         const token = authService.getToken();
@@ -175,13 +160,13 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       } else {
         dispatch({
           type: "AUTH_FAILURE",
-          payload: response.message || i18n.t("auth:devLoginFailed"),
+          payload: response.message || i18n.t("auth:mockLoginFailed"),
         });
       }
     } catch (error) {
       dispatch({
         type: "AUTH_FAILURE",
-        payload: error instanceof Error ? error.message : i18n.t("auth:devLoginFailed"),
+        payload: error instanceof Error ? error.message : i18n.t("auth:mockLoginFailed"),
       });
     }
   };
@@ -203,7 +188,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
   const value: AuthContextType = {
     ...state,
     loginWithMicrosoft,
-    loginAsDevUser,
+    loginAsMockUser,
     logout,
     clearError,
   };

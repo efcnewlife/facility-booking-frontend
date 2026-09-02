@@ -4,6 +4,7 @@ const BOOKING_API_PREFIX = "/api/v1";
 
 export const API_ENDPOINTS = {
   AUTH: {
+    MOCK_LOGIN: `${BOOKING_API_PREFIX}/auth/mock-login`,
     MICROSOFT: `${BOOKING_API_PREFIX}/auth/login/microsoft`,
     LOGOUT: `${BOOKING_API_PREFIX}/auth/logout`,
     REFRESH: `${BOOKING_API_PREFIX}/auth/refresh`,

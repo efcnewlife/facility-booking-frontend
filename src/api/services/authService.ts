@@ -1,8 +1,8 @@
 import { API_ENDPOINTS } from "@/api/config";
-import { ENV_CONFIG, IS_SKIP_AUTH } from "@/config/env";
+import { ENV_CONFIG } from "@/config/env";
 import i18n from "@/i18n";
 import type { ApiError, ApiResponse, TokenResponse } from "@/types/api";
-import type { AuthError, DevLoginCredentials, LoginResponse, User } from "@/types/auth";
+import type { AuthError, LoginResponse, MockLoginCredentials, User } from "@/types/auth";
 import { httpClient } from "./httpClient";
 
 interface MemberInfoResponse {
@@ -26,27 +26,6 @@ const REFRESH_TOKEN_KEY = "refresh_token";
 const USER_KEY = "user_data";
 const REMEMBER_ME_KEY = "remember_me";
 const REMEMBER_ME_EXPIRY = 30 * 24 * 60 * 60 * 1000;
-const DEV_TOKEN_PREFIX = "dev_token_local_login";
-
-const createDevUser = (email: string): User => {
-  const nowIso = new Date().toISOString();
-  return {
-    id: "00000000-0000-4000-8000-000000000001",
-    username: email,
-    email,
-    firstName: "Dev",
-    lastName: "User",
-    preferredName: "Dev User",
-    status: "active",
-    roles: ["member"],
-    createdAt: nowIso,
-    updatedAt: nowIso,
-  };
-};
-
-const isLocalDevToken = (token: string | null): boolean => {
-  return Boolean(token?.startsWith(DEV_TOKEN_PREFIX));
-};
 
 const mapMemberToUser = (member: MemberInfoResponse): User => {
   const nowIso = new Date().toISOString();
@@ -64,6 +43,25 @@ const mapMemberToUser = (member: MemberInfoResponse): User => {
   };
 };
 
+const storeMemberLogin = (response: MemberLoginResponse, rememberMe: boolean): ApiResponse<LoginResponse> => {
+  const accessToken = response.token.accessToken;
+  const user = mapMemberToUser(response.member);
+  const refreshToken = response.token.refreshToken;
+  const expiresAt = new Date(Date.now() + response.token.expiresIn * 1000).toISOString();
+
+  return {
+    success: true,
+    data: {
+      user,
+      token: accessToken,
+      refreshToken,
+      expiresAt,
+      rememberMe,
+    },
+    code: 200,
+  };
+};
+
 class AuthService {
   private inFlightCurrentUserPromise: Promise<ApiResponse<User>> | null = null;
 
@@ -74,32 +72,8 @@ class AuthService {
       });
 
       if (response.success && response.data) {
-        const accessToken = response.data.token.accessToken;
-        const user = mapMemberToUser(response.data.member);
-        const refreshToken = response.data.token.refreshToken;
-        const expiresAt = new Date(Date.now() + response.data.token.expiresIn * 1000).toISOString();
-
-        this.setRememberMe(rememberMe);
-        this.setToken(accessToken);
-        this.clearOppositeStorage(rememberMe);
-
-        if (refreshToken && rememberMe) {
-          this.setRefreshToken(refreshToken);
-        }
-
-        this.setUser(user);
-
-        return {
-          success: true,
-          data: {
-            user,
-            token: accessToken,
-            refreshToken,
-            expiresAt,
-            rememberMe,
-          },
-          code: response.code,
-        };
+        this.persistLogin(response.data, rememberMe);
+        return storeMemberLogin(response.data, rememberMe);
       }
 
       return {
@@ -114,39 +88,48 @@ class AuthService {
     }
   }
 
-  /**
-   * Development-only local sign-in without Microsoft or backend API.
-   */
-  loginAsDevUser(credentials: DevLoginCredentials): ApiResponse<LoginResponse> {
-    const email = credentials.email.trim() || ENV_CONFIG.DEV_LOGIN_EMAIL;
+  async loginAsMockUser(credentials: MockLoginCredentials): Promise<ApiResponse<LoginResponse>> {
+    const email = credentials.email.trim() || ENV_CONFIG.MOCK_LOGIN_EMAIL;
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     if (!emailPattern.test(email)) {
       return {
         success: false,
         data: undefined as unknown as LoginResponse,
         code: 400,
-        message: i18n.t("auth:devLoginInvalidEmail"),
+        message: i18n.t("auth:mockLoginInvalidEmail"),
       };
     }
 
-    const user = createDevUser(email);
-    const token = `${DEV_TOKEN_PREFIX}:${email}`;
     const rememberMe = credentials.rememberMe ?? false;
+    const mockLoginSecret = ENV_CONFIG.MOCK_LOGIN_SECRET.trim();
+    const headers: Record<string, string> = {};
+    if (mockLoginSecret) {
+      headers["X-Mock-Login-Secret"] = mockLoginSecret;
+    }
 
-    this.setRememberMe(rememberMe);
-    this.setToken(token);
-    this.clearOppositeStorage(rememberMe);
-    this.setUser(user);
+    try {
+      const response = await httpClient.request<MemberLoginResponse>({
+        method: "POST",
+        url: API_ENDPOINTS.AUTH.MOCK_LOGIN,
+        data: { email },
+        headers,
+      });
 
-    return {
-      success: true,
-      data: {
-        user,
-        token,
-        rememberMe,
-      },
-      code: 200,
-    };
+      if (response.success && response.data) {
+        this.persistLogin(response.data, rememberMe);
+        return storeMemberLogin(response.data, rememberMe);
+      }
+
+      return {
+        success: false,
+        data: undefined as unknown as LoginResponse,
+        code: response.code,
+        error: response.error,
+        message: response.message,
+      };
+    } catch (error) {
+      throw this.handleAuthError(error);
+    }
   }
 
   async logout(): Promise<ApiResponse<void>> {
@@ -175,12 +158,6 @@ class AuthService {
 
     this.inFlightCurrentUserPromise = (async () => {
       try {
-        const storedUser = this.getUser();
-        const storedToken = this.getToken();
-        if (isLocalDevToken(storedToken) && storedUser) {
-          return { success: true, data: storedUser, code: 200 };
-        }
-
         const response = await httpClient.get<MemberInfoResponse>(API_ENDPOINTS.AUTH.PROFILE);
 
         if (response.success && response.data) {
@@ -207,24 +184,12 @@ class AuthService {
   }
 
   isAuthenticated(): boolean {
-    if (IS_SKIP_AUTH) {
-      return true;
-    }
-
     const token = this.getToken();
     const user = this.getUser();
-    if (isLocalDevToken(token) && user) {
-      return true;
-    }
-
     return Boolean(token && user);
   }
 
   getToken(): string | null {
-    if (IS_SKIP_AUTH) {
-      return "dev_token_skip_auth_mode";
-    }
-
     const sessionToken = sessionStorage.getItem(TOKEN_KEY);
     if (sessionToken) {
       return sessionToken;
@@ -266,6 +231,22 @@ class AuthService {
     sessionStorage.removeItem(TOKEN_KEY);
     sessionStorage.removeItem(REFRESH_TOKEN_KEY);
     sessionStorage.removeItem(USER_KEY);
+  }
+
+  private persistLogin(response: MemberLoginResponse, rememberMe: boolean): void {
+    const accessToken = response.token.accessToken;
+    const user = mapMemberToUser(response.member);
+    const refreshToken = response.token.refreshToken;
+
+    this.setRememberMe(rememberMe);
+    this.setToken(accessToken);
+    this.clearOppositeStorage(rememberMe);
+
+    if (refreshToken && rememberMe) {
+      this.setRefreshToken(refreshToken);
+    }
+
+    this.setUser(user);
   }
 
   private setToken(token: string): void {
