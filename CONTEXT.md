@@ -9,8 +9,12 @@ The first authenticated screen. It welcomes the member and offers a Start Bookin
 _Avoid_: Landing, Find Space, dashboard, treating Home as Q1
 
 **Sign in**:
-The unauthenticated `/login` page. Top band: booking wordmark and locale selector; centered white card (~350px, 20px radius) with compact church logo, Microsoft sign-in, and Remember me. Terms of Service and Privacy Policy links sit below the card as caption links. Dev email sign-in is collapsible when enabled locally. Microsoft outline button matches portal parity (ADR 0020). Not Landing — see **Home** for the first authenticated screen.
-_Avoid_: Landing as the product name, email/password as production auth, SupportFooter on Sign in, wide church wordmark or app title heading in the card, Forgot password or Sign up on Sign in
+The unauthenticated `/login` page. Top band: booking wordmark and locale selector; centered white card (~350px, 20px radius) with compact church logo, Microsoft sign-in, and Remember me. Terms of Service and Privacy Policy links sit below the card as caption links. Mock login is collapsible when enabled in non-production. Microsoft outline button matches portal parity (ADR 0020). Not Landing — see **Home** for the first authenticated screen.
+_Avoid_: Landing as the product name, email/password as production auth, SupportFooter on Sign in, wide church wordmark or app title heading in the card, Forgot password or Sign up on Sign in, dev login as the product name
+
+**Mock login**:
+Passwordless sign-in for Facility Booking in development and staging only. The member enters the email of a testing account; the app obtains a real backend session without Microsoft. Testing accounts use the `@test.local` email domain and are provisioned only by operator scripts, not self-registration or the admin portal. Each testing account keeps its own ministry and booking relationships in the database — mock login does not grant superuser bypass. Not production auth.
+_Avoid_: dev login, fake local session, frontend-only token, treating mock login as Microsoft, creating testing accounts from the Sign in page
 
 **Support**:
 The member-facing help page for special requests.

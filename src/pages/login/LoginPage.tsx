@@ -1,7 +1,7 @@
 import AuthLocaleSelect from "@/components/auth/AuthLocaleSelect";
 import MicrosoftColorIcon from "@/components/auth/MicrosoftColorIcon";
 import LegalDocumentLinks from "@/components/legal/LegalDocumentLinks";
-import { ENV_CONFIG, IS_MICROSOFT_LOGIN_ENABLED, IS_SHOW_DEV_LOGIN } from "@/config/env";
+import { ENV_CONFIG, IS_MICROSOFT_LOGIN_ENABLED, IS_SHOW_MOCK_LOGIN } from "@/config/env";
 import { useAuth } from "@/context/AuthContext";
 import { resolvePostLoginNext } from "@/utils/resolvePostLoginNext";
 import { Button, Checkbox, cn, Input } from "@efcnewlife/newlife-ui";
@@ -12,16 +12,16 @@ import { useNavigate, useSearchParams } from "react-router";
 const LoginPage = () => {
   const { t } = useTranslation();
   const [rememberMe, setRememberMe] = useState(false);
-  const [devEmail, setDevEmail] = useState(ENV_CONFIG.DEV_LOGIN_EMAIL);
+  const [mockEmail, setMockEmail] = useState(ENV_CONFIG.MOCK_LOGIN_EMAIL);
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { loginWithMicrosoft, loginAsDevUser, isLoading, error, isAuthenticated, clearError } = useAuth();
+  const { loginWithMicrosoft, loginAsMockUser, isLoading, error, isAuthenticated, clearError } = useAuth();
   const postLoginPath = resolvePostLoginNext(searchParams.get("next"));
 
-  const isDevEmailValid = useMemo(() => {
+  const isMockEmailValid = useMemo(() => {
     const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return emailPattern.test(devEmail.trim());
-  }, [devEmail]);
+    return emailPattern.test(mockEmail.trim());
+  }, [mockEmail]);
 
   useEffect(() => {
     if (isAuthenticated) {
@@ -39,11 +39,11 @@ const LoginPage = () => {
     }
   };
 
-  const handleDevSignIn = async (event: React.FormEvent) => {
+  const handleMockSignIn = async (event: React.FormEvent) => {
     event.preventDefault();
     clearError();
     try {
-      await loginAsDevUser({ email: devEmail, rememberMe });
+      await loginAsMockUser({ email: mockEmail, rememberMe });
       navigate(postLoginPath, { replace: true });
     } catch (signInError) {
       console.error(signInError);
@@ -81,7 +81,7 @@ const LoginPage = () => {
 
           {IS_MICROSOFT_LOGIN_ENABLED && (
             <>
-              {!IS_SHOW_DEV_LOGIN && (
+              {!IS_SHOW_MOCK_LOGIN && (
                 <p className="mb-5 text-center text-[17.5px] font-medium text-on-surface-variant">
                   {t("auth:signInPromptMicrosoft")}
                 </p>
@@ -105,32 +105,32 @@ const LoginPage = () => {
             </>
           )}
 
-          {!IS_MICROSOFT_LOGIN_ENABLED && !IS_SHOW_DEV_LOGIN && (
+          {!IS_MICROSOFT_LOGIN_ENABLED && !IS_SHOW_MOCK_LOGIN && (
             <p className="text-center text-[17.5px] font-medium text-on-surface-variant">
               {t("auth:microsoftNotConfiguredEnv")}
             </p>
           )}
 
-          {IS_SHOW_DEV_LOGIN && (
+          {IS_SHOW_MOCK_LOGIN && (
             <details className={cn("w-full", IS_MICROSOFT_LOGIN_ENABLED && "mt-[30px]")}>
               <summary className="cursor-pointer text-center text-[15px] font-medium text-on-surface-variant">
-                {t("auth:devEmailSignInSection")}
+                {t("auth:mockLoginSection")}
               </summary>
 
               <div className="mt-5">
                 <p className="mb-5 text-center text-[17.5px] font-medium text-on-surface-variant">
-                  {t("auth:signInPromptDev")}
+                  {t("auth:signInPromptMock")}
                 </p>
 
-                <form className="space-y-5" onSubmit={handleDevSignIn}>
+                <form className="space-y-5" onSubmit={handleMockSignIn}>
                   <Input
-                    id="dev-email"
+                    id="mock-login-email"
                     label={t("auth:email")}
-                    onChange={(event) => setDevEmail(event.target.value)}
-                    placeholder="dev@local.test"
+                    onChange={(event) => setMockEmail(event.target.value)}
+                    placeholder="qa@test.local"
                     required
                     type="email"
-                    value={devEmail}
+                    value={mockEmail}
                   />
 
                   {!IS_MICROSOFT_LOGIN_ENABLED && (
@@ -142,11 +142,11 @@ const LoginPage = () => {
                   <Button
                     btnType="submit"
                     className="w-full"
-                    disabled={isLoading || !isDevEmailValid}
+                    disabled={isLoading || !isMockEmailValid}
                     size="md"
                     variant="outline"
                   >
-                    {isLoading ? t("auth:signingIn") : t("auth:signInWithEmailDev")}
+                    {isLoading ? t("auth:signingIn") : t("auth:signInWithMockLogin")}
                   </Button>
                 </form>
               </div>

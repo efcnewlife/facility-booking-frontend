@@ -217,7 +217,7 @@ class HttpClient {
 
   private isLoginRequest(config: AxiosRequestConfig): boolean {
     const url = typeof config.url === "string" ? config.url : "";
-    return url === API_ENDPOINTS.AUTH.MICROSOFT;
+    return url === API_ENDPOINTS.AUTH.MICROSOFT || url === API_ENDPOINTS.AUTH.MOCK_LOGIN;
   }
 
   private async getOrCreateRefreshPromise(): Promise<string> {

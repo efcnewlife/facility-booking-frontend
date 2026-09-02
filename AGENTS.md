@@ -6,21 +6,21 @@ This document helps AI agents quickly understand the **Facility Booking** member
 
 ## 1. What This Project Is
 
-| Item                | Value                                                                              |
-| ------------------- | ---------------------------------------------------------------------------------- |
-| **Purpose**         | Member-facing SPA for church facility (room) booking                               |
-| **Package**         | `facility-booking-frontend` `0.1.0` (`private`)                                    |
-| **Framework**       | React 19 + Vite 6 + TypeScript                                                     |
-| **Styling**         | Tailwind CSS v4 (CSS-first `@theme` in `src/index.css`); host owns tokens          |
-| **UI lib**          | `@efcnewlife/newlife-ui` (GitHub Packages)                                         |
-| **Router**          | React Router v7 (`react-router`) — routes centralized in `src/routes/index.tsx`    |
-| **HTTP**            | Axios via `httpClient`; app API prefix `/api/v1`                                   |
-| **Auth**            | Microsoft Entra ID (MSAL popup) → backend token exchange; optional dev email login |
-| **i18n**            | `i18next` + `react-i18next` (`en`, `zh-TW`, `zh-CN`)                               |
-| **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                      |
-| **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                      |
-| **Tests**           | Vitest (Node). `pnpm test` for `src/**/*.test.ts`; also `pnpm type-check`          |
-| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                          |
+| Item                | Value                                                                                           |
+| ------------------- | ----------------------------------------------------------------------------------------------- |
+| **Purpose**         | Member-facing SPA for church facility (room) booking                                            |
+| **Package**         | `facility-booking-frontend` `0.1.0` (`private`)                                                 |
+| **Framework**       | React 19 + Vite 6 + TypeScript                                                                  |
+| **Styling**         | Tailwind CSS v4 (CSS-first `@theme` in `src/index.css`); host owns tokens                       |
+| **UI lib**          | `@efcnewlife/newlife-ui` (GitHub Packages)                                                      |
+| **Router**          | React Router v7 (`react-router`) — routes centralized in `src/routes/index.tsx`                 |
+| **HTTP**            | Axios via `httpClient`; app API prefix `/api/v1`                                                |
+| **Auth**            | Microsoft Entra ID (MSAL popup) → backend token exchange; optional mock login in non-production |
+| **i18n**            | `i18next` + `react-i18next` (`en`, `zh-TW`, `zh-CN`)                                            |
+| **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                                   |
+| **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                                   |
+| **Tests**           | Vitest (Node). `pnpm test` for `src/**/*.test.ts`; also `pnpm type-check`                       |
+| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                                       |
 
 `flatpickr`, `moment-timezone`, and `react-helmet-async` are listed in `package.json` but **unused in `src/`**. Do not assume they are part of the stack. `BookingDatePicker` is a custom moment calendar.
 
@@ -134,12 +134,12 @@ Routes are **centralized** in `src/routes/index.tsx` (unlike the portal's module
 
 ## 5. Auth
 
-| File                              | Role                                                                        |
-| --------------------------------- | --------------------------------------------------------------------------- |
-| `src/context/AuthContext.tsx`     | `AuthProvider`, `useAuth`; `loginWithMicrosoft`, `loginAsDevUser`, `logout` |
-| `src/auth/msalInstance.ts`        | `PublicClientApplication`, `ensureMsalReady`                                |
-| `src/api/services/authService.ts` | Token exchange, storage, profile, logout, dev login                         |
-| `src/pages/login/LoginPage.tsx`   | Sign-in UI                                                                  |
+| File                              | Role                                                                         |
+| --------------------------------- | ---------------------------------------------------------------------------- |
+| `src/context/AuthContext.tsx`     | `AuthProvider`, `useAuth`; `loginWithMicrosoft`, `loginAsMockUser`, `logout` |
+| `src/auth/msalInstance.ts`        | `PublicClientApplication`, `ensureMsalReady`                                 |
+| `src/api/services/authService.ts` | Token exchange, mock login, storage, profile, logout                         |
+| `src/pages/login/LoginPage.tsx`   | Sign-in UI                                                                   |
 
 ### Flow
 
@@ -156,14 +156,14 @@ Keys: `auth_token`, `refresh_token`, `refresh_token_expiry`, `user_data`, `remem
 
 `clearOppositeStorage` keeps the two stores from drifting. Token read order: `sessionStorage` then `localStorage`.
 
-### Dev flags (gated on `IS_DEV` in `src/config/env.ts`)
+### Mock login flags (non-production only; `src/config/env.ts`)
 
-| Flag                                                                           | Behavior                                                                                                        |
-| ------------------------------------------------------------------------------ | --------------------------------------------------------------------------------------------------------------- |
-| `VITE_SHOW_DEV_LOGIN` → `IS_SHOW_DEV_LOGIN`                                    | Email-only sign-in form; `loginAsDevUser` — **no API**                                                          |
-| `VITE_DEV_LOGIN_EMAIL`                                                         | Default email (`dev@local.test`)                                                                                |
-| `VITE_SKIP_AUTH` → `IS_SKIP_AUTH`                                              | Placeholder token (`dev_token_skip_auth_mode`); context still needs stored `user_data` for a successful session |
-| `VITE_AZURE_CLIENT_ID` + `VITE_AZURE_TENANT_ID` → `IS_MICROSOFT_LOGIN_ENABLED` | Microsoft button                                                                                                |
+| Flag                                                                           | Behavior                                                                              |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------- |
+| `VITE_SHOW_MOCK_LOGIN` → `IS_SHOW_MOCK_LOGIN`                                  | Collapsible Mock login on Sign in; `loginAsMockUser` → `POST /api/v1/auth/mock-login` |
+| `VITE_MOCK_LOGIN_EMAIL`                                                        | Default email for mock login field (`qa@test.local`)                                  |
+| `VITE_MOCK_LOGIN_SECRET`                                                       | Sent as `X-Mock-Login-Secret` when set (staging)                                      |
+| `VITE_AZURE_CLIENT_ID` + `VITE_AZURE_TENANT_ID` → `IS_MICROSOFT_LOGIN_ENABLED` | Microsoft button                                                                      |
 
 Read env through `ENV_CONFIG` / `IS_*` in `src/config/env.ts`, never `import.meta.env` in business code.
 
@@ -187,12 +187,12 @@ A single `HttpClient` singleton (`src/api/services/httpClient.ts`) is the only n
 
 All paths live in `src/api/config/index.ts` under `API_ENDPOINTS` (`BOOKING_API_PREFIX = "/api/v1"`). Add new routes there — do not inline URL strings.
 
-| Group    | Paths in use                                                         |
-| -------- | -------------------------------------------------------------------- |
-| Auth     | `/auth/login/microsoft`, `/auth/logout`, `/auth/refresh`, `/auth/me` |
-| Ministry | `/ministry/ministries/mine`, `/ministry/applications`                |
-| Org      | `/org/positions/assignable`, `/org/locales`                          |
-| Facility | `/facility/rooms/availability`, `/facility/bookings`                 |
+| Group    | Paths in use                                                                             |
+| -------- | ---------------------------------------------------------------------------------------- |
+| Auth     | `/auth/mock-login`, `/auth/login/microsoft`, `/auth/logout`, `/auth/refresh`, `/auth/me` |
+| Ministry | `/ministry/ministries/mine`, `/ministry/applications`                                    |
+| Org      | `/org/positions/assignable`, `/org/locales`                                              |
+| Facility | `/facility/rooms/availability`, `/facility/bookings`                                     |
 
 Defined but unused by UI today: `MINISTRY.MINISTRY_TYPES`, `MINISTRY.TARGET_AUDIENCES`, `FACILITY.MY_BOOKINGS` (service method exists), `FACILITY.cancelBooking`.
 
@@ -200,7 +200,7 @@ Defined but unused by UI today: `MINISTRY.MINISTRY_TYPES`, `MINISTRY.TARGET_AUDI
 
 | Service           | Owns                                                                       |
 | ----------------- | -------------------------------------------------------------------------- |
-| `authService`     | Login, logout, me, storage, dev login                                      |
+| `authService`     | Login, mock login, logout, me, storage                                     |
 | `ministryService` | `listMine`, `listAssignablePositions`, `listLocales`, `createApplication`  |
 | `facilityService` | `getAvailability`, `createBooking`, `listMyBookings` (latter unused by UI) |
 
@@ -252,16 +252,16 @@ Pure helpers: `timeToMinutes`, `hasContiguousHours` (merges overlapping am/pm sl
 
 ## 8. Pages
 
-| Path                                    | Purpose                                                   |
-| --------------------------------------- | --------------------------------------------------------- |
-| `login/LoginPage.tsx`                   | Microsoft / optional dev email login, remember me, locale |
-| `home/HomePage.tsx`                     | Welcome + Start Booking                                   |
-| `start-booking/StartBookingPage.tsx`    | Start booking questions                                   |
-| `start-booking/CreateMinistryModal.tsx` | Create ministry application modal                         |
-| `rooms/RoomFilterPage.tsx`              | Results, filters, slot select, create booking             |
-| `my-bookings/MyBookingsPage.tsx`        | Upcoming/past — **mock data**                             |
-| `my-profile/MyProfilePage.tsx`          | Profile + payment history — **partial mock**              |
-| `contact/ContactPage.tsx`               | Stub                                                      |
+| Path                                    | Purpose                                              |
+| --------------------------------------- | ---------------------------------------------------- |
+| `login/LoginPage.tsx`                   | Microsoft / optional mock login, remember me, locale |
+| `home/HomePage.tsx`                     | Welcome + Start Booking                              |
+| `start-booking/StartBookingPage.tsx`    | Start booking questions                              |
+| `start-booking/CreateMinistryModal.tsx` | Create ministry application modal                    |
+| `rooms/RoomFilterPage.tsx`              | Results, filters, slot select, create booking        |
+| `my-bookings/MyBookingsPage.tsx`        | Upcoming/past — **mock data**                        |
+| `my-profile/MyProfilePage.tsx`          | Profile + payment history — **partial mock**         |
+| `contact/ContactPage.tsx`               | Stub                                                 |
 
 ---
 
@@ -339,14 +339,14 @@ Centralized in `src/config/env.ts`.
 | ----------------------------------------------------- | ---------------------------------------------------------- |
 | `VITE_API_BASE_URL`                                   | Default `http://127.0.0.1:8000`                            |
 | `VITE_API_TIMEOUT`                                    | Default `90000`                                            |
-| `VITE_SHOW_DEV_LOGIN`                                 | Dev email sign-in                                          |
-| `VITE_DEV_LOGIN_EMAIL`                                | Default `dev@local.test`                                   |
-| `VITE_SKIP_AUTH`                                      | Dev skip-auth helper                                       |
+| `VITE_SHOW_MOCK_LOGIN`                                | Mock login collapsible on Sign in                          |
+| `VITE_MOCK_LOGIN_EMAIL`                               | Default `qa@test.local`                                    |
+| `VITE_MOCK_LOGIN_SECRET`                              | Staging secret header for mock login                       |
 | `VITE_AZURE_CLIENT_ID` / `TENANT_ID` / `REDIRECT_URI` | MSAL (`REDIRECT_URI` defaults to `window.location.origin`) |
 | `VITE_APP_NAME` / `TITLE` / `VERSION`                 | Branding                                                   |
 | `NODE_AUTH_TOKEN`                                     | pnpm GitHub Packages (not a Vite var)                      |
 
-Derived flags: `IS_DEV`, `IS_SKIP_AUTH`, `IS_SHOW_DEV_LOGIN`, `IS_MICROSOFT_LOGIN_ENABLED`.
+Derived flags: `IS_DEV`, `IS_STAGING`, `IS_PROD`, `IS_SHOW_MOCK_LOGIN`, `IS_MICROSOFT_LOGIN_ENABLED`.
 
 ---
 
