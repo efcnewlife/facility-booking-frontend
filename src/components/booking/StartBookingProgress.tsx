@@ -7,7 +7,6 @@ const SEGMENTS: Array<{ step: StartBookingStep; labelKey: string }> = [
   { step: "select_ministry", labelKey: "startBooking.progress.ministryName" },
   { step: "frequency", labelKey: "startBooking.progress.howOften" },
   { step: "when", labelKey: "startBooking.progress.dateTime" },
-  { step: "space_needed", labelKey: "startBooking.progress.spaceNeeded" },
 ];
 
 interface StartBookingProgressProps {

@@ -13,7 +13,6 @@ import {
   previousStep,
   toRoomsSearchParams,
   type BookingFrequency,
-  type SpaceNeededChoice,
   type StartBookingAnswers,
   type StartBookingStep,
 } from "@/utils/startBookingFlow";
@@ -66,7 +65,6 @@ const StartBookingPage = () => {
   const [dateValue, setDateValue] = useState<DatePickerValue>(null);
   const [startValue, setStartValue] = useState<TimePickerValue>(null);
   const [endValue, setEndValue] = useState<TimePickerValue>(null);
-  const [space, setSpace] = useState<SpaceNeededChoice | null>(null);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -85,7 +83,6 @@ const StartBookingPage = () => {
     ministryId,
     frequency,
     when,
-    space,
   };
   const canGoForward = canAdvance(step, answers, now);
   const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
@@ -169,7 +166,7 @@ const StartBookingPage = () => {
     }
   };
 
-  const continueLabel = step === "space_needed" ? t("startBooking.search") : t("startBooking.continue");
+  const continueLabel = step === "when" ? t("startBooking.search") : t("startBooking.continue");
 
   return (
     <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col items-center px-6 py-8 sm:px-8">
@@ -318,50 +315,6 @@ const StartBookingPage = () => {
                 value={endValue}
               />
             </div>
-          </div>
-        </section>
-      ) : null}
-
-      {step === "space_needed" ? (
-        <section className="mt-10 flex w-full flex-col items-center">
-          <h1 className="text-center text-4xl font-semibold text-on-surface">{t("startBooking.spaceNeeded.title")}</h1>
-          <div className="mt-8 grid w-full grid-cols-2 gap-4">
-            <ChoicePill
-              checked={space === "single"}
-              id="space-single"
-              label={t("startBooking.spaceNeeded.single")}
-              name="space"
-              onChange={() => setSpace("single")}
-              value="single"
-              wide
-            />
-            <ChoicePill
-              checked={space === "multiple"}
-              id="space-multiple"
-              label={t("startBooking.spaceNeeded.multiple")}
-              name="space"
-              onChange={() => setSpace("multiple")}
-              value="multiple"
-              wide
-            />
-            <ChoicePill
-              checked={space === "gym"}
-              id="space-gym"
-              label={t("startBooking.spaceNeeded.gym")}
-              name="space"
-              onChange={() => setSpace("gym")}
-              value="gym"
-              wide
-            />
-            <ChoicePill
-              checked={space === "sanctuary"}
-              id="space-sanctuary"
-              label={t("startBooking.spaceNeeded.sanctuary")}
-              name="space"
-              onChange={() => setSpace("sanctuary")}
-              value="sanctuary"
-              wide
-            />
           </div>
         </section>
       ) : null}

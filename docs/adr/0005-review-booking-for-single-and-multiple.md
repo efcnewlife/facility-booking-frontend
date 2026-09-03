@@ -1,5 +1,5 @@
 ---
-status: superseded by ADR-0015
+status: superseded by ADR-0022
 ---
 
 # Single and Multiple both open Booking Details via Review Booking
