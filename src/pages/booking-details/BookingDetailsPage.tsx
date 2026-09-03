@@ -1,21 +1,21 @@
 import facilityService from "@/api/services/facilityService";
-import { combineDateAndClock } from "@/utils/bookingDateTime";
-import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import {
-  parseBookingDetailsQuery,
-  parseRoomsSearchQuery,
-  toBookingDetailsSearchParams,
-  toRoomsSearchParams,
-  type BookingDetailsQuery,
-} from "@/utils/startBookingFlow";
-import { isRoomAvailable, type RoomDay } from "@/utils/timetableRules";
+  allLinesCoverAvailability,
+  buildCreateBookingPayload,
+  buildPreviewQuotePayload,
+  canAddRoomToDraft,
+  removeLineFromDraft,
+} from "@/utils/bookingDetailsDraft";
+import { parseBookingCartDraft, toBookingCartDraftParams } from "@/utils/bookingCartDraft";
+import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
+import { parseRoomsSearchQuery, toRoomsSearchParams } from "@/utils/startBookingFlow";
+import type { RoomDay } from "@/utils/timetableRules";
 import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { MdArrowBack, MdPhoto } from "react-icons/md";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
-
-const combineDateAndTime = combineDateAndClock;
 
 const formatClock = (clock: string, locale: string): string => {
   if (clock === "24:00") {
@@ -37,24 +37,11 @@ const messageFromUnknown = (err: unknown, fallback: string): string => {
   return fallback;
 };
 
-const bookingIntervalIso = (query: BookingDetailsQuery): { startAt: string; endAt: string } => ({
-  startAt: combineDateAndTime(query.date, query.start),
-  endAt: combineDateAndTime(query.date, query.end),
-});
-
-const selectedRoomsCoverInterval = (rooms: RoomDay[], query: BookingDetailsQuery): boolean => {
-  const interval = { start: query.start, end: query.end };
-  return query.roomIds.every((roomId) => {
-    const room = rooms.find((item) => item.id === roomId);
-    return room != null && isRoomAvailable(room, interval);
-  });
-};
-
 const BookingDetailsPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const query = useMemo(() => parseBookingDetailsQuery(searchParams), [searchParams]);
+  const draft = useMemo(() => parseBookingCartDraft(searchParams), [searchParams]);
   const roomsSearch = useMemo(() => parseRoomsSearchQuery(searchParams), [searchParams]);
 
   const [rooms, setRooms] = useState<RoomDay[]>([]);
@@ -66,93 +53,82 @@ const BookingDetailsPage = () => {
   const [error, setError] = useState<string | null>(null);
 
   const loadDraft = useCallback(async () => {
-    if (!query) {
+    if (!draft) {
       return;
     }
     setLoading(true);
     setError(null);
     setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     try {
-      const items = await facilityService.getAvailability(query.date, query.ministryId);
+      const items = await facilityService.getAvailability(draft.date, draft.ministryId);
       setRooms(items);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.loadError")));
       setRooms([]);
     }
     try {
-      const { startAt, endAt } = bookingIntervalIso(query);
-      const quote = await facilityService.previewQuote({
-        ministryId: query.ministryId || null,
-        isMissionAligned: Boolean(query.ministryId),
-        lines: query.roomIds.map((facilityId) => ({
-          facilityId,
-          startAt,
-          endAt,
-        })),
-      });
+      const quote = await facilityService.previewQuote(buildPreviewQuotePayload(draft));
       setPaymentSummary(mapPaymentSummary(quote, i18nInstance.language));
     } catch {
       setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     } finally {
       setLoading(false);
     }
-  }, [i18nInstance.language, query, t]);
+  }, [draft, i18nInstance.language, t]);
 
   useEffect(() => {
     void loadDraft();
   }, [loadDraft]);
 
-  const canConfirm = useMemo(() => {
-    if (!query || loading || confirming) {
+  const linesAvailable = useMemo(() => {
+    if (!draft || rooms.length === 0) {
       return false;
     }
-    return selectedRoomsCoverInterval(rooms, query);
-  }, [confirming, loading, query, rooms]);
+    return allLinesCoverAvailability(rooms, draft);
+  }, [draft, rooms]);
 
-  if (!query) {
+  const canConfirm = useMemo(() => {
+    if (!draft || loading || confirming) {
+      return false;
+    }
+    return linesAvailable;
+  }, [confirming, draft, linesAvailable, loading]);
+
+  if (!draft) {
     if (!roomsSearch?.date) {
       return <Navigate replace to="/" />;
     }
     return <Navigate replace to={{ pathname: "/rooms", search: toRoomsSearchParams(roomsSearch).toString() }} />;
   }
 
-  const goToTimetable = (next: BookingDetailsQuery | null) => {
-    if (!next || next.roomIds.length === 0) {
-      navigate({ pathname: "/rooms", search: toRoomsSearchParams(query).toString() });
+  const goToTimetable = (nextDraft: typeof draft | null) => {
+    if (!nextDraft) {
+      navigate({
+        pathname: "/rooms",
+        search: toRoomsSearchParams({ date: draft.date, ministryId: draft.ministryId }).toString(),
+      });
       return;
     }
-    navigate({ pathname: "/rooms", search: toBookingDetailsSearchParams(next).toString() });
+    navigate({ pathname: "/rooms", search: toBookingCartDraftParams(nextDraft).toString() });
   };
 
-  const handleRemove = (roomId: string) => {
-    const roomIds = query.roomIds.filter((id) => id !== roomId);
-    if (roomIds.length === 0) {
+  const handleRemove = (sequence: number) => {
+    const nextDraft = removeLineFromDraft(draft, sequence);
+    if (!nextDraft) {
       goToTimetable(null);
       return;
     }
-    setSearchParams(toBookingDetailsSearchParams({ ...query, roomIds }), { replace: true });
+    setSearchParams(toBookingCartDraftParams(nextDraft), { replace: true });
   };
 
   const handleConfirm = async () => {
-    if (!canConfirm || !query) {
+    if (!canConfirm || !draft) {
       return;
     }
     setConfirming(true);
     setError(null);
     try {
-      const { startAt, endAt } = bookingIntervalIso(query);
-      const created = await facilityService.createBooking({
-        startAt,
-        endAt,
-        ministryId: query.ministryId || null,
-        isMissionAligned: Boolean(query.ministryId),
-        rooms: query.roomIds.map((facilityId, index) => ({
-          facilityId,
-          startAt,
-          endAt,
-          sequence: index,
-        })),
-      });
+      const created = await facilityService.createBooking(buildCreateBookingPayload(draft));
       navigate(`/payment/${created.id}`);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.createError")));
@@ -161,14 +137,27 @@ const BookingDetailsPage = () => {
     }
   };
 
-  const formattedDate = moment(query.date).locale(i18nInstance.language).format("dddd, MMMM D, YYYY");
-  const formattedInterval = `${formatClock(query.start, i18nInstance.language)} – ${formatClock(query.end, i18nInstance.language)}`;
-  const intervalUncovered = !loading && !selectedRoomsCoverInterval(rooms, query);
+  const formattedDate = moment(draft.date).locale(i18nInstance.language).format("dddd, MMMM D, YYYY");
+  const linesUncovered = !loading && !linesAvailable;
+  const showAddRoom = canAddRoomToDraft(draft);
+
+  const roomForLine = (facilityId: string): RoomDay | undefined => {
+    return rooms.find((room) => room.id === facilityId);
+  };
 
   return (
     <main className="flex flex-1 justify-center bg-surface-container px-4 py-10">
       <section className="flex w-full max-w-[1200px] flex-col gap-12 rounded-[20px] bg-surface px-6 py-10 sm:flex-row sm:justify-between sm:px-12 sm:pb-12">
         <div className="min-w-0 max-w-[625px] flex-1">
+          <Button
+            className="mb-4"
+            onClick={() => goToTimetable(draft)}
+            size="sm"
+            startIcon={<MdArrowBack className="size-4" />}
+            variant="outline"
+          >
+            {t("bookingDetails.backToTimetable")}
+          </Button>
           <h1 className="m-0 mb-6 text-[26px] font-semibold leading-none text-booking-primary">
             {t("bookingDetails.title")}
           </h1>
@@ -177,7 +166,7 @@ const BookingDetailsPage = () => {
               {error}
             </p>
           ) : null}
-          {intervalUncovered ? (
+          {linesUncovered ? (
             <p className="mb-4 text-sm font-medium text-error" role="status">
               {t("bookingDetails.unavailable")}
             </p>
@@ -193,35 +182,56 @@ const BookingDetailsPage = () => {
               <dd className="m-0 text-xl font-normal leading-[26px]">{t("bookingDetails.oneTime")}</dd>
             </div>
             <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
-              <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.time")}</dt>
-              <dd className="m-0 text-xl font-normal leading-[26px]">{formattedInterval}</dd>
-            </div>
-            <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
               <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.space")}</dt>
               <dd className="m-0 text-xl font-normal leading-[26px]">
                 <div className="flex flex-col gap-4">
-                  {query.roomIds.map((roomId, index) => {
-                    const room = rooms.find((item) => item.id === roomId);
+                  {draft.lines.map((line, index) => {
+                    const room = roomForLine(line.facilityId);
+                    const photoUrl = room?.photoUrls[0];
                     return (
                       <div
-                        className={cn(
-                          "grid w-full grid-cols-[1fr_auto] items-center gap-4",
-                          index > 0 && "border-t border-gray-300 pt-4"
-                        )}
-                        key={roomId}
+                        className={cn("flex flex-col gap-3", index > 0 && "border-t border-gray-300 pt-4")}
+                        key={line.sequence}
                       >
-                        <span>{room?.name || roomId}</span>
-                        <span className="flex flex-col gap-2">
-                          <Button onClick={() => goToTimetable(query)} size="xs" variant="outline">
-                            {t("bookingDetails.edit")}
-                          </Button>
-                          <Button onClick={() => handleRemove(roomId)} size="xs" variant="outline">
-                            {t("bookingDetails.remove")}
-                          </Button>
-                        </span>
+                        <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-4">
+                          <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded bg-booking-grey">
+                            {photoUrl ? (
+                              <img alt="" className="size-full object-cover" src={photoUrl} />
+                            ) : (
+                              <div
+                                aria-hidden
+                                className="flex size-full items-center justify-center text-booking-primary/40"
+                              >
+                                <MdPhoto size={24} />
+                              </div>
+                            )}
+                          </div>
+                          <div className="min-w-0">
+                            <p className="m-0 text-base font-bold text-booking-primary">
+                              {room?.name || line.facilityId}
+                            </p>
+                            <p className="m-0 mt-1 text-sm font-normal text-on-surface-variant">
+                              {formatClock(line.start, i18nInstance.language)} –{" "}
+                              {formatClock(line.end, i18nInstance.language)}
+                            </p>
+                          </div>
+                          <span className="flex flex-col gap-2">
+                            <Button onClick={() => goToTimetable(draft)} size="xs" variant="outline">
+                              {t("bookingDetails.edit")}
+                            </Button>
+                            <Button onClick={() => handleRemove(line.sequence)} size="xs" variant="outline">
+                              {t("bookingDetails.remove")}
+                            </Button>
+                          </span>
+                        </div>
                       </div>
                     );
                   })}
+                  {showAddRoom ? (
+                    <Button className="mt-2 w-fit" onClick={() => goToTimetable(draft)} size="sm" variant="outline">
+                      {t("bookingDetails.addRoom")}
+                    </Button>
+                  ) : null}
                 </div>
               </dd>
             </div>
