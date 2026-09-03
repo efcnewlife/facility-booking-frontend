@@ -494,14 +494,11 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerUp = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (pointerKindFromEvent(event) === "mouse") {
-      return;
-    }
     if (!isBookableCellForCart(room, cellStart, cartState.pinned)) {
       return;
     }
     const target = { roomId: room.id, cellStart };
-    const action = cartPointerAction(cartState.pinned, "touch", hover, target);
+    const action = cartPointerAction(cartState.pinned, pointerKindFromEvent(event), hover, target);
     if (action === "preview") {
       setHover(target);
       return;
@@ -793,8 +790,8 @@ const RoomFilterPage = () => {
                                     handleCellPointerUp(room, cell.start, event);
                                   }
                                 }}
-                                onClick={() => {
-                                  if (room && cell) {
+                                onClick={(event) => {
+                                  if (room && cell && event.detail === 0) {
                                     handlePinCell(room, cell.start);
                                   }
                                 }}
