@@ -1,72 +1,62 @@
 import facilityService from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
+import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
+import { draftToCartState, parseBookingCartDraft, whenSeedFromSearch } from "@/utils/bookingCartDraft";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import {
-  isWhenValid,
-  parseBookingDetailsQuery,
   parseRoomsSearchQuery,
   toBookingDetailsSearchParams,
   toRoomsSearchParams,
   type RoomsSearchQuery,
-  type RoomsSpace,
 } from "@/utils/startBookingFlow";
 import {
+  addCartLine,
+  blockActionForInterval,
+  cartPointerAction,
   clockToMinutes,
-  confirmBookingTimePrefill,
-  displayBlocks,
+  confirmBookingTimePrefillForCart,
+  displayBlocksForCart,
+  emptyCartState,
   emptyTimeBookInterval,
-  emptyTimePointerAction,
-  isBookableCell,
+  hasNoMatchingResults,
+  isBookableCellForCart,
   isTimetableInitialLoad,
   minutesToClock,
-  scrollTargetClock,
+  pinInterval,
+  removeCartLine,
+  scrollTargetClockForCart,
   SLOT_MINUTES,
+  updateCartLine,
+  visibleRooms,
   type BookingInterval,
   type CapacityBand,
   type CellState,
   type HoverPreview,
   type PointerKind,
   type RoomDay,
+  type TimetableCartState,
   type TimetableView,
+  type TimeCell,
 } from "@/utils/timetableRules";
-import {
-  bookRoom,
-  canReviewBooking,
-  clearUnconfirmedSelection,
-  hasNoMatchingResultsLegacy as hasNoMatchingResults,
-  type TimetableSelection,
-  visibleRoomsLegacy as visibleRooms,
-} from "@/utils/timetableRulesLegacy";
-import {
-  Alert,
-  Badge,
-  Button,
-  cn,
-  DatePicker,
-  Select,
-  Spinner,
-  TimePicker,
-  type DatePickerValue,
-  type TimePickerValue,
-} from "@efcnewlife/newlife-ui";
+import { Alert, Badge, Button, cn, DatePicker, Select, Spinner, type DatePickerValue } from "@efcnewlife/newlife-ui";
 import dayjs from "dayjs";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MdArrowBack, MdArrowForward, MdPhoto, MdZoomIn } from "react-icons/md";
+import { MdArrowBack, MdArrowForward, MdCheck, MdPhoto, MdZoomIn } from "react-icons/md";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
 const ROOMS_PER_PAGE = 4;
 const SLOT_HEIGHT_PX = 40;
 const GRID_SCROLL_PADDING_PX = 16;
 const CAPACITY_BANDS: CapacityBand[] = ["1-10", "10-25", "25-50", "50+"];
-const SEARCH_LABEL_CLASS = "mb-[3px] text-xs font-medium leading-none text-booking-light-grey";
+const SEARCH_LABEL_CLASS = "mb-[3px] text-sm font-medium leading-none text-booking-light-grey";
 const SEARCH_CONTROL_CLASS = "border-outline bg-surface";
 const SEARCH_SECONDARY_BUTTON_CLASS =
-  "btn-booking-secondary inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50";
+  "btn-booking-secondary inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm whitespace-nowrap disabled:cursor-not-allowed disabled:opacity-50";
 const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] gap-x-[30px]";
 
 const isActiveMinistry = (item: MinistryItem): boolean => {
@@ -81,26 +71,6 @@ const formatClock = (clock: string, locale: string): string => {
 };
 
 const hourLabels = Array.from({ length: 24 }, (_, hour) => minutesToClock(hour * 60));
-
-const TIME_OF_DAY_ANCHOR = "1970-01-01";
-
-const toTimePickerValue = (clock: string): TimePickerValue => {
-  if (!clock || clock === "24:00") {
-    return null;
-  }
-  const parsed = dayjs(`${TIME_OF_DAY_ANCHOR}T${clock}:00`);
-  if (!parsed.isValid()) {
-    return null;
-  }
-  return parsed;
-};
-
-const fromTimePickerValue = (value: TimePickerValue): string => {
-  if (!value || !value.isValid()) {
-    return "";
-  }
-  return value.format("HH:mm");
-};
 
 const toDatePickerValue = (date: string): DatePickerValue => {
   if (!date) {
@@ -120,63 +90,80 @@ const fromDatePickerValue = (value: DatePickerValue): string => {
   return value.format("YYYY-MM-DD");
 };
 
+const cellUnderlayClassName = (cell: TimeCell | undefined): string => {
+  if (!cell) {
+    return "";
+  }
+  if (cell.state === "closed") {
+    return "bg-gray-200";
+  }
+  if (cell.state === "available") {
+    return "bg-[#d1f2cd]";
+  }
+  return "";
+};
+
 const eventClassName = (state: CellState): string => {
   return cn(
-    "pointer-events-none z-[1] flex min-h-0 items-start justify-between overflow-hidden border-l-[5px] py-2.5 pr-2.5 pl-[18px]",
-    state === "available" && "border-l-booking-green bg-success-container text-booking-primary",
-    state === "unavailable" && "border-l-gray-500 bg-gray-300 text-white",
-    state === "override" && "border-l-error bg-error-container text-booking-primary"
+    "pointer-events-none z-[1] flex min-h-0 items-start justify-between overflow-hidden py-2.5 pr-2.5 pl-[18px]",
+    state === "available" &&
+      "border border-black border-l-[5px] border-l-booking-green bg-[#a3d9a3] text-booking-primary",
+    state === "unavailable" && "border-l-[5px] border-l-gray-500 bg-gray-300 text-white",
+    state === "override" && "border-l-[5px] border-l-error bg-error-container text-booking-primary"
   );
 };
 
 const CapacityIcon = () => (
   <svg aria-hidden fill="none" height="11" viewBox="0 0 18 11" width="18" xmlns="http://www.w3.org/2000/svg">
     <path
-      d="M0 11V9.35C0 8.59375 0.45 7.975 1.275 7.49375C2.1 7.0125 3.225 6.80625 4.575 6.80625C5.925 6.80625 5.025 6.80625 5.325 6.80625C5.625 6.80625 6.375 6.875 6.75 7.08125C6.3 7.2875 5.325 8.18125 5.325 9.28125V11H0ZM6 11V9.4875C6 9.00625 6.15 8.525 6.45 8.1125C6.75 7.7 7.125 7.35625 7.725 7.08125C8.325 6.80625 8.925 6.53125 9.675 6.39375C10.425 6.25625 11.25 6.1875 12.075 6.1875C12.9 6.1875 13.8 6.25625 14.475 6.39375C15.15 6.53125 15.825 6.80625 16.35 7.08125C16.875 7.35625 17.325 7.76875 17.55 8.1125C17.775 8.45625 18 8.9375 18 9.4875V11H6ZM4.575 5.775C3.975 5.775 3.375 5.56875 2.925 5.15625C2.475 4.74375 2.25 4.2625 2.25 3.64375C2.25 3.025 2.475 2.54375 2.925 2.13125C3.375 1.71875 3.9 1.5125 4.575 1.5125C5.25 1.5125 5.775 1.71875 6.225 2.13125C6.675 2.54375 6.9 3.025 6.9 3.64375C6.9 4.2625 6.675 4.74375 6.225 5.15625C5.775 5.56875 5.25 5.775 4.575 5.775ZM12 5.5C11.175 5.5 10.425 5.225 9.9 4.675C9.3 4.125 9 3.50625 9 2.75C9 1.99375 9.3 1.30625 9.9 0.75625C10.5 0.20625 11.175 0 12 0C12.825 0 13.575 0.275 14.175 0.75625C14.775 1.2375 15 1.925 15 2.75C15 3.575 14.7 4.19375 14.175 4.675C13.575 5.225 12.9 5.5 12 5.5Z"
+      d="M0 11V9.35C0 8.59375 0.45 7.975 1.275 7.49375C2.1 7.0125 3.225 6.80625 4.575 6.80625C5.925 6.80625 5.025 6.80625 5.325 6.80625C5.625 6.80625 6.375 6.875 6.75 7.08125C6.3 7.2875 5.325 8.18125 5.325 9.28125V11H0ZM6 11V9.4875C6 9.00625 6.15 8.525 6.45 8.1125C6.75 7.7 7.125 7.35625 7.725 7.08125C8.325 6.80625 8.925 6.53125 9.675 6.39375C10.425 6.25625 11.25 6.1875 12.075 6.1875C12.9 6.1875 13.8 6.25625 14.475 6.39375C15.15 6.53125 15.825 6.80625 16.35 7.08125C16.875 7.35625 17.325 7.76875 17.55 8.1125C17.775 8.45625 18 8.9375 18 9.4875V11H6ZM4.575 5.775C3.975 5.775 3.375 5.56875 2.925 5.15625C2.475 4.74375 2.25 4.2625 2.25 3.64375C2.25 3.025 2.475 2.54375 2.925 2.13125C3.375 1.71875 3.9 1.5125 4.575 1.5125C5.25 1.5125 5.775 1.71875 6.225 2.13125C6.675 4.74375 6.9 3.025 6.9 3.64375C6.9 4.2625 6.675 4.74375 6.225 5.15625C5.775 5.56875 5.25 5.775 4.575 5.775ZM12 5.5C11.175 5.5 10.425 5.225 9.9 4.675C9.3 4.125 9 3.50625 9 2.75C9 1.99375 9.3 1.30625 9.9 0.75625C10.5 0.20625 11.175 0 12 0C12.825 0 13.575 0.275 14.175 0.75625C14.775 1.2375 15 1.925 15 2.75C15 3.575 14.7 4.19375 14.175 4.675C13.575 5.225 12.9 5.5 12 5.5Z"
       fill="#DFEDFF"
     />
   </svg>
 );
+
+const buildInitialCartState = (params: URLSearchParams, query: RoomsSearchQuery | null): TimetableCartState => {
+  const whenSeed = whenSeedFromSearch(query?.start, query?.end);
+  const draft = parseBookingCartDraft(params);
+  if (draft && query?.date && draft.date === query.date) {
+    return draftToCartState(draft, whenSeed);
+  }
+  return emptyCartState(whenSeed);
+};
 
 const RoomFilterPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const initialQuery = parseRoomsSearchQuery(searchParams);
-  const initialDetails = parseBookingDetailsQuery(searchParams);
 
   const [draftDate, setDraftDate] = useState(initialQuery?.date ?? "");
-  const [draftStart, setDraftStart] = useState(initialQuery?.start ?? "");
-  const [draftEnd, setDraftEnd] = useState(initialQuery?.end ?? "");
-  const [draftSpace, setDraftSpace] = useState<RoomsSpace>("single");
-  const [appliedSpace, setAppliedSpace] = useState<RoomsSpace>("single");
   const [draftMinistryId, setDraftMinistryId] = useState(initialQuery?.ministryId ?? "");
   const [view, setView] = useState<TimetableView>("available");
   const [capacityBand, setCapacityBand] = useState<CapacityBand | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [rooms, setRooms] = useState<RoomDay[]>([]);
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
-  const [selection, setSelection] = useState<TimetableSelection>({
-    roomIds: initialDetails?.roomIds ?? [],
-    interval:
-      initialDetails != null
-        ? { start: initialDetails.start, end: initialDetails.end }
-        : initialQuery?.start && initialQuery?.end
-          ? { start: initialQuery.start, end: initialQuery.end }
-          : null,
-  });
+  const [cartState, setCartState] = useState<TimetableCartState>(() =>
+    buildInitialCartState(searchParams, initialQuery)
+  );
   const [loading, setLoading] = useState(() => Boolean(initialQuery?.date));
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
   const [confirmRoom, setConfirmRoom] = useState<RoomDay | null>(null);
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
+  const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const gridScrollRef = useRef<HTMLDivElement>(null);
 
   const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
   const appliedMinistryId = appliedQuery?.ministryId;
+  const whenSeed = useMemo(
+    () => whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end),
+    [appliedQuery?.end, appliedQuery?.start]
+  );
   const showMinistryField = bookableMinistries.length > 0;
   const minDate = moment().format("YYYY-MM-DD");
   const maxDate = moment().add(1, "year").format("YYYY-MM-DD");
@@ -228,11 +215,25 @@ const RoomFilterPage = () => {
     };
   }, []);
 
+  const appliedKey = `${appliedDate}|${appliedMinistryId ?? ""}|${whenSeed?.start ?? ""}|${whenSeed?.end ?? ""}`;
+  const prevAppliedKeyRef = useRef(appliedKey);
+
+  useEffect(() => {
+    if (prevAppliedKeyRef.current === appliedKey) {
+      return;
+    }
+    prevAppliedKeyRef.current = appliedKey;
+    setCartState(emptyCartState(whenSeed));
+    setHover(null);
+    setConfirmRoom(null);
+    setEditingSequence(undefined);
+  }, [appliedKey, whenSeed]);
+
   const listedRooms = useMemo(
-    () => visibleRooms(rooms, view, selection.interval, capacityBand, undefined),
-    [capacityBand, rooms, selection.interval, view]
+    () => visibleRooms(rooms, view, whenSeed, capacityBand),
+    [capacityBand, rooms, view, whenSeed]
   );
-  const noMatching = hasNoMatchingResults(rooms, view, selection.interval, capacityBand, undefined);
+  const noMatching = hasNoMatchingResults(rooms, view, whenSeed, capacityBand);
   const isInitialLoad = isTimetableInitialLoad(loading, rooms.length);
   const showNoMatching = noMatching && !isInitialLoad;
   const pageCount = Math.max(1, Math.ceil(listedRooms.length / ROOMS_PER_PAGE));
@@ -247,30 +248,26 @@ const RoomFilterPage = () => {
     setPageIndex(0);
   }, [view, capacityBand, appliedDate, listedRooms.length]);
 
-  const appliedStart = appliedQuery?.start;
-  const appliedEnd = appliedQuery?.end;
-
   useEffect(() => {
     if (loading || rooms.length === 0) {
       return;
     }
-    const interval = appliedStart && appliedEnd ? { start: appliedStart, end: appliedEnd } : null;
-    if (hasNoMatchingResults(rooms, view, interval, capacityBand, undefined)) {
+    if (hasNoMatchingResults(rooms, view, whenSeed, capacityBand)) {
       return;
     }
-    const roomsForScroll = visibleRooms(rooms, view, interval, capacityBand, undefined);
+    const roomsForScroll = visibleRooms(rooms, view, whenSeed, capacityBand);
     const scroller = gridScrollRef.current;
     if (!scroller) {
       return;
     }
-    const clock = scrollTargetClock(roomsForScroll, interval);
+    const clock = scrollTargetClockForCart(roomsForScroll, whenSeed, cartState.pinned);
     const top = GRID_SCROLL_PADDING_PX + (clockToMinutes(clock) / SLOT_MINUTES) * SLOT_HEIGHT_PX;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     scroller.scrollTo({
       top,
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
-  }, [appliedDate, appliedEnd, appliedStart, capacityBand, loading, rooms, view]);
+  }, [appliedDate, capacityBand, cartState.pinned, loading, rooms, view, whenSeed]);
 
   const handleUpdateSearch = useCallback(() => {
     if (loading) {
@@ -280,35 +277,35 @@ const RoomFilterPage = () => {
       setError(t("timetable.date"));
       return;
     }
-    if (Boolean(draftStart) !== Boolean(draftEnd)) {
-      setError(t("timetable.halfFilledTime"));
-      return;
-    }
-    if (!isWhenValid({ date: draftDate, start: draftStart || null, end: draftEnd || null }, new Date())) {
-      setError(t("timetable.whenInvalid"));
+    const dateChanged = draftDate !== appliedDate;
+    const ministryChanged = draftMinistryId !== (appliedMinistryId ?? "");
+    if (!dateChanged && !ministryChanged) {
       return;
     }
     const next: RoomsSearchQuery = {
       date: draftDate,
     };
-    if (draftStart && draftEnd) {
-      next.start = draftStart;
-      next.end = draftEnd;
-    }
     if (draftMinistryId) {
       next.ministryId = draftMinistryId;
     }
+    if (!dateChanged && appliedQuery?.start && appliedQuery?.end) {
+      next.start = appliedQuery.start;
+      next.end = appliedQuery.end;
+    }
     setSearchParams(toRoomsSearchParams(next), { replace: true });
-    setAppliedSpace(draftSpace);
     setHover(null);
-    setSelection(
-      clearUnconfirmedSelection({
-        roomIds: selection.roomIds,
-        interval: draftStart && draftEnd ? { start: draftStart, end: draftEnd } : null,
-      })
-    );
     setError(null);
-  }, [draftDate, draftEnd, draftMinistryId, draftSpace, draftStart, loading, selection.roomIds, setSearchParams, t]);
+  }, [
+    appliedDate,
+    appliedMinistryId,
+    appliedQuery?.end,
+    appliedQuery?.start,
+    draftDate,
+    draftMinistryId,
+    loading,
+    setSearchParams,
+    t,
+  ]);
 
   useEffect(() => {
     const on_pointer_down = (event: PointerEvent) => {
@@ -333,24 +330,16 @@ const RoomFilterPage = () => {
     return <Navigate replace to="/" />;
   }
 
-  const handleAdd = (room: RoomDay, cellStart: string) => {
-    if (!isBookableCell(room, cellStart, selection.interval)) {
+  const handlePinCell = (room: RoomDay, cellStart: string) => {
+    if (!isBookableCellForCart(room, cellStart, cartState.pinned)) {
       return;
     }
-    const next = bookRoom(selection, room, cellStart, appliedSpace);
+    setCartState((current) => pinInterval(current, room, cellStart));
     setHover(null);
-    setSelection(next);
-    if (next.interval) {
-      setDraftStart(next.interval.start);
-      setDraftEnd(next.interval.end);
-    }
   };
 
-  const handleOpenConfirmBookingTime = (room: RoomDay, cellStart: string) => {
-    if (!isBookableCell(room, cellStart, selection.interval)) {
-      return;
-    }
-    const prefill = confirmBookingTimePrefill(room, cellStart, selection.interval);
+  const handleOpenConfirmBookingTime = (room: RoomDay, cellStart: string, sequence?: number) => {
+    const prefill = confirmBookingTimePrefillForCart(room, cartState, cellStart, sequence);
     if (!prefill) {
       return;
     }
@@ -358,37 +347,40 @@ const RoomFilterPage = () => {
     setConfirmRoom(room);
     setConfirmStart(prefill.start);
     setConfirmEnd(prefill.end);
-  };
-
-  const handleAvailableAction = (room: RoomDay, cellStart: string) => {
-    if (appliedSpace === "single") {
-      handleOpenConfirmBookingTime(room, cellStart);
-      return;
-    }
-    handleAdd(room, cellStart);
+    setEditingSequence(sequence);
   };
 
   const handleCancelConfirmBookingTime = () => {
     setConfirmRoom(null);
     setConfirmStart("");
     setConfirmEnd("");
+    setEditingSequence(undefined);
   };
 
   const handleConfirmBookingTime = (interval: BookingInterval) => {
-    if (!confirmRoom || !appliedDate) {
+    if (!confirmRoom) {
       return;
     }
-    navigate({
-      pathname: "/booking-details",
-      search: toBookingDetailsSearchParams({
-        date: appliedDate,
+    if (editingSequence != null) {
+      const updated = updateCartLine(cartState, editingSequence, {
+        facilityId: confirmRoom.id,
         start: interval.start,
         end: interval.end,
-        space: appliedSpace,
-        roomIds: [confirmRoom.id],
-        ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
-      }).toString(),
-    });
+      });
+      if (updated) {
+        setCartState(updated);
+      }
+    } else {
+      const next = addCartLine(cartState, {
+        facilityId: confirmRoom.id,
+        start: interval.start,
+        end: interval.end,
+      });
+      if (next) {
+        setCartState(next);
+      }
+    }
+    handleCancelConfirmBookingTime();
   };
 
   const pointerKindFromEvent = (event: { pointerType: string }): PointerKind => {
@@ -396,7 +388,7 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerEnter = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (event.pointerType !== "mouse" || selection.interval || emptyTimeBookInterval(room, cellStart) == null) {
+    if (event.pointerType !== "mouse" || cartState.pinned || emptyTimeBookInterval(room, cellStart) == null) {
       return;
     }
     setHover({ roomId: room.id, cellStart });
@@ -406,34 +398,36 @@ const RoomFilterPage = () => {
     if (pointerKindFromEvent(event) === "mouse") {
       return;
     }
-    if (!isBookableCell(room, cellStart, selection.interval)) {
+    if (!isBookableCellForCart(room, cellStart, cartState.pinned)) {
       return;
     }
     const target = { roomId: room.id, cellStart };
-    const action = emptyTimePointerAction(selection.interval, "touch", hover, target);
+    const action = cartPointerAction(cartState.pinned, "touch", hover, target);
     if (action === "preview") {
       setHover(target);
       return;
     }
-    handleAvailableAction(room, cellStart);
+    handlePinCell(room, cellStart);
   };
 
   const handleReviewBooking = () => {
-    if (!canReviewBooking(selection) || !selection.interval || !appliedDate) {
+    if (cartState.lines.length === 0 || !appliedDate) {
       return;
     }
+    const line = cartState.lines[0];
     navigate({
       pathname: "/booking-details",
       search: toBookingDetailsSearchParams({
         date: appliedDate,
-        start: selection.interval.start,
-        end: selection.interval.end,
-        space: appliedSpace,
-        roomIds: selection.roomIds,
+        start: line.start,
+        end: line.end,
+        roomIds: [line.facilityId],
         ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
       }).toString(),
     });
   };
+
+  const formatClockForLocale = (clock: string) => formatClock(clock, i18nInstance.language);
 
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-12">
@@ -462,7 +456,7 @@ const RoomFilterPage = () => {
                 label: ministry.name || ministry.id,
               }))}
               placeholder={t("timetable.ministryNone")}
-              size="xs"
+              size="sm"
               value={draftMinistryId || null}
               wrapperClassName="w-[240px] shrink-0"
             />
@@ -476,7 +470,7 @@ const RoomFilterPage = () => {
             labelClassName={SEARCH_LABEL_CLASS}
             labels={selectLabels}
             options={[{ value: "one_time", label: t("timetable.oneTime") }]}
-            size="xs"
+            size="sm"
             value="one_time"
             wrapperClassName="w-[124px] shrink-0"
           />
@@ -491,49 +485,9 @@ const RoomFilterPage = () => {
             onChange={(value) => setDraftDate(fromDatePickerValue(value))}
             placeholder={t("startBooking.when.datePlaceholder")}
             required
-            size="xs"
+            size="sm"
             value={toDatePickerValue(draftDate)}
             wrapperClassName="w-[148px] shrink-0"
-          />
-          <TimePicker
-            ampm
-            className={SEARCH_CONTROL_CLASS}
-            id="timetable-start"
-            label={t("timetable.start")}
-            labelClassName={SEARCH_LABEL_CLASS}
-            onChange={(value) => setDraftStart(fromTimePickerValue(value))}
-            placeholder={t("startBooking.when.startPlaceholder")}
-            size="xs"
-            value={toTimePickerValue(draftStart)}
-            wrapperClassName="w-[148px] shrink-0"
-          />
-          <TimePicker
-            ampm
-            className={SEARCH_CONTROL_CLASS}
-            id="timetable-end"
-            label={t("timetable.end")}
-            labelClassName={SEARCH_LABEL_CLASS}
-            onChange={(value) => setDraftEnd(fromTimePickerValue(value))}
-            placeholder={t("startBooking.when.endPlaceholder")}
-            size="xs"
-            value={toTimePickerValue(draftEnd)}
-            wrapperClassName="w-[148px] shrink-0"
-          />
-          <Select
-            className={SEARCH_CONTROL_CLASS}
-            clearable={false}
-            id="timetable-space"
-            label={t("timetable.roomsCount")}
-            labelClassName={SEARCH_LABEL_CLASS}
-            labels={selectLabels}
-            onChange={(value) => setDraftSpace(value === "multiple" ? "multiple" : "single")}
-            options={[
-              { value: "single", label: t("timetable.singleRoom") },
-              { value: "multiple", label: t("timetable.multipleRooms") },
-            ]}
-            size="xs"
-            value={draftSpace}
-            wrapperClassName="w-[152px] shrink-0"
           />
         </div>
         <span className="shrink-0" id="timetable-update-search">
@@ -554,63 +508,53 @@ const RoomFilterPage = () => {
         />
       ) : null}
 
-      <section className="mt-4 flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[10px] bg-surface px-4 py-5 xl:px-[42px] xl:pt-7 xl:pb-4">
-        <div className="flex shrink-0 items-center justify-between gap-6 bg-surface pb-3">
-          <div className="flex flex-wrap items-center gap-[52px]">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
-                {t("timetable.filterByView")}
-              </span>
-              {(["available", "all"] as TimetableView[]).map((option) => (
-                <button
-                  aria-pressed={view === option}
-                  className="cursor-pointer border-0 bg-transparent p-0 leading-none"
-                  key={option}
-                  onClick={() => setView(option)}
-                  type="button"
-                >
-                  <Badge color="primary" variant={view === option ? "solid" : "light"}>
-                    {option === "available" ? t("timetable.availableRooms") : t("timetable.allRooms")}
-                  </Badge>
-                </button>
-              ))}
+      <div className="mt-4 flex min-h-0 w-full flex-1 gap-4 overflow-hidden">
+        <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] bg-surface px-4 py-5 xl:px-[42px] xl:pt-7 xl:pb-4">
+          <div className="flex shrink-0 items-center justify-between gap-6 bg-surface pb-3">
+            <div className="flex flex-wrap items-center gap-[52px]">
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
+                  {t("timetable.filterByView")}
+                </span>
+                {(["available", "all"] as TimetableView[]).map((option) => (
+                  <button
+                    aria-pressed={view === option}
+                    className="cursor-pointer border-0 bg-transparent p-0 leading-none"
+                    key={option}
+                    onClick={() => setView(option)}
+                    type="button"
+                  >
+                    <Badge color="primary" variant={view === option ? "solid" : "light"}>
+                      {option === "available" ? t("timetable.availableRooms") : t("timetable.allRooms")}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center gap-2.5">
+                <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
+                  {t("timetable.filterByCapacity")}
+                </span>
+                {CAPACITY_BANDS.map((band) => (
+                  <button
+                    aria-pressed={capacityBand === band}
+                    className="cursor-pointer border-0 bg-transparent p-0 leading-none"
+                    key={band}
+                    onClick={() => setCapacityBand((current) => (current === band ? null : band))}
+                    type="button"
+                  >
+                    <Badge color="primary" variant={capacityBand === band ? "solid" : "light"}>
+                      {band === "1-10"
+                        ? t("timetable.capacity1to10")
+                        : band === "10-25"
+                          ? t("timetable.capacity10to25")
+                          : band === "25-50"
+                            ? t("timetable.capacity25to50")
+                            : t("timetable.capacity50plus")}
+                    </Badge>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="flex flex-wrap items-center gap-2.5">
-              <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
-                {t("timetable.filterByCapacity")}
-              </span>
-              {CAPACITY_BANDS.map((band) => (
-                <button
-                  aria-pressed={capacityBand === band}
-                  className="cursor-pointer border-0 bg-transparent p-0 leading-none"
-                  key={band}
-                  onClick={() => setCapacityBand((current) => (current === band ? null : band))}
-                  type="button"
-                >
-                  <Badge color="primary" variant={capacityBand === band ? "solid" : "light"}>
-                    {band === "1-10"
-                      ? t("timetable.capacity1to10")
-                      : band === "10-25"
-                        ? t("timetable.capacity10to25")
-                        : band === "25-50"
-                          ? t("timetable.capacity25to50")
-                          : t("timetable.capacity50plus")}
-                  </Badge>
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="flex shrink-0 items-center gap-4">
-            {appliedSpace === "multiple" ? (
-              <button
-                className={SEARCH_SECONDARY_BUTTON_CLASS}
-                disabled={!canReviewBooking(selection)}
-                onClick={handleReviewBooking}
-                type="button"
-              >
-                {t("timetable.reviewBookingCount", { count: selection.roomIds.length })}
-              </button>
-            ) : null}
             <div className="flex shrink-0 gap-3">
               <Button
                 className="min-w-10"
@@ -632,180 +576,210 @@ const RoomFilterPage = () => {
               </Button>
             </div>
           </div>
-        </div>
 
-        <div className="flex min-h-0 flex-1 flex-col">
-          {isInitialLoad ? (
-            <div aria-busy="true" className="flex min-h-[min(420px,50vh)] flex-1 items-center justify-center">
-              <Spinner showText size="sm" text={t("startBooking.loading")} />
-            </div>
-          ) : (
-            <>
-              <div className="shrink-0 border-b-4 border-booking-primary bg-surface pt-[13px] pb-4">
-                <div className={TIMETABLE_TRACK}>
-                  <div />
-                  {showNoMatching ? (
-                    <div className="col-span-4 flex h-[168px] items-center justify-center bg-gray-300 text-base font-bold leading-normal text-gray-500">
-                      {t("timetable.noMatchingResults")}
-                    </div>
-                  ) : (
-                    paddedRooms.map((room, index) =>
-                      room ? (
-                        <article className="min-w-0 overflow-hidden bg-booking-primary" key={room.id}>
-                          <div className="relative h-[150px] w-full bg-booking-grey">
-                            {canOpenImagePreview(room.photoUrls) ? (
-                              <button
-                                aria-label={t("imagePreview.zoom")}
-                                className="relative h-full w-full p-0"
-                                onClick={() => setPreviewUrls(room.photoUrls)}
-                                type="button"
-                              >
-                                <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
-                                <span className="pointer-events-none absolute top-2 right-2 flex size-9 items-center justify-center text-white">
-                                  <MdZoomIn size={23} />
-                                </span>
-                              </button>
-                            ) : (
-                              <div
-                                aria-hidden
-                                className="flex size-full items-center justify-center text-booking-primary/40"
-                              >
-                                <MdPhoto size={48} />
-                              </div>
-                            )}
-                          </div>
-                          <div className="flex items-center justify-between gap-2 px-[15px] py-3">
-                            <span className="truncate text-base font-bold leading-none text-white">{room.name}</span>
-                            <span className="flex shrink-0 items-center gap-[5px] text-xs font-medium text-brand-100">
-                              <CapacityIcon />
-                              <span>{room.capacity}</span>
-                            </span>
-                          </div>
-                        </article>
-                      ) : (
-                        <article className="min-w-0 bg-transparent" key={`empty-${index}`} />
-                      )
-                    )
-                  )}
-                </div>
+          <div className="flex min-h-0 flex-1 flex-col">
+            {isInitialLoad ? (
+              <div aria-busy="true" className="flex min-h-[min(420px,50vh)] flex-1 items-center justify-center">
+                <Spinner showText size="sm" text={t("startBooking.loading")} />
               </div>
-
-              {showNoMatching ? null : (
-                <div className="relative min-h-0 flex-1">
-                  {loading && rooms.length > 0 ? (
-                    <div
-                      aria-busy="true"
-                      className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70"
-                    >
-                      <Spinner showText size="sm" text={t("startBooking.loading")} />
-                    </div>
-                  ) : null}
-                  <div
-                    className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-4"
-                    ref={gridScrollRef}
-                  >
-                    <div
-                      aria-label={t("timetable.searchBar")}
-                      className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
-                      onPointerLeave={(event) => {
-                        if (event.pointerType === "mouse") {
-                          setHover(null);
-                        }
-                      }}
-                    >
-                      <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
-                      {hourLabels.map((label, hour) => (
-                        <div
-                          className="col-start-1 flex items-start justify-end pr-3 text-right text-xs font-medium leading-none whitespace-nowrap text-booking-primary"
-                          key={label}
-                          style={{ gridRow: hour * 2 + 1 }}
-                        >
-                          <span className="-translate-y-1/2">{formatClock(label, i18nInstance.language)}</span>
-                        </div>
-                      ))}
-                      {paddedRooms.map((room, roomIndex) =>
-                        Array.from({ length: 48 }, (_, cellIndex) => {
-                          const cell = room?.cells[cellIndex];
-                          const bookable = room && cell ? isBookableCell(room, cell.start, selection.interval) : false;
-                          return (
-                            <button
-                              className={cn(
-                                "relative border-t border-gray-300",
-                                cellIndex % 2 === 0 && "border-t-gray-400",
-                                cellIndex === 47 && "border-b border-gray-300",
-                                cell?.state === "closed" && "bg-gray-200",
-                                bookable && "cursor-pointer"
-                              )}
-                              disabled={!bookable}
-                              key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
-                              onPointerEnter={(event) => {
-                                if (room && cell) {
-                                  handleCellPointerEnter(room, cell.start, event);
-                                }
-                              }}
-                              onPointerDown={(event) => {
-                                if (pointerKindFromEvent(event) !== "mouse") {
-                                  event.preventDefault();
-                                }
-                              }}
-                              onPointerUp={(event) => {
-                                if (room && cell) {
-                                  handleCellPointerUp(room, cell.start, event);
-                                }
-                              }}
-                              onClick={() => {
-                                if (room && cell) {
-                                  handleAvailableAction(room, cell.start);
-                                }
-                              }}
-                              style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
-                              type="button"
-                            />
-                          );
-                        })
-                      )}
-                      {pagedRooms.map((room, roomIndex) =>
-                        displayBlocks(room, selection.interval, hover).map((block) => {
-                          const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
-                          const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
-                          const bookableStart =
-                            block.state === "available" && isBookableCell(room, block.start, selection.interval);
-                          return (
-                            <article
-                              className={eventClassName(block.state)}
-                              key={`${room.id}-${block.start}-${block.state}`}
-                              style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
-                            >
-                              <div className="flex min-w-0 flex-1 flex-col gap-1.5">
-                                <p className="m-0 text-base font-bold leading-normal">
-                                  {t(`timetable.${block.state}`)}
-                                </p>
-                                <p className="m-0 text-xs font-medium leading-none">
-                                  {formatClock(block.start, i18nInstance.language)} –{" "}
-                                  {formatClock(block.end, i18nInstance.language)}
-                                </p>
-                              </div>
-                              {block.state === "available" && bookableStart ? (
+            ) : (
+              <>
+                <div className="shrink-0 border-b-4 border-booking-primary bg-surface pt-[13px] pb-4">
+                  <div className={TIMETABLE_TRACK}>
+                    <div />
+                    {showNoMatching ? (
+                      <div className="col-span-4 flex h-[168px] items-center justify-center bg-gray-300 text-base font-bold leading-normal text-gray-500">
+                        {t("timetable.noMatchingResults")}
+                      </div>
+                    ) : (
+                      paddedRooms.map((room, index) =>
+                        room ? (
+                          <article className="min-w-0 overflow-hidden bg-booking-primary" key={room.id}>
+                            <div className="relative h-[150px] w-full bg-booking-grey">
+                              {canOpenImagePreview(room.photoUrls) ? (
                                 <button
-                                  className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
-                                  onClick={() => handleAvailableAction(room, block.start)}
+                                  aria-label={t("imagePreview.zoom")}
+                                  className="relative h-full w-full p-0"
+                                  onClick={() => setPreviewUrls(room.photoUrls)}
                                   type="button"
                                 >
-                                  {t(appliedSpace === "multiple" ? "timetable.add" : "timetable.book")}
+                                  <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
+                                  <span className="pointer-events-none absolute top-2 right-2 flex size-9 items-center justify-center text-white">
+                                    <MdZoomIn size={23} />
+                                  </span>
                                 </button>
-                              ) : null}
-                            </article>
-                          );
-                        })
-                      )}
-                    </div>
+                              ) : (
+                                <div
+                                  aria-hidden
+                                  className="flex size-full items-center justify-center text-booking-primary/40"
+                                >
+                                  <MdPhoto size={48} />
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center justify-between gap-2 px-[15px] py-3">
+                              <span className="truncate text-base font-bold leading-none text-white">{room.name}</span>
+                              <span className="flex shrink-0 items-center gap-[5px] text-xs font-medium text-brand-100">
+                                <CapacityIcon />
+                                <span>{room.capacity}</span>
+                              </span>
+                            </div>
+                          </article>
+                        ) : (
+                          <article className="min-w-0 bg-transparent" key={`empty-${index}`} />
+                        )
+                      )
+                    )}
                   </div>
                 </div>
-              )}
-            </>
-          )}
-        </div>
-      </section>
+
+                {showNoMatching ? null : (
+                  <div className="relative min-h-0 flex-1">
+                    {loading && rooms.length > 0 ? (
+                      <div
+                        aria-busy="true"
+                        className="absolute inset-0 z-10 flex items-center justify-center bg-surface/70"
+                      >
+                        <Spinner showText size="sm" text={t("startBooking.loading")} />
+                      </div>
+                    ) : null}
+                    <div
+                      className="h-full min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain pt-4"
+                      ref={gridScrollRef}
+                    >
+                      <div
+                        aria-label={t("timetable.searchBar")}
+                        className={cn(TIMETABLE_TRACK, "grid-rows-[repeat(48,40px)]")}
+                        onPointerLeave={(event) => {
+                          if (event.pointerType === "mouse") {
+                            setHover(null);
+                          }
+                        }}
+                      >
+                        <div aria-hidden className="pointer-events-none col-start-1 row-span-full bg-surface" />
+                        {hourLabels.map((label, hour) => (
+                          <div
+                            className="col-start-1 flex items-start justify-end pr-3 text-right text-xs font-medium leading-none whitespace-nowrap text-booking-primary"
+                            key={label}
+                            style={{ gridRow: hour * 2 + 1 }}
+                          >
+                            <span className="-translate-y-1/2">{formatClockForLocale(label)}</span>
+                          </div>
+                        ))}
+                        {paddedRooms.map((room, roomIndex) =>
+                          Array.from({ length: 48 }, (_, cellIndex) => {
+                            const cell = room?.cells[cellIndex];
+                            const bookable =
+                              room && cell ? isBookableCellForCart(room, cell.start, cartState.pinned) : false;
+                            return (
+                              <button
+                                className={cn(
+                                  "relative border-t border-gray-300",
+                                  cellIndex % 2 === 0 && "border-t-gray-400",
+                                  cellIndex === 47 && "border-b border-gray-300",
+                                  cellUnderlayClassName(cell),
+                                  bookable && "cursor-pointer"
+                                )}
+                                disabled={!bookable}
+                                key={`${room?.id ?? `empty-${roomIndex}`}-${cellIndex}`}
+                                onPointerEnter={(event) => {
+                                  if (room && cell) {
+                                    handleCellPointerEnter(room, cell.start, event);
+                                  }
+                                }}
+                                onPointerDown={(event) => {
+                                  if (pointerKindFromEvent(event) !== "mouse") {
+                                    event.preventDefault();
+                                  }
+                                }}
+                                onPointerUp={(event) => {
+                                  if (room && cell) {
+                                    handleCellPointerUp(room, cell.start, event);
+                                  }
+                                }}
+                                onClick={() => {
+                                  if (room && cell) {
+                                    handlePinCell(room, cell.start);
+                                  }
+                                }}
+                                style={{ gridColumn: roomIndex + 2, gridRow: cellIndex + 1 }}
+                                type="button"
+                              />
+                            );
+                          })
+                        )}
+                        {pagedRooms.map((room, roomIndex) =>
+                          displayBlocksForCart(room, cartState, hover).map((block) => {
+                            const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
+                            const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
+                            const bookableStart =
+                              block.state === "available" && isBookableCellForCart(room, block.start, cartState.pinned);
+                            const blockAction =
+                              block.state === "available"
+                                ? blockActionForInterval(cartState.lines, room.id, block)
+                                : null;
+                            return (
+                              <article
+                                className={eventClassName(block.state)}
+                                key={`${room.id}-${block.start}-${block.state}`}
+                                style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
+                              >
+                                <div className="flex min-w-0 flex-1 flex-col gap-1.5">
+                                  <p className="m-0 text-base font-bold leading-normal">
+                                    {t(`timetable.${block.state}`)}
+                                  </p>
+                                  <p className="m-0 text-xs font-medium leading-none">
+                                    {formatClockForLocale(block.start)} – {formatClockForLocale(block.end)}
+                                  </p>
+                                </div>
+                                {block.state === "available" && bookableStart && blockAction === "add" ? (
+                                  <button
+                                    className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
+                                    onClick={() => handleOpenConfirmBookingTime(room, block.start)}
+                                    type="button"
+                                  >
+                                    {t("timetable.add")}
+                                  </button>
+                                ) : null}
+                                {block.state === "available" && blockAction === "checkmark" ? (
+                                  <span
+                                    aria-label={t("timetable.addedToCart")}
+                                    className="pointer-events-none inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-green text-white"
+                                  >
+                                    <MdCheck aria-hidden size={18} />
+                                  </span>
+                                ) : null}
+                              </article>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+
+        <BookingCartPanel
+          formatClock={formatClockForLocale}
+          lines={cartState.lines}
+          onEdit={(sequence) => {
+            const line = cartState.lines.find((item) => item.sequence === sequence);
+            const room = line ? rooms.find((item) => item.id === line.facilityId) : undefined;
+            if (line && room) {
+              handleOpenConfirmBookingTime(room, line.start, sequence);
+            }
+          }}
+          onRemove={(sequence) => {
+            setCartState((current) => removeCartLine(current, sequence));
+          }}
+          onReview={handleReviewBooking}
+          rooms={rooms}
+        />
+      </div>
+
       {confirmRoom ? (
         <ConfirmBookingTime
           date={appliedDate}
