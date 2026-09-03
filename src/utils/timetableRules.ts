@@ -1,5 +1,5 @@
 export const SLOT_MINUTES = 30;
-export const MAX_SELECTED_ROOMS = 3;
+export const MAX_BOOKING_LINES = 3;
 
 export type CellState = "available" | "unavailable" | "closed" | "override";
 
@@ -7,9 +7,7 @@ export type TimetableView = "available" | "all";
 
 export type CapacityBand = "1-10" | "10-25" | "25-50" | "50+";
 
-export type RoomsSpace = "single" | "multiple";
-
-export type RoomShortcutCode = "gym" | "sanctuary-hall";
+export type BlockAction = "add" | "checkmark";
 
 export interface TimeRange {
   start: string;
@@ -34,15 +32,30 @@ export interface RoomDay {
   cells: TimeCell[];
 }
 
-export interface BookingInterval {
-  start: string;
-  end: string;
+export type BookingInterval = TimeRange;
+
+export type WhenSeedRange = TimeRange;
+
+export interface BookingLine extends TimeRange {
+  facilityId: string;
+  sequence: number;
 }
 
-export interface TimetableSelection {
-  roomIds: string[];
-  interval: BookingInterval | null;
+export interface PinnedInterval extends TimeRange {
+  facilityId: string;
 }
+
+export interface TimetableCartState {
+  lines: BookingLine[];
+  pinned: PinnedInterval | null;
+  whenSeed: WhenSeedRange | null;
+}
+
+export const emptyCartState = (whenSeed: WhenSeedRange | null = null): TimetableCartState => ({
+  lines: [],
+  pinned: null,
+  whenSeed,
+});
 
 export const clockToMinutes = (clock: string): number => {
   if (clock === "24:00") {
@@ -61,8 +74,14 @@ export const minutesToClock = (totalMinutes: number): string => {
   return `${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}`;
 };
 
-export const intervalLengthMinutes = (interval: BookingInterval): number => {
+export const intervalLengthMinutes = (interval: TimeRange): number => {
   return clockToMinutes(interval.end) - clockToMinutes(interval.start);
+};
+
+export const intervalStaysOnSameDay = (interval: TimeRange): boolean => {
+  const startMinutes = clockToMinutes(interval.start);
+  const endMinutes = clockToMinutes(interval.end);
+  return startMinutes >= 0 && endMinutes > startMinutes && endMinutes <= 24 * 60;
 };
 
 export const durationForRoom = (room: RoomDay, atStart?: string): number => {
@@ -121,7 +140,7 @@ export const isRoomAvailable = (room: RoomDay, interval: BookingInterval | null)
   return true;
 };
 
-const isCellInInterval = (cellStart: string, interval: BookingInterval): boolean => {
+export const isCellInInterval = (cellStart: string, interval: TimeRange): boolean => {
   const startMinutes = clockToMinutes(interval.start);
   const endMinutes = clockToMinutes(interval.end);
   const cellMinutes = clockToMinutes(cellStart);
@@ -135,6 +154,152 @@ export const isBookableCell = (room: RoomDay, cellStart: string, interval: Booki
   return emptyTimeBookInterval(room, cellStart) != null;
 };
 
+export const isBookableCellForCart = (room: RoomDay, cellStart: string, pinned: PinnedInterval | null): boolean => {
+  if (pinned?.facilityId === room.id && isCellInInterval(cellStart, pinned) && isRoomAvailable(room, pinned)) {
+    return true;
+  }
+  return emptyTimeBookInterval(room, cellStart) != null;
+};
+
+export const isWhenSeedEligible = (room: RoomDay, whenSeed: WhenSeedRange | null): boolean => {
+  if (!whenSeed) {
+    return false;
+  }
+  return isRoomAvailable(room, whenSeed);
+};
+
+export const lineIdentityKey = (line: Pick<BookingLine, "facilityId" | "start" | "end">): string => {
+  return `${line.facilityId}\0${line.start}\0${line.end}`;
+};
+
+export const intervalsMatch = (left: TimeRange, right: TimeRange): boolean => {
+  return left.start === right.start && left.end === right.end;
+};
+
+export const hasDuplicateLine = (
+  lines: BookingLine[],
+  candidate: Pick<BookingLine, "facilityId" | "start" | "end">
+): boolean => {
+  const key = lineIdentityKey(candidate);
+  return lines.some((line) => lineIdentityKey(line) === key);
+};
+
+export const nextLineSequence = (lines: BookingLine[]): number => {
+  if (lines.length === 0) {
+    return 1;
+  }
+  return Math.max(...lines.map((line) => line.sequence)) + 1;
+};
+
+export const canAddCartLine = (
+  state: TimetableCartState,
+  line: Pick<BookingLine, "facilityId" | "start" | "end">
+): boolean => {
+  if (state.lines.length >= MAX_BOOKING_LINES) {
+    return false;
+  }
+  if (hasDuplicateLine(state.lines, line)) {
+    return false;
+  }
+  return intervalStaysOnSameDay(line);
+};
+
+export const pinInterval = (state: TimetableCartState, room: RoomDay, cellStart: string): TimetableCartState => {
+  const interval = emptyTimeBookInterval(room, cellStart);
+  if (!interval) {
+    return state;
+  }
+  return {
+    ...state,
+    pinned: {
+      facilityId: room.id,
+      start: interval.start,
+      end: interval.end,
+    },
+  };
+};
+
+export const pinnedIntervalForRoom = (state: TimetableCartState, facilityId: string): BookingInterval | null => {
+  if (state.pinned?.facilityId !== facilityId) {
+    return null;
+  }
+  return { start: state.pinned.start, end: state.pinned.end };
+};
+
+export const addCartLine = (
+  state: TimetableCartState,
+  line: Pick<BookingLine, "facilityId" | "start" | "end">
+): TimetableCartState | null => {
+  if (!canAddCartLine(state, line)) {
+    return null;
+  }
+  const nextLine: BookingLine = {
+    facilityId: line.facilityId,
+    start: line.start,
+    end: line.end,
+    sequence: nextLineSequence(state.lines),
+  };
+  return {
+    ...state,
+    lines: [...state.lines, nextLine].sort((left, right) => left.sequence - right.sequence),
+    pinned: state.pinned?.facilityId === line.facilityId ? null : state.pinned,
+  };
+};
+
+export const updateCartLine = (
+  state: TimetableCartState,
+  sequence: number,
+  line: Pick<BookingLine, "facilityId" | "start" | "end">
+): TimetableCartState | null => {
+  const existing = state.lines.find((item) => item.sequence === sequence);
+  if (!existing) {
+    return null;
+  }
+  const without = state.lines.filter((item) => item.sequence !== sequence);
+  if (hasDuplicateLine(without, line)) {
+    return null;
+  }
+  if (!intervalStaysOnSameDay(line)) {
+    return null;
+  }
+  const updated: BookingLine = {
+    facilityId: line.facilityId,
+    start: line.start,
+    end: line.end,
+    sequence,
+  };
+  return {
+    ...state,
+    lines: [...without, updated].sort((left, right) => left.sequence - right.sequence),
+  };
+};
+
+export const removeCartLine = (state: TimetableCartState, sequence: number): TimetableCartState => {
+  return {
+    ...state,
+    lines: state.lines.filter((line) => line.sequence !== sequence),
+  };
+};
+
+export const findCartLineByIdentity = (
+  lines: BookingLine[],
+  facilityId: string,
+  interval: TimeRange
+): BookingLine | undefined => {
+  return lines.find((line) => line.facilityId === facilityId && intervalsMatch(line, interval));
+};
+
+export const blockActionForInterval = (lines: BookingLine[], facilityId: string, interval: TimeRange): BlockAction => {
+  if (findCartLineByIdentity(lines, facilityId, interval)) {
+    return "checkmark";
+  }
+  return "add";
+};
+
+export const canReviewCart = (state: TimetableCartState): boolean => {
+  return state.lines.length > 0;
+};
+
 export const confirmBookingTimePrefill = (
   room: RoomDay,
   cellStart: string,
@@ -142,6 +307,25 @@ export const confirmBookingTimePrefill = (
 ): BookingInterval | null => {
   if (existing) {
     return existing;
+  }
+  return emptyTimeBookInterval(room, cellStart);
+};
+
+export const confirmBookingTimePrefillForCart = (
+  room: RoomDay,
+  state: TimetableCartState,
+  cellStart: string,
+  editingSequence?: number
+): BookingInterval | null => {
+  if (editingSequence != null) {
+    const editing = state.lines.find((line) => line.sequence === editingSequence);
+    if (editing) {
+      return { start: editing.start, end: editing.end };
+    }
+  }
+  const pinned = pinnedIntervalForRoom(state, room.id);
+  if (pinned) {
+    return pinned;
   }
   return emptyTimeBookInterval(room, cellStart);
 };
@@ -154,37 +338,6 @@ export const canConfirmBookingTime = (room: RoomDay, interval: BookingInterval |
     return false;
   }
   return isRoomAvailable(room, interval);
-};
-
-export const bookRoom = (
-  selection: TimetableSelection,
-  room: RoomDay,
-  cellStart: string,
-  space: RoomsSpace
-): TimetableSelection => {
-  const current = selection.interval;
-  if (current && isCellInInterval(cellStart, current) && isRoomAvailable(room, current)) {
-    if (space === "single") {
-      return { roomIds: [room.id], interval: current };
-    }
-    if (selection.roomIds.includes(room.id)) {
-      return selection;
-    }
-    if (selection.roomIds.length >= MAX_SELECTED_ROOMS) {
-      return selection;
-    }
-    return { roomIds: [...selection.roomIds, room.id], interval: current };
-  }
-
-  const nextInterval = emptyTimeBookInterval(room, cellStart);
-  if (!nextInterval) {
-    return selection;
-  }
-  return { roomIds: [room.id], interval: nextInterval };
-};
-
-export const canReviewBooking = (selection: TimetableSelection): boolean => {
-  return selection.roomIds.length > 0 && selection.interval != null;
 };
 
 export const capacityBandFor = (capacity: number): CapacityBand | null => {
@@ -210,21 +363,13 @@ export const matchesCapacityBand = (room: RoomDay, band: CapacityBand | null): b
   return capacityBandFor(room.capacity) === band;
 };
 
-export const matchesRoomShortcut = (room: RoomDay, shortcut: RoomShortcutCode | undefined): boolean => {
-  if (!shortcut) {
-    return true;
-  }
-  return room.code === shortcut;
-};
-
 export const visibleRooms = (
   rooms: RoomDay[],
   view: TimetableView,
   interval: BookingInterval | null,
-  band: CapacityBand | null,
-  shortcut: RoomShortcutCode | undefined
+  band: CapacityBand | null
 ): RoomDay[] => {
-  const filtered = rooms.filter((room) => matchesCapacityBand(room, band) && matchesRoomShortcut(room, shortcut));
+  const filtered = rooms.filter((room) => matchesCapacityBand(room, band));
   if (view === "all") {
     return filtered;
   }
@@ -235,18 +380,13 @@ export const hasNoMatchingResults = (
   rooms: RoomDay[],
   view: TimetableView,
   interval: BookingInterval | null,
-  band: CapacityBand | null,
-  shortcut: RoomShortcutCode | undefined
+  band: CapacityBand | null
 ): boolean => {
-  return view === "available" && visibleRooms(rooms, view, interval, band, shortcut).length === 0;
+  return view === "available" && visibleRooms(rooms, view, interval, band).length === 0;
 };
 
 export const isTimetableInitialLoad = (loading: boolean, roomCount: number): boolean => {
   return loading && roomCount === 0;
-};
-
-export const clearUnconfirmedSelection = (selection: TimetableSelection): TimetableSelection => {
-  return { roomIds: [], interval: selection.interval };
 };
 
 export const scrollTargetClock = (rooms: RoomDay[], interval: BookingInterval | null): string => {
@@ -267,8 +407,18 @@ export const scrollTargetClock = (rooms: RoomDay[], interval: BookingInterval | 
   return minutesToClock(earliest);
 };
 
-export const removeSelectedRoom = (selection: TimetableSelection, roomId: string): TimetableSelection => {
-  return { ...selection, roomIds: selection.roomIds.filter((id) => id !== roomId) };
+export const scrollTargetClockForCart = (
+  rooms: RoomDay[],
+  whenSeed: WhenSeedRange | null,
+  pinned: PinnedInterval | null
+): string => {
+  if (whenSeed) {
+    return whenSeed.start;
+  }
+  if (pinned) {
+    return pinned.start;
+  }
+  return scrollTargetClock(rooms, null);
 };
 
 export interface HoverPreview {
@@ -285,6 +435,21 @@ export const emptyTimePointerAction = (
   target: HoverPreview
 ): "preview" | "commit" => {
   if (interval != null || pointerKind === "mouse") {
+    return "commit";
+  }
+  if (hover?.roomId === target.roomId && hover.cellStart === target.cellStart) {
+    return "commit";
+  }
+  return "preview";
+};
+
+export const cartPointerAction = (
+  pinned: PinnedInterval | null,
+  pointerKind: PointerKind,
+  hover: HoverPreview | null,
+  target: HoverPreview
+): "preview" | "commit" => {
+  if (pinned != null || pointerKind === "mouse") {
     return "commit";
   }
   if (hover?.roomId === target.roomId && hover.cellStart === target.cellStart) {
@@ -328,4 +493,31 @@ export const displayBlocks = (
     }
   }
   return occupied;
+};
+
+export const displayBlocksForCart = (
+  room: RoomDay,
+  state: TimetableCartState,
+  hover: HoverPreview | null = null
+): CellBlock[] => {
+  const occupied = contiguousBlocks(room).filter(
+    (block) => block.state === "unavailable" || block.state === "override"
+  );
+  const overlays: CellBlock[] = [];
+
+  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && state.pinned?.facilityId !== room.id) {
+    overlays.push({ start: state.whenSeed.start, end: state.whenSeed.end, state: "available" });
+  }
+
+  const pinned = pinnedIntervalForRoom(state, room.id);
+  if (pinned && isRoomAvailable(room, pinned)) {
+    overlays.push({ start: pinned.start, end: pinned.end, state: "available" });
+  } else if (!pinned && hover?.roomId === room.id) {
+    const preview = emptyTimeBookInterval(room, hover.cellStart);
+    if (preview) {
+      overlays.push({ start: preview.start, end: preview.end, state: "available" });
+    }
+  }
+
+  return [...occupied, ...overlays];
 };
