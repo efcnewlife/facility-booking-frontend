@@ -17,8 +17,8 @@ import {
   hasDuplicateLine,
   hasNoMatchingResults,
   intervalStaysOnSameDay,
-  isTimetableInitialLoad,
   isRoomAvailable,
+  isTimetableInitialLoad,
   isWhenSeedEligible,
   matchesCapacityBand,
   MAX_BOOKING_LINES,
@@ -417,7 +417,7 @@ describe("displayBlocksForCart", () => {
   it("paints When seed highlight on eligible rooms without adding cart lines", () => {
     const state = emptyCartState(whenSeed);
     expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
-      { start: "10:00", end: "11:00", state: "available" },
+      { start: "10:00", end: "11:00", state: "available", overlayKind: "whenSeed" },
     ]);
     expect(
       displayBlocksForCart(chapel(), { ...state, whenSeed: { start: "10:00", end: "13:00" } }).some(
@@ -429,10 +429,52 @@ describe("displayBlocksForCart", () => {
   it("keeps When seed on other rooms when one room is pinned", () => {
     const state = pinInterval(emptyCartState(whenSeed), gym(), "09:30");
     expect(displayBlocksForCart(chapel(), state).filter((block) => block.state === "available")).toEqual([
-      { start: "10:00", end: "11:00", state: "available" },
+      { start: "10:00", end: "11:00", state: "available", overlayKind: "whenSeed" },
     ]);
     expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
-      { start: "09:30", end: "10:30", state: "available" },
+      { start: "09:30", end: "10:30", state: "available", overlayKind: "pinned" },
+    ]);
+  });
+
+  it("paints hover preview while another room is pinned", () => {
+    const state = pinInterval(emptyCartState(whenSeed), gym(), "09:30");
+    const hover = { roomId: "chapel-id", cellStart: "10:00" };
+    expect(displayBlocksForCart(chapel(), state, hover).filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:00", state: "available", overlayKind: "whenSeed" },
+      { start: "10:00", end: "11:00", state: "available", overlayKind: "hover" },
+    ]);
+  });
+
+  it("does not paint hover preview when the preview overlaps the pinned interval", () => {
+    const state = pinInterval(emptyCartState(), gym(), "09:30");
+    expect(
+      displayBlocksForCart(gym(), state, { roomId: "gym-id", cellStart: "09:30" }).filter(
+        (block) => block.state === "available"
+      )
+    ).toEqual([{ start: "09:30", end: "10:30", state: "available", overlayKind: "pinned" }]);
+    expect(
+      displayBlocksForCart(gym(), state, { roomId: "gym-id", cellStart: "10:00" }).filter(
+        (block) => block.state === "available"
+      )
+    ).toEqual([{ start: "09:30", end: "10:30", state: "available", overlayKind: "pinned" }]);
+  });
+
+  it("hides When seed on a room that already has a pinned interval", () => {
+    const state = pinInterval(emptyCartState(whenSeed), gym(), "09:30");
+    expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "09:30", end: "10:30", state: "available", overlayKind: "pinned" },
+    ]);
+  });
+
+  it("paints hover preview outside the pinned interval on the same room", () => {
+    const state = pinInterval(emptyCartState(), gym(), "09:30");
+    expect(
+      displayBlocksForCart(gym(), state, { roomId: "gym-id", cellStart: "14:00" }).filter(
+        (block) => block.state === "available"
+      )
+    ).toEqual([
+      { start: "09:30", end: "10:30", state: "available", overlayKind: "pinned" },
+      { start: "14:00", end: "15:00", state: "available", overlayKind: "hover" },
     ]);
   });
 });

@@ -22,6 +22,7 @@ import {
   emptyCartState,
   emptyTimeBookInterval,
   hasNoMatchingResults,
+  intervalsOverlap,
   isBookableCellForCart,
   isTimetableInitialLoad,
   minutesToClock,
@@ -31,15 +32,16 @@ import {
   SLOT_MINUTES,
   updateCartLine,
   visibleRooms,
+  type AvailableOverlayKind,
   type BookingInterval,
   type CapacityBand,
   type CellState,
   type HoverPreview,
   type PointerKind,
   type RoomDay,
+  type TimeCell,
   type TimetableCartState,
   type TimetableView,
-  type TimeCell,
 } from "@/utils/timetableRules";
 import { Alert, Badge, Button, cn, DatePicker, Select, Spinner, type DatePickerValue } from "@efcnewlife/newlife-ui";
 import dayjs from "dayjs";
@@ -90,6 +92,10 @@ const fromDatePickerValue = (value: DatePickerValue): string => {
   return value.format("YYYY-MM-DD");
 };
 
+const TIMETABLE_OPEN_HOUR_BG = "bg-[#eefaea]";
+const TIMETABLE_HOVER_BLOCK_BG = "bg-[#d1f2cd]";
+const TIMETABLE_PINNED_BLOCK_BG = "bg-[#a3d9a3]";
+
 const cellUnderlayClassName = (cell: TimeCell | undefined): string => {
   if (!cell) {
     return "";
@@ -98,16 +104,21 @@ const cellUnderlayClassName = (cell: TimeCell | undefined): string => {
     return "bg-gray-200";
   }
   if (cell.state === "available") {
-    return "bg-[#d1f2cd]";
+    return TIMETABLE_OPEN_HOUR_BG;
   }
   return "";
 };
 
-const eventClassName = (state: CellState): string => {
+const eventClassName = (state: CellState, overlayKind?: AvailableOverlayKind): string => {
   return cn(
-    "pointer-events-none z-[1] flex min-h-0 items-start justify-between overflow-hidden py-2.5 pr-2.5 pl-[18px]",
+    "pointer-events-none flex min-h-0 items-start justify-between overflow-hidden py-2.5 pr-2.5 pl-[18px]",
+    overlayKind === "hover" ? "z-[2]" : "z-[1]",
     state === "available" &&
-      "border border-black border-l-[5px] border-l-booking-green bg-[#a3d9a3] text-booking-primary",
+      overlayKind === "hover" &&
+      cn("border border-black border-l-[5px] border-l-booking-green text-booking-primary", TIMETABLE_HOVER_BLOCK_BG),
+    state === "available" &&
+      overlayKind !== "hover" &&
+      cn("border border-black border-l-[5px] border-l-booking-green text-booking-primary", TIMETABLE_PINNED_BLOCK_BG),
     state === "unavailable" && "border-l-[5px] border-l-gray-500 bg-gray-300 text-white",
     state === "override" && "border-l-[5px] border-l-error bg-error-container text-booking-primary"
   );
@@ -260,14 +271,14 @@ const RoomFilterPage = () => {
     if (!scroller) {
       return;
     }
-    const clock = scrollTargetClockForCart(roomsForScroll, whenSeed, cartState.pinned);
+    const clock = scrollTargetClockForCart(roomsForScroll, whenSeed, null);
     const top = GRID_SCROLL_PADDING_PX + (clockToMinutes(clock) / SLOT_MINUTES) * SLOT_HEIGHT_PX;
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     scroller.scrollTo({
       top,
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
-  }, [appliedDate, capacityBand, cartState.pinned, loading, rooms, view, whenSeed]);
+  }, [appliedDate, capacityBand, loading, rooms, view, whenSeed]);
 
   const handleUpdateSearch = useCallback(() => {
     if (loading) {
@@ -388,7 +399,18 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerEnter = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (event.pointerType !== "mouse" || cartState.pinned || emptyTimeBookInterval(room, cellStart) == null) {
+    if (event.pointerType !== "mouse") {
+      return;
+    }
+    const preview = emptyTimeBookInterval(room, cellStart);
+    if (!preview) {
+      setHover(null);
+      return;
+    }
+    const pinnedOnRoom =
+      cartState.pinned?.facilityId === room.id ? { start: cartState.pinned.start, end: cartState.pinned.end } : null;
+    if (pinnedOnRoom && intervalsOverlap(preview, pinnedOnRoom)) {
+      setHover(null);
       return;
     }
     setHover({ roomId: room.id, cellStart });
@@ -712,16 +734,19 @@ const RoomFilterPage = () => {
                           displayBlocksForCart(room, cartState, hover).map((block) => {
                             const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                             const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
+                            const isPinnedOverlay = block.overlayKind === "pinned";
                             const bookableStart =
-                              block.state === "available" && isBookableCellForCart(room, block.start, cartState.pinned);
+                              isPinnedOverlay &&
+                              block.state === "available" &&
+                              isBookableCellForCart(room, block.start, cartState.pinned);
                             const blockAction =
-                              block.state === "available"
+                              isPinnedOverlay && block.state === "available"
                                 ? blockActionForInterval(cartState.lines, room.id, block)
                                 : null;
                             return (
                               <article
-                                className={eventClassName(block.state)}
-                                key={`${room.id}-${block.start}-${block.state}`}
+                                className={eventClassName(block.state, block.overlayKind)}
+                                key={`${room.id}-${block.start}-${block.state}-${block.overlayKind ?? "occupied"}`}
                                 style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
                               >
                                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
@@ -741,7 +766,7 @@ const RoomFilterPage = () => {
                                     {t("timetable.add")}
                                   </button>
                                 ) : null}
-                                {block.state === "available" && blockAction === "checkmark" ? (
+                                {block.state === "available" && isPinnedOverlay && blockAction === "checkmark" ? (
                                   <span
                                     aria-label={t("timetable.addedToCart")}
                                     className="pointer-events-none inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-green text-white"
