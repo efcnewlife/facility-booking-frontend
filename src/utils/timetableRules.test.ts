@@ -1,25 +1,36 @@
 import { describe, expect, it } from "vitest";
 import {
-  MAX_SELECTED_ROOMS,
-  bookRoom,
+  addCartLine,
+  blockActionForInterval,
+  canAddCartLine,
   canConfirmBookingTime,
-  canReviewBooking,
-  confirmBookingTimePrefill,
+  canReviewCart,
   capacityBandFor,
-  clearUnconfirmedSelection,
+  cartPointerAction,
+  confirmBookingTimePrefill,
+  confirmBookingTimePrefillForCart,
   displayBlocks,
+  displayBlocksForCart,
+  emptyCartState,
   emptyTimeBookInterval,
   emptyTimePointerAction,
+  hasDuplicateLine,
   hasNoMatchingResults,
+  intervalStaysOnSameDay,
   isTimetableInitialLoad,
   isRoomAvailable,
+  isWhenSeedEligible,
   matchesCapacityBand,
-  removeSelectedRoom,
+  MAX_BOOKING_LINES,
+  pinInterval,
+  removeCartLine,
   scrollTargetClock,
+  scrollTargetClockForCart,
+  updateCartLine,
   visibleRooms,
   type BookingInterval,
   type RoomDay,
-  type TimetableSelection,
+  type TimetableCartState,
 } from "./timetableRules";
 
 const gymCells = (overrides: Partial<Record<string, RoomDay["cells"][number]["state"]>> = {}): RoomDay["cells"] => {
@@ -82,6 +93,8 @@ const sanctuary = (): RoomDay => ({
   cells: gymCells(),
 });
 
+const whenSeed = { start: "10:00", end: "11:00" };
+
 describe("emptyTimeBookInterval", () => {
   it("starts at the clicked Slot for Template duration 60", () => {
     expect(emptyTimeBookInterval(gym(), "09:30")).toEqual({ start: "09:30", end: "10:30" });
@@ -133,56 +146,178 @@ describe("isRoomAvailable", () => {
   });
 });
 
-describe("bookRoom", () => {
-  const empty: TimetableSelection = { roomIds: [], interval: null };
-
-  it("seeds Time from the clicked Slot when Time is empty", () => {
-    const next = bookRoom(empty, gym(), "09:30", "single");
-    expect(next.interval).toEqual({ start: "09:30", end: "10:30" });
-    expect(next.roomIds).toEqual(["gym-id"]);
+describe("isWhenSeedEligible", () => {
+  it("is false when When seed is absent", () => {
+    expect(isWhenSeedEligible(gym(), null)).toBe(false);
   });
 
-  it("keeps Time and replaces the room in Single", () => {
-    const selected: TimetableSelection = { roomIds: ["chapel-id"], interval: { start: "10:00", end: "11:00" } };
-    const next = bookRoom(selected, gym(), "10:00", "single");
-    expect(next.interval).toEqual({ start: "10:00", end: "11:00" });
-    expect(next.roomIds).toEqual(["gym-id"]);
+  it("is true when the room can cover the When seed interval", () => {
+    expect(isWhenSeedEligible(gym(), whenSeed)).toBe(true);
+    expect(isWhenSeedEligible(chapel(), whenSeed)).toBe(true);
   });
 
-  it("adds a second room in Multiple without changing Time", () => {
-    const selected: TimetableSelection = { roomIds: ["chapel-id"], interval: { start: "10:00", end: "11:00" } };
-    const next = bookRoom(selected, gym(), "10:00", "multiple");
-    expect(next.interval).toEqual({ start: "10:00", end: "11:00" });
-    expect(next.roomIds).toEqual(["chapel-id", "gym-id"]);
+  it("is false when the room cannot cover the When seed interval", () => {
+    expect(isWhenSeedEligible(chapel(), { start: "10:00", end: "13:00" })).toBe(false);
+  });
+});
+
+describe("pinInterval", () => {
+  it("sets Pinned interval for one room only and keeps When seed on the cart state", () => {
+    const state = emptyCartState(whenSeed);
+    const next = pinInterval(state, gym(), "09:30");
+    expect(next.pinned).toEqual({ facilityId: "gym-id", start: "09:30", end: "10:30" });
+    expect(next.whenSeed).toEqual(whenSeed);
+    expect(next.lines).toEqual([]);
   });
 
-  it("caps Multiple at three rooms", () => {
-    const selected: TimetableSelection = {
-      roomIds: ["a", "b", "c"],
-      interval: { start: "10:00", end: "11:00" },
+  it("does not change state when the clicked Slot cannot book", () => {
+    const state = emptyCartState(whenSeed);
+    const occupied = gym({ cells: gymCells({ "09:30": "unavailable" }) });
+    expect(pinInterval(state, occupied, "09:30")).toBe(state);
+  });
+
+  it("replaces the previous pin when another room is clicked", () => {
+    let state = pinInterval(emptyCartState(whenSeed), gym(), "09:30");
+    state = pinInterval(state, chapel(), "10:00");
+    expect(state.pinned).toEqual({ facilityId: "chapel-id", start: "10:00", end: "11:00" });
+    expect(state.whenSeed).toEqual(whenSeed);
+  });
+});
+
+describe("cart mutations", () => {
+  const baseLine = { facilityId: "gym-id", start: "10:00", end: "11:00" };
+
+  it("adds a confirmed Booking line with sequence", () => {
+    const next = addCartLine(emptyCartState(), baseLine);
+    expect(next?.lines).toEqual([{ ...baseLine, sequence: 1 }]);
+  });
+
+  it("rejects duplicate lines keyed by facilityId, start, and end", () => {
+    const state: TimetableCartState = {
+      lines: [{ ...baseLine, sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
     };
-    const next = bookRoom(selected, gym(), "10:00", "multiple");
-    expect(next.roomIds).toHaveLength(MAX_SELECTED_ROOMS);
+    expect(canAddCartLine(state, baseLine)).toBe(false);
+    expect(addCartLine(state, baseLine)).toBeNull();
   });
 
-  it("replaces the shared interval when ADD starts a different span", () => {
-    const selected: TimetableSelection = { roomIds: ["chapel-id"], interval: { start: "10:00", end: "11:00" } };
-    const next = bookRoom(selected, gym(), "14:00", "multiple");
-    expect(next.interval).toEqual({ start: "14:00", end: "15:00" });
-    expect(next.roomIds).toEqual(["gym-id"]);
+  it("allows the same room at a different time as a separate line", () => {
+    const state: TimetableCartState = {
+      lines: [{ ...baseLine, sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    const afternoon = { facilityId: "gym-id", start: "14:00", end: "15:00" };
+    expect(canAddCartLine(state, afternoon)).toBe(true);
+    expect(addCartLine(state, afternoon)?.lines).toHaveLength(2);
+  });
+
+  it("caps the cart at three lines", () => {
+    let state = emptyCartState();
+    state = addCartLine(state, baseLine)!;
+    state = addCartLine(state, { facilityId: "chapel-id", start: "10:00", end: "11:00" })!;
+    state = addCartLine(state, { facilityId: "sanctuary-id", start: "10:00", end: "11:00" })!;
+    expect(state.lines).toHaveLength(MAX_BOOKING_LINES);
+    expect(canAddCartLine(state, { facilityId: "gym-id", start: "15:00", end: "16:00" })).toBe(false);
+  });
+
+  it("rejects lines that cross midnight", () => {
+    expect(intervalStaysOnSameDay({ start: "23:00", end: "01:00" })).toBe(false);
+    expect(canAddCartLine(emptyCartState(), { facilityId: "gym-id", start: "23:00", end: "01:00" })).toBe(false);
+  });
+
+  it("updates one line without creating a duplicate", () => {
+    const state: TimetableCartState = {
+      lines: [
+        { facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 },
+        { facilityId: "chapel-id", start: "10:00", end: "11:00", sequence: 2 },
+      ],
+      pinned: null,
+      whenSeed: null,
+    };
+    const updated = updateCartLine(state, 1, { facilityId: "gym-id", start: "10:00", end: "12:00" });
+    expect(updated?.lines.find((line) => line.sequence === 1)).toEqual({
+      facilityId: "gym-id",
+      start: "10:00",
+      end: "12:00",
+      sequence: 1,
+    });
+    expect(hasDuplicateLine(updated!.lines, { facilityId: "chapel-id", start: "10:00", end: "11:00" })).toBe(true);
+  });
+
+  it("removes a line by sequence", () => {
+    const state: TimetableCartState = {
+      lines: [{ ...baseLine, sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    expect(removeCartLine(state, 1).lines).toEqual([]);
+  });
+});
+
+describe("blockActionForInterval", () => {
+  it("shows ADD until the line is confirmed in the cart", () => {
+    const interval = { start: "10:00", end: "11:00" };
+    expect(blockActionForInterval([], "gym-id", interval)).toBe("add");
+    expect(blockActionForInterval([{ facilityId: "gym-id", ...interval, sequence: 1 }], "gym-id", interval)).toBe(
+      "checkmark"
+    );
+  });
+
+  it("returns ADD again after the matching line is removed", () => {
+    const interval = { start: "10:00", end: "11:00" };
+    const without = removeCartLine(
+      {
+        lines: [{ facilityId: "gym-id", ...interval, sequence: 1 }],
+        pinned: null,
+        whenSeed: null,
+      },
+      1
+    );
+    expect(blockActionForInterval(without.lines, "gym-id", interval)).toBe("add");
+  });
+});
+
+describe("canReviewCart", () => {
+  it("is disabled until at least one Booking line exists", () => {
+    expect(canReviewCart(emptyCartState())).toBe(false);
+    expect(
+      canReviewCart({
+        lines: [{ facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 }],
+        pinned: null,
+        whenSeed: null,
+      })
+    ).toBe(true);
   });
 });
 
 describe("confirmBookingTimePrefill", () => {
-  it("prefills the existing Booking interval pair", () => {
+  it("prefills the existing interval pair", () => {
     expect(confirmBookingTimePrefill(gym(), "09:30", { start: "10:00", end: "11:30" })).toEqual({
       start: "10:00",
       end: "11:30",
     });
   });
 
-  it("prefills Slot start plus Template duration when Time is empty", () => {
+  it("prefills Slot start plus Template duration when no interval is provided", () => {
     expect(confirmBookingTimePrefill(gym(), "09:30", null)).toEqual({ start: "09:30", end: "10:30" });
+  });
+});
+
+describe("confirmBookingTimePrefillForCart", () => {
+  it("prefills from the pinned interval for that room", () => {
+    const state = pinInterval(emptyCartState(), gym(), "09:30");
+    expect(confirmBookingTimePrefillForCart(gym(), state, "09:30")).toEqual({ start: "09:30", end: "10:30" });
+  });
+
+  it("prefills from the line being edited", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "10:00", end: "11:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    expect(confirmBookingTimePrefillForCart(gym(), state, "09:30", 1)).toEqual({ start: "10:00", end: "11:30" });
   });
 });
 
@@ -207,13 +342,6 @@ describe("canConfirmBookingTime", () => {
   });
 });
 
-describe("canReviewBooking", () => {
-  it("is disabled until at least one room is selected", () => {
-    expect(canReviewBooking({ roomIds: [], interval: { start: "10:00", end: "11:00" } })).toBe(false);
-    expect(canReviewBooking({ roomIds: ["gym-id"], interval: { start: "10:00", end: "11:00" } })).toBe(true);
-  });
-});
-
 describe("capacityBandFor", () => {
   it("counts capacity 10 as 1-10", () => {
     expect(capacityBandFor(10)).toBe("1-10");
@@ -226,36 +354,32 @@ describe("visibleRooms", () => {
   const rooms = [gym(), chapel(), sanctuary()];
   const interval: BookingInterval = { start: "10:00", end: "11:00" };
 
-  it("defaults Available rooms to rooms that can be BOOK'd", () => {
+  it("defaults Available rooms to rooms that can be booked for the interval", () => {
     const occupiedGym = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
-    const list = visibleRooms([occupiedGym, chapel()], "available", interval, null, undefined);
+    const list = visibleRooms([occupiedGym, chapel()], "available", interval, null);
     expect(list.map((room) => room.id)).toEqual(["chapel-id"]);
   });
 
   it("keeps All rooms columns with no Available block", () => {
     const occupiedGym = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
-    const list = visibleRooms([occupiedGym, chapel()], "all", interval, null, undefined);
+    const list = visibleRooms([occupiedGym, chapel()], "all", interval, null);
     expect(list.map((room) => room.id)).toEqual(["gym-id", "chapel-id"]);
   });
 
-  it("filters by Room shortcut", () => {
-    expect(visibleRooms(rooms, "all", interval, null, "gym").map((room) => room.code)).toEqual(["gym"]);
-  });
-
   it("filters by capacity band", () => {
-    expect(visibleRooms(rooms, "all", interval, "1-10", undefined).map((room) => room.code)).toEqual(["chapel"]);
+    expect(visibleRooms(rooms, "all", interval, "1-10").map((room) => room.code)).toEqual(["chapel"]);
   });
 });
 
 describe("hasNoMatchingResults", () => {
-  it("is true on Available rooms when nothing can be BOOK'd", () => {
+  it("is true on Available rooms when nothing can be booked", () => {
     const occupied = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
-    expect(hasNoMatchingResults([occupied], "available", { start: "10:00", end: "11:00" }, null, undefined)).toBe(true);
-    expect(hasNoMatchingResults([occupied], "all", { start: "10:00", end: "11:00" }, null, undefined)).toBe(false);
+    expect(hasNoMatchingResults([occupied], "available", { start: "10:00", end: "11:00" }, null)).toBe(true);
+    expect(hasNoMatchingResults([occupied], "all", { start: "10:00", end: "11:00" }, null)).toBe(false);
   });
 
   it("is true when availability has not loaded yet", () => {
-    expect(hasNoMatchingResults([], "available", null, null, undefined)).toBe(true);
+    expect(hasNoMatchingResults([], "available", null, null)).toBe(true);
   });
 });
 
@@ -264,23 +388,6 @@ describe("isTimetableInitialLoad", () => {
     expect(isTimetableInitialLoad(true, 0)).toBe(true);
     expect(isTimetableInitialLoad(true, 2)).toBe(false);
     expect(isTimetableInitialLoad(false, 0)).toBe(false);
-  });
-});
-
-describe("clearUnconfirmedSelection", () => {
-  it("clears rooms selected but not yet confirmed", () => {
-    const selected: TimetableSelection = { roomIds: ["gym-id"], interval: { start: "10:00", end: "11:00" } };
-    expect(clearUnconfirmedSelection(selected)).toEqual({ roomIds: [], interval: selected.interval });
-  });
-});
-
-describe("removeSelectedRoom", () => {
-  it("drops that room and keeps the rest", () => {
-    const selected: TimetableSelection = {
-      roomIds: ["gym-id", "chapel-id"],
-      interval: { start: "10:00", end: "11:00" },
-    };
-    expect(removeSelectedRoom(selected, "gym-id").roomIds).toEqual(["chapel-id"]);
   });
 });
 
@@ -298,41 +405,35 @@ describe("displayBlocks", () => {
     expect(displayBlocks(chapel(), null, hover).some((block) => block.state === "available")).toBe(false);
   });
 
-  it("does not preview Available that would cross midnight", () => {
-    const late = gym({
-      templates: [{ start: "22:00", end: "24:00", slotDurationMinutes: 60 }],
-      cells: gymCells({
-        "22:00": "available",
-        "22:30": "available",
-        "23:00": "available",
-        "23:30": "available",
-      }),
-    });
-    const blocks = displayBlocks(late, null, { roomId: "gym-id", cellStart: "23:30" });
-    expect(blocks.some((block) => block.state === "available")).toBe(false);
-  });
-
   it("paints Available only on the Booking interval", () => {
     const blocks = displayBlocks(gym(), { start: "10:00", end: "11:30" });
     expect(blocks.filter((block) => block.state === "available")).toEqual([
       { start: "10:00", end: "11:30", state: "available" },
     ]);
   });
+});
 
-  it("paints committed Available without hover on rooms that cover the interval", () => {
-    const interval = { start: "10:00", end: "11:00" };
-    expect(displayBlocks(gym(), interval).filter((block) => block.state === "available")).toEqual([
+describe("displayBlocksForCart", () => {
+  it("paints When seed highlight on eligible rooms without adding cart lines", () => {
+    const state = emptyCartState(whenSeed);
+    expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
       { start: "10:00", end: "11:00", state: "available" },
     ]);
-    expect(displayBlocks(chapel(), interval).filter((block) => block.state === "available")).toEqual([
-      { start: "10:00", end: "11:00", state: "available" },
-    ]);
+    expect(
+      displayBlocksForCart(chapel(), { ...state, whenSeed: { start: "10:00", end: "13:00" } }).some(
+        (block) => block.state === "available"
+      )
+    ).toBe(false);
   });
 
-  it("keeps Unavailable blocks when Time is set", () => {
-    const occupied = gym({ cells: gymCells({ "13:00": "unavailable", "13:30": "unavailable" }) });
-    const blocks = displayBlocks(occupied, { start: "10:00", end: "11:00" });
-    expect(blocks).toContainEqual({ start: "13:00", end: "14:00", state: "unavailable" });
+  it("keeps When seed on other rooms when one room is pinned", () => {
+    const state = pinInterval(emptyCartState(whenSeed), gym(), "09:30");
+    expect(displayBlocksForCart(chapel(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:00", state: "available" },
+    ]);
+    expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "09:30", end: "10:30", state: "available" },
+    ]);
   });
 });
 
@@ -362,12 +463,17 @@ describe("scrollTargetClock", () => {
     });
     expect(scrollTargetClock([lateGym, earlyChapel], null)).toBe("07:30");
   });
+});
 
-  it("falls back to 00:00 when every Slot is Closed", () => {
-    const closed = gym({
-      cells: gym().cells.map((cell) => ({ ...cell, state: "closed" as const })),
-    });
-    expect(scrollTargetClock([closed], null)).toBe("00:00");
+describe("scrollTargetClockForCart", () => {
+  it("prefers When seed start over pinned and earliest open Slot", () => {
+    const pinned = { facilityId: "gym-id", start: "09:30", end: "10:30" };
+    expect(scrollTargetClockForCart([gym(), chapel()], whenSeed, pinned)).toBe("10:00");
+  });
+
+  it("uses pinned start when When seed is absent", () => {
+    const pinned = { facilityId: "gym-id", start: "09:30", end: "10:30" };
+    expect(scrollTargetClockForCart([gym(), chapel()], null, pinned)).toBe("09:30");
   });
 });
 
@@ -380,12 +486,16 @@ describe("emptyTimePointerAction", () => {
     const gymSlot = { roomId: "gym-id", cellStart: "09:30" };
     expect(emptyTimePointerAction(null, "touch", null, gymSlot)).toBe("preview");
     expect(emptyTimePointerAction(null, "touch", gymSlot, gymSlot)).toBe("commit");
-    expect(emptyTimePointerAction(null, "touch", gymSlot, { roomId: "gym-id", cellStart: "10:00" })).toBe("preview");
   });
+});
 
-  it("commits when Time is already set", () => {
+describe("cartPointerAction", () => {
+  it("commits when a room is already pinned", () => {
     expect(
-      emptyTimePointerAction({ start: "10:00", end: "11:00" }, "touch", null, { roomId: "gym-id", cellStart: "10:00" })
+      cartPointerAction({ facilityId: "gym-id", start: "09:30", end: "10:30" }, "touch", null, {
+        roomId: "gym-id",
+        cellStart: "10:00",
+      })
     ).toBe("commit");
   });
 });

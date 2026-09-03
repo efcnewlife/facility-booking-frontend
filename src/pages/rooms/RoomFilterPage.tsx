@@ -14,30 +14,32 @@ import {
   type RoomsSpace,
 } from "@/utils/startBookingFlow";
 import {
-  bookRoom,
-  canReviewBooking,
-  clearUnconfirmedSelection,
   clockToMinutes,
   confirmBookingTimePrefill,
   displayBlocks,
   emptyTimeBookInterval,
   emptyTimePointerAction,
-  hasNoMatchingResults,
   isBookableCell,
   isTimetableInitialLoad,
   minutesToClock,
   scrollTargetClock,
   SLOT_MINUTES,
-  visibleRooms,
   type BookingInterval,
   type CapacityBand,
   type CellState,
   type HoverPreview,
   type PointerKind,
   type RoomDay,
-  type TimetableSelection,
   type TimetableView,
 } from "@/utils/timetableRules";
+import {
+  bookRoom,
+  canReviewBooking,
+  clearUnconfirmedSelection,
+  hasNoMatchingResultsLegacy as hasNoMatchingResults,
+  type TimetableSelection,
+  visibleRoomsLegacy as visibleRooms,
+} from "@/utils/timetableRulesLegacy";
 import {
   Alert,
   Badge,
