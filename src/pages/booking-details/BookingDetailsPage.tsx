@@ -1,4 +1,5 @@
 import facilityService from "@/api/services/facilityService";
+import { combineDateAndClock } from "@/utils/bookingDateTime";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import {
   parseBookingDetailsQuery,
@@ -14,11 +15,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Navigate, useNavigate, useSearchParams } from "react-router";
 
-const combineDateAndTime = (date: string, time: string): string => {
-  const clock = time === "24:00" ? "00:00" : time;
-  const day = time === "24:00" ? moment(date, "YYYY-MM-DD").add(1, "day") : moment(date, "YYYY-MM-DD");
-  return moment(`${day.format("YYYY-MM-DD")} ${clock}`, "YYYY-MM-DD HH:mm").toISOString();
-};
+const combineDateAndTime = combineDateAndClock;
 
 const formatClock = (clock: string, locale: string): string => {
   if (clock === "24:00") {
@@ -85,11 +82,13 @@ const BookingDetailsPage = () => {
     try {
       const { startAt, endAt } = bookingIntervalIso(query);
       const quote = await facilityService.previewQuote({
-        startAt,
-        endAt,
         ministryId: query.ministryId || null,
         isMissionAligned: Boolean(query.ministryId),
-        rooms: query.roomIds.map((facilityId) => ({ facilityId })),
+        lines: query.roomIds.map((facilityId) => ({
+          facilityId,
+          startAt,
+          endAt,
+        })),
       });
       setPaymentSummary(mapPaymentSummary(quote, i18nInstance.language));
     } catch {

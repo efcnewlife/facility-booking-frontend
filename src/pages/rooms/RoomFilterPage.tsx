@@ -5,6 +5,7 @@ import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
 import { draftToCartState, parseBookingCartDraft, whenSeedFromSearch } from "@/utils/bookingCartDraft";
+import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import {
   parseRoomsSearchQuery,
@@ -34,6 +35,7 @@ import {
   visibleRooms,
   type AvailableOverlayKind,
   type BookingInterval,
+  type BookingLine,
   type CapacityBand,
   type CellState,
   type HoverPreview,
@@ -140,6 +142,12 @@ const buildInitialCartState = (params: URLSearchParams, query: RoomsSearchQuery 
     return draftToCartState(draft, whenSeed);
   }
   return emptyCartState(whenSeed);
+};
+
+const QUOTE_KEY_SEP = "\0";
+
+const lineQuoteKey = (line: Pick<BookingLine, "sequence" | "facilityId" | "start" | "end">): string => {
+  return [line.sequence, line.facilityId, line.start, line.end].join(QUOTE_KEY_SEP);
 };
 
 const RoomFilterPage = () => {
@@ -280,6 +288,56 @@ const RoomFilterPage = () => {
     });
   }, [appliedDate, capacityBand, loading, rooms, view, whenSeed]);
 
+  const linesNeedingQuoteKey = cartState.lines
+    .filter((line) => line.lineSubtotal == null)
+    .map(lineQuoteKey)
+    .join("|");
+
+  useEffect(() => {
+    if (!appliedDate || !linesNeedingQuoteKey) {
+      return;
+    }
+    let cancelled = false;
+    const segments = linesNeedingQuoteKey.split("|").filter(Boolean);
+    const loadQuotes = async () => {
+      for (const segment of segments) {
+        const parts = segment.split(QUOTE_KEY_SEP);
+        if (parts.length !== 4) {
+          continue;
+        }
+        const sequence = Number.parseInt(parts[0], 10);
+        const facilityId = parts[1];
+        const start = parts[2];
+        const end = parts[3];
+        if (!Number.isFinite(sequence)) {
+          continue;
+        }
+        try {
+          const quote = await fetchCartLineQuote(appliedDate, { facilityId, start, end }, appliedMinistryId);
+          if (cancelled) {
+            return;
+          }
+          setCartState((current) => {
+            const existing = current.lines.find((item) => item.sequence === sequence);
+            if (!existing || existing.lineSubtotal != null) {
+              return current;
+            }
+            if (lineQuoteKey(existing) !== segment) {
+              return current;
+            }
+            return applyCartLineQuote(current, sequence, quote);
+          });
+        } catch {
+          // Leave em dash subtotal when quote fails.
+        }
+      }
+    };
+    void loadQuotes();
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedDate, appliedMinistryId, linesNeedingQuoteKey]);
+
   const handleUpdateSearch = useCallback(() => {
     if (loading) {
       return;
@@ -368,10 +426,12 @@ const RoomFilterPage = () => {
     setEditingSequence(undefined);
   };
 
-  const handleConfirmBookingTime = (interval: BookingInterval) => {
-    if (!confirmRoom) {
+  const handleConfirmBookingTime = async (interval: BookingInterval) => {
+    if (!confirmRoom || !appliedDate) {
       return;
     }
+    let nextState: TimetableCartState | null = null;
+    let quotedSequence: number | undefined;
     if (editingSequence != null) {
       const updated = updateCartLine(cartState, editingSequence, {
         facilityId: confirmRoom.id,
@@ -379,7 +439,8 @@ const RoomFilterPage = () => {
         end: interval.end,
       });
       if (updated) {
-        setCartState(updated);
+        nextState = updated;
+        quotedSequence = editingSequence;
       }
     } else {
       const next = addCartLine(cartState, {
@@ -388,10 +449,25 @@ const RoomFilterPage = () => {
         end: interval.end,
       });
       if (next) {
-        setCartState(next);
+        nextState = next;
+        quotedSequence = next.lines[next.lines.length - 1]?.sequence;
       }
     }
     handleCancelConfirmBookingTime();
+    if (!nextState || quotedSequence == null) {
+      return;
+    }
+    setCartState(nextState);
+    const line = nextState.lines.find((item) => item.sequence === quotedSequence);
+    if (!line) {
+      return;
+    }
+    try {
+      const quote = await fetchCartLineQuote(appliedDate, line, appliedMinistryId);
+      setCartState((current) => applyCartLineQuote(current, quotedSequence!, quote));
+    } catch {
+      // Leave em dash subtotal when quote fails.
+    }
   };
 
   const pointerKindFromEvent = (event: { pointerType: string }): PointerKind => {

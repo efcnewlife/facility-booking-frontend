@@ -1,4 +1,5 @@
 import { canReviewCart, type BookingLine, type RoomDay } from "@/utils/timetableRules";
+import { formatQuotedAmount } from "@/utils/paymentSummary";
 import { Button, cn } from "@efcnewlife/newlife-ui";
 import { useTranslation } from "react-i18next";
 import { MdPhoto } from "react-icons/md";
@@ -13,7 +14,7 @@ interface BookingCartPanelProps {
 }
 
 const BookingCartPanel = ({ lines, rooms, onReview, onRemove, onEdit, formatClock }: BookingCartPanelProps) => {
-  const { t } = useTranslation("booking");
+  const { t, i18n } = useTranslation("booking");
   const canReview = canReviewCart({ lines, pinned: null, whenSeed: null });
 
   const roomForLine = (facilityId: string): RoomDay | undefined => {
@@ -57,6 +58,9 @@ const BookingCartPanel = ({ lines, rooms, onReview, onRemove, onEdit, formatCloc
                     </p>
                     <p className="m-0 mt-1 text-xs font-medium text-on-surface-variant">
                       {formatClock(line.start)} – {formatClock(line.end)}
+                    </p>
+                    <p className="m-0 mt-1 text-xs font-semibold text-booking-primary">
+                      {formatQuotedAmount(line.lineSubtotal, line.currency, i18n.language)}
                     </p>
                   </div>
                 </div>

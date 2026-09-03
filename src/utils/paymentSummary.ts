@@ -17,7 +17,7 @@ export interface PaymentSummaryLabels {
 
 const EM_DASH = "—";
 
-const formatQuotedAmount = (
+export const formatQuotedAmount = (
   quotedAmount: string | number | null | undefined,
   currency: string | null | undefined,
   locale: string
