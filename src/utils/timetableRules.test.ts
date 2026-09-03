@@ -534,6 +534,17 @@ describe("emptyTimePointerAction", () => {
 });
 
 describe("cartPointerAction", () => {
+  const gymSlot = { roomId: "gym-id", cellStart: "09:30" };
+
+  it("commits a mouse pointer without a prior preview", () => {
+    expect(cartPointerAction(null, "mouse", null, gymSlot)).toBe("commit");
+  });
+
+  it("previews the first touch on a cell and commits the second tap on the same cell", () => {
+    expect(cartPointerAction(null, "touch", null, gymSlot)).toBe("preview");
+    expect(cartPointerAction(null, "touch", gymSlot, gymSlot)).toBe("commit");
+  });
+
   it("commits when a room is already pinned", () => {
     expect(
       cartPointerAction({ facilityId: "gym-id", start: "09:30", end: "10:30" }, "touch", null, {
