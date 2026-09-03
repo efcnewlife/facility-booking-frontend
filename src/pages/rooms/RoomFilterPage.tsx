@@ -4,15 +4,16 @@ import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
-import { draftToCartState, parseBookingCartDraft, whenSeedFromSearch } from "@/utils/bookingCartDraft";
+import {
+  cartStateToDraft,
+  draftToCartState,
+  parseBookingCartDraft,
+  toBookingCartDraftParams,
+  whenSeedFromSearch,
+} from "@/utils/bookingCartDraft";
 import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
-import {
-  parseRoomsSearchQuery,
-  toBookingDetailsSearchParams,
-  toRoomsSearchParams,
-  type RoomsSearchQuery,
-} from "@/utils/startBookingFlow";
+import { parseRoomsSearchQuery, toRoomsSearchParams, type RoomsSearchQuery } from "@/utils/startBookingFlow";
 import {
   addCartLine,
   blockActionForInterval,
@@ -512,16 +513,13 @@ const RoomFilterPage = () => {
     if (cartState.lines.length === 0 || !appliedDate) {
       return;
     }
-    const line = cartState.lines[0];
+    const nextDraft = cartStateToDraft(appliedDate, appliedMinistryId, cartState);
+    if (!nextDraft) {
+      return;
+    }
     navigate({
       pathname: "/booking-details",
-      search: toBookingDetailsSearchParams({
-        date: appliedDate,
-        start: line.start,
-        end: line.end,
-        roomIds: [line.facilityId],
-        ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
-      }).toString(),
+      search: toBookingCartDraftParams(nextDraft).toString(),
     });
   };
 
