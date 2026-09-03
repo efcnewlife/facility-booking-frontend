@@ -305,8 +305,7 @@
       "startBooking": "開始預訂",
       "ministryName": "事工名稱",
       "howOften": "頻率",
-      "dateTime": "日期與時間",
-      "spaceNeeded": "所需空間"
+      "dateTime": "日期與時間"
     },
     "ministryChoice": {
       "title": "首先，這次是為事工預訂嗎？",
@@ -378,13 +377,6 @@
       "end": "結束",
       "endPlaceholder": "選擇結束時間",
       "endAfterStart": "結束時間必須晚於開始時間"
-    },
-    "spaceNeeded": {
-      "title": "你需要哪個房間？",
-      "single": "單一房間",
-      "multiple": "多個房間",
-      "gym": "體育館",
-      "sanctuary": "大堂"
     },
     "errors": {
       "title": "發生錯誤",

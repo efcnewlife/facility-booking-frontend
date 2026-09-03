@@ -146,7 +146,8 @@ const RoomFilterPage = () => {
   const [draftDate, setDraftDate] = useState(initialQuery?.date ?? "");
   const [draftStart, setDraftStart] = useState(initialQuery?.start ?? "");
   const [draftEnd, setDraftEnd] = useState(initialQuery?.end ?? "");
-  const [draftSpace, setDraftSpace] = useState<RoomsSpace>(initialQuery?.space ?? "single");
+  const [draftSpace, setDraftSpace] = useState<RoomsSpace>("single");
+  const [appliedSpace, setAppliedSpace] = useState<RoomsSpace>("single");
   const [draftMinistryId, setDraftMinistryId] = useState(initialQuery?.ministryId ?? "");
   const [view, setView] = useState<TimetableView>("available");
   const [capacityBand, setCapacityBand] = useState<CapacityBand | null>(null);
@@ -174,8 +175,6 @@ const RoomFilterPage = () => {
   const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
   const appliedMinistryId = appliedQuery?.ministryId;
-  const appliedSpace = appliedQuery?.space ?? "single";
-  const appliedRoom = appliedQuery?.room;
   const showMinistryField = bookableMinistries.length > 0;
   const minDate = moment().format("YYYY-MM-DD");
   const maxDate = moment().add(1, "year").format("YYYY-MM-DD");
@@ -228,10 +227,10 @@ const RoomFilterPage = () => {
   }, []);
 
   const listedRooms = useMemo(
-    () => visibleRooms(rooms, view, selection.interval, capacityBand, appliedRoom),
-    [appliedRoom, capacityBand, rooms, selection.interval, view]
+    () => visibleRooms(rooms, view, selection.interval, capacityBand, undefined),
+    [capacityBand, rooms, selection.interval, view]
   );
-  const noMatching = hasNoMatchingResults(rooms, view, selection.interval, capacityBand, appliedRoom);
+  const noMatching = hasNoMatchingResults(rooms, view, selection.interval, capacityBand, undefined);
   const isInitialLoad = isTimetableInitialLoad(loading, rooms.length);
   const showNoMatching = noMatching && !isInitialLoad;
   const pageCount = Math.max(1, Math.ceil(listedRooms.length / ROOMS_PER_PAGE));
@@ -244,7 +243,7 @@ const RoomFilterPage = () => {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [view, capacityBand, appliedRoom, appliedDate, listedRooms.length]);
+  }, [view, capacityBand, appliedDate, listedRooms.length]);
 
   const appliedStart = appliedQuery?.start;
   const appliedEnd = appliedQuery?.end;
@@ -254,10 +253,10 @@ const RoomFilterPage = () => {
       return;
     }
     const interval = appliedStart && appliedEnd ? { start: appliedStart, end: appliedEnd } : null;
-    if (hasNoMatchingResults(rooms, view, interval, capacityBand, appliedRoom)) {
+    if (hasNoMatchingResults(rooms, view, interval, capacityBand, undefined)) {
       return;
     }
-    const roomsForScroll = visibleRooms(rooms, view, interval, capacityBand, appliedRoom);
+    const roomsForScroll = visibleRooms(rooms, view, interval, capacityBand, undefined);
     const scroller = gridScrollRef.current;
     if (!scroller) {
       return;
@@ -269,7 +268,7 @@ const RoomFilterPage = () => {
       top,
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
-  }, [appliedDate, appliedEnd, appliedRoom, appliedStart, capacityBand, loading, rooms, view]);
+  }, [appliedDate, appliedEnd, appliedStart, capacityBand, loading, rooms, view]);
 
   const handleUpdateSearch = useCallback(() => {
     if (loading) {
@@ -289,7 +288,6 @@ const RoomFilterPage = () => {
     }
     const next: RoomsSearchQuery = {
       date: draftDate,
-      space: draftSpace,
     };
     if (draftStart && draftEnd) {
       next.start = draftStart;
@@ -298,10 +296,8 @@ const RoomFilterPage = () => {
     if (draftMinistryId) {
       next.ministryId = draftMinistryId;
     }
-    if (appliedRoom) {
-      next.room = appliedRoom;
-    }
     setSearchParams(toRoomsSearchParams(next), { replace: true });
+    setAppliedSpace(draftSpace);
     setHover(null);
     setSelection(
       clearUnconfirmedSelection({
@@ -310,18 +306,7 @@ const RoomFilterPage = () => {
       })
     );
     setError(null);
-  }, [
-    appliedRoom,
-    draftDate,
-    draftEnd,
-    draftMinistryId,
-    draftSpace,
-    draftStart,
-    loading,
-    selection.roomIds,
-    setSearchParams,
-    t,
-  ]);
+  }, [draftDate, draftEnd, draftMinistryId, draftSpace, draftStart, loading, selection.roomIds, setSearchParams, t]);
 
   useEffect(() => {
     const on_pointer_down = (event: PointerEvent) => {
@@ -400,7 +385,6 @@ const RoomFilterPage = () => {
         space: appliedSpace,
         roomIds: [confirmRoom.id],
         ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
-        ...(appliedRoom ? { room: appliedRoom } : {}),
       }).toString(),
     });
   };
@@ -445,7 +429,6 @@ const RoomFilterPage = () => {
         space: appliedSpace,
         roomIds: selection.roomIds,
         ...(appliedMinistryId ? { ministryId: appliedMinistryId } : {}),
-        ...(appliedRoom ? { room: appliedRoom } : {}),
       }).toString(),
     });
   };

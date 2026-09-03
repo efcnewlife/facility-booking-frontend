@@ -22,22 +22,21 @@ const answers = (overrides: Partial<StartBookingAnswers> = {}): StartBookingAnsw
     isMinistryBooking: null,
     ministryId: null,
     frequency: null,
-    space: null,
     ...rest,
     when: { ...blankWhen, ...whenOverride },
   };
 };
 
 describe("isStartBookingStep", () => {
-  it("accepts the five Start booking questions", () => {
+  it("accepts the four Start booking questions", () => {
     expect(isStartBookingStep("ministry_choice")).toBe(true);
     expect(isStartBookingStep("select_ministry")).toBe(true);
     expect(isStartBookingStep("frequency")).toBe(true);
     expect(isStartBookingStep("when")).toBe(true);
-    expect(isStartBookingStep("space_needed")).toBe(true);
   });
 
-  it("rejects the old Find Space steps", () => {
+  it("rejects removed or legacy steps", () => {
+    expect(isStartBookingStep("space_needed")).toBe(false);
     expect(isStartBookingStep("select_date")).toBe(false);
     expect(isStartBookingStep("create_ministry")).toBe(false);
     expect(isStartBookingStep("pending_approval")).toBe(false);
@@ -72,22 +71,16 @@ describe("nextStep", () => {
     expect(nextStep("frequency", answers({ frequency: "repeated" }))).toBe(null);
   });
 
-  it("goes from a date-only When to Space needed", () => {
+  it("goes from a date-only When to the Timetable", () => {
     const now = new Date("2026-08-13T12:00:00");
-    expect(nextStep("when", answers({ when: { date: "2026-08-20", start: null, end: null } }), now)).toBe(
-      "space_needed"
-    );
+    expect(nextStep("when", answers({ when: { date: "2026-08-20", start: null, end: null } }), now)).toBe("rooms");
   });
 
-  it("goes from a valid When to Space needed", () => {
+  it("goes from a valid When to the Timetable", () => {
     const now = new Date("2026-08-13T12:00:00");
     expect(nextStep("when", answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }), now)).toBe(
-      "space_needed"
+      "rooms"
     );
-  });
-
-  it("leaves Start booking for Rooms after Space needed", () => {
-    expect(nextStep("space_needed", answers({ space: "single" }))).toBe("rooms");
   });
 });
 
@@ -111,10 +104,6 @@ describe("previousStep", () => {
   it("returns frequency from date and time", () => {
     expect(previousStep("when", answers({ frequency: "one_time" }))).toBe("frequency");
   });
-
-  it("returns date and time from Space needed", () => {
-    expect(previousStep("space_needed", answers({ space: "single" }))).toBe("when");
-  });
 });
 
 describe("canAdvance", () => {
@@ -135,9 +124,12 @@ describe("canAdvance", () => {
     expect(canAdvance("frequency", answers())).toBe(false);
   });
 
-  it("allows Search only when Space needed is chosen", () => {
-    expect(canAdvance("space_needed", answers())).toBe(false);
-    expect(canAdvance("space_needed", answers({ space: "gym" }))).toBe(true);
+  it("allows Search on When only when the date and optional time pair are valid", () => {
+    const now = new Date("2026-08-13T12:00:00");
+    expect(canAdvance("when", answers(), now)).toBe(false);
+    expect(canAdvance("when", answers({ when: { date: "2026-08-20", start: null, end: null } }), now)).toBe(true);
+    expect(canAdvance("when", answers({ when: { date: "2026-08-20", start: "09:00", end: "11:00" } }), now)).toBe(true);
+    expect(canAdvance("when", answers({ when: { date: "2026-08-20", start: "09:00", end: null } }), now)).toBe(false);
   });
 });
 
@@ -203,66 +195,30 @@ describe("isWhenValid", () => {
 describe("buildRoomsSearchQuery", () => {
   const when = { date: "2026-09-01", start: "09:00", end: "11:00" };
 
-  it("sends space=single without a room code for Single room", () => {
-    expect(buildRoomsSearchQuery(answers({ when, space: "single" }))).toEqual({
+  it("sends date and optional start/end without space or room shortcut params", () => {
+    expect(buildRoomsSearchQuery(answers({ when }))).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
-      space: "single",
-    });
-  });
-
-  it("sends space=multiple without a room code for Multiple rooms", () => {
-    expect(buildRoomsSearchQuery(answers({ when, space: "multiple" }))).toEqual({
-      date: "2026-09-01",
-      start: "09:00",
-      end: "11:00",
-      space: "multiple",
-    });
-  });
-
-  it("sends space=single and room=gym for the Gym shortcut", () => {
-    expect(buildRoomsSearchQuery(answers({ when, space: "gym" }))).toEqual({
-      date: "2026-09-01",
-      start: "09:00",
-      end: "11:00",
-      space: "single",
-      room: "gym",
-    });
-  });
-
-  it("sends space=single and room=sanctuary-hall for the Sanctuary shortcut", () => {
-    expect(buildRoomsSearchQuery(answers({ when, space: "sanctuary" }))).toEqual({
-      date: "2026-09-01",
-      start: "09:00",
-      end: "11:00",
-      space: "single",
-      room: "sanctuary-hall",
     });
   });
 
   it("includes ministryId only for a Ministry booking", () => {
-    expect(
-      buildRoomsSearchQuery(answers({ isMinistryBooking: true, ministryId: "m-1", when, space: "single" }))
-    ).toEqual({
+    expect(buildRoomsSearchQuery(answers({ isMinistryBooking: true, ministryId: "m-1", when }))).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
-      space: "single",
       ministryId: "m-1",
     });
-    expect(
-      buildRoomsSearchQuery(answers({ isMinistryBooking: false, ministryId: "m-1", when, space: "single" }))
-    ).toEqual({
+    expect(buildRoomsSearchQuery(answers({ isMinistryBooking: false, ministryId: "m-1", when }))).toEqual({
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
-      space: "single",
     });
   });
 
   it("does not put minHours or multiRoom on the Search query", () => {
-    const query = buildRoomsSearchQuery(answers({ when, space: "multiple" }));
+    const query = buildRoomsSearchQuery(answers({ when }));
     expect(query).not.toBeNull();
     if (!query) {
       return;
@@ -272,20 +228,19 @@ describe("buildRoomsSearchQuery", () => {
     const params = toRoomsSearchParams(query);
     expect(params.has("minHours")).toBe(false);
     expect(params.has("multiRoom")).toBe(false);
+    expect(params.has("space")).toBe(false);
+    expect(params.has("room")).toBe(false);
   });
 
-  it("sends optional start and end when When is date-only", () => {
-    expect(
-      buildRoomsSearchQuery(answers({ when: { date: "2026-09-01", start: null, end: null }, space: "single" }))
-    ).toEqual({
+  it("omits start and end when When is date-only", () => {
+    expect(buildRoomsSearchQuery(answers({ when: { date: "2026-09-01", start: null, end: null } }))).toEqual({
       date: "2026-09-01",
-      space: "single",
     });
   });
 
-  it("returns null when When or Space needed is incomplete", () => {
-    expect(buildRoomsSearchQuery(answers({ when, space: null }))).toBe(null);
-    expect(buildRoomsSearchQuery(answers({ space: "single" }))).toBe(null);
+  it("returns null when When is incomplete", () => {
+    expect(buildRoomsSearchQuery(answers({ when: { date: null, start: null, end: null } }))).toBe(null);
+    expect(buildRoomsSearchQuery(answers({ when: { date: "2026-09-01", start: "09:00", end: null } }))).toBe(null);
   });
 });
 
@@ -296,7 +251,7 @@ describe("parseRoomsSearchQuery", () => {
     expect(parseRoomsSearchQuery(new URLSearchParams("date=not-a-date"))).toBe(null);
   });
 
-  it("reads the new Search contract and ignores extra keys", () => {
+  it("reads date, optional interval, and ministry while ignoring legacy keys", () => {
     const params = new URLSearchParams(
       "date=2026-09-01&start=09:00&end=11:00&space=single&room=gym&ministryId=m-1&minHours=2&multiRoom=1"
     );
@@ -304,8 +259,6 @@ describe("parseRoomsSearchQuery", () => {
       date: "2026-09-01",
       start: "09:00",
       end: "11:00",
-      space: "single",
-      room: "gym",
       ministryId: "m-1",
     });
   });
@@ -313,7 +266,6 @@ describe("parseRoomsSearchQuery", () => {
   it("drops a half-filled Time pair and keeps the date", () => {
     expect(parseRoomsSearchQuery(new URLSearchParams("date=2026-09-01&start=09:00&space=single"))).toEqual({
       date: "2026-09-01",
-      space: "single",
     });
   });
 });
@@ -328,7 +280,7 @@ describe("parseBookingDetailsQuery", () => {
     expect(parseBookingDetailsQuery(new URLSearchParams("start=09:00&end=11:00&rooms=room-a&space=single"))).toBe(null);
   });
 
-  it("reads a draft snapshot of date, interval, rooms, space, and ministry", () => {
+  it("reads a draft snapshot of date, interval, rooms, and ministry", () => {
     const params = new URLSearchParams(
       "date=2026-09-01&start=09:00&end=11:00&space=multiple&rooms=room-a,room-b&ministryId=m-1&room=gym"
     );
@@ -362,7 +314,6 @@ describe("toBookingDetailsSearchParams", () => {
       date: "2026-09-01",
       start: "10:00",
       end: "11:30",
-      space: "single" as const,
       roomIds: ["room-a"],
       ministryId: "m-1",
     };

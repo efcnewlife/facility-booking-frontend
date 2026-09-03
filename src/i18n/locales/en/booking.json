@@ -305,8 +305,7 @@
       "startBooking": "Start booking",
       "ministryName": "Ministry name",
       "howOften": "How often",
-      "dateTime": "Date & time",
-      "spaceNeeded": "Space needed"
+      "dateTime": "Date & time"
     },
     "ministryChoice": {
       "title": "To start, are you booking for a ministry?",
@@ -378,13 +377,6 @@
       "end": "End",
       "endPlaceholder": "Select end time",
       "endAfterStart": "End time must be after start time"
-    },
-    "spaceNeeded": {
-      "title": "Which room do you need?",
-      "single": "Single room",
-      "multiple": "Multiple rooms",
-      "gym": "Gym",
-      "sanctuary": "Sanctuary"
     },
     "errors": {
       "title": "Something went wrong",

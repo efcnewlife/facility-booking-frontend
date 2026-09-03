@@ -305,8 +305,7 @@
       "startBooking": "开始预订",
       "ministryName": "事工名称",
       "howOften": "频率",
-      "dateTime": "日期与时间",
-      "spaceNeeded": "所需空间"
+      "dateTime": "日期与时间"
     },
     "ministryChoice": {
       "title": "首先，这次是为事工预订吗？",
@@ -378,13 +377,6 @@
       "end": "结束",
       "endPlaceholder": "选择结束时间",
       "endAfterStart": "结束时间必须晚于开始时间"
-    },
-    "spaceNeeded": {
-      "title": "你需要哪个房间？",
-      "single": "单一房间",
-      "multiple": "多个房间",
-      "gym": "体育馆",
-      "sanctuary": "大堂"
     },
     "errors": {
       "title": "发生错误",

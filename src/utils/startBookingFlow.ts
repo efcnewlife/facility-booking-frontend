@@ -1,12 +1,10 @@
 import moment from "moment";
 
-export const START_BOOKING_STEPS = ["ministry_choice", "select_ministry", "frequency", "when", "space_needed"] as const;
+export const START_BOOKING_STEPS = ["ministry_choice", "select_ministry", "frequency", "when"] as const;
 
 export type StartBookingStep = (typeof START_BOOKING_STEPS)[number];
 
 export type BookingFrequency = "one_time" | "repeated";
-
-export type SpaceNeededChoice = "single" | "multiple" | "gym" | "sanctuary";
 
 export type RoomsSpace = "single" | "multiple";
 
@@ -23,26 +21,18 @@ export interface StartBookingAnswers {
   ministryId: string | null;
   frequency: BookingFrequency | null;
   when: WhenValue;
-  space: SpaceNeededChoice | null;
 }
 
 export interface RoomsSearchQuery {
   date: string;
   start?: string;
   end?: string;
-  space: RoomsSpace;
   ministryId?: string;
-  room?: RoomShortcutCode;
 }
 
 const DATE_FORMAT = "YYYY-MM-DD";
 const TIME_FORMAT = "HH:mm";
 const DATE_TIME_FORMAT = "YYYY-MM-DD HH:mm";
-
-const ROOM_SHORTCUT_CODES: Record<"gym" | "sanctuary", RoomShortcutCode> = {
-  gym: "gym",
-  sanctuary: "sanctuary-hall",
-};
 
 export const isStartBookingStep = (value: string | null): value is StartBookingStep => {
   return START_BOOKING_STEPS.some((step) => step === value);
@@ -112,8 +102,6 @@ export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers,
       return answers.frequency === "one_time";
     case "when":
       return isWhenValid(answers.when, now);
-    case "space_needed":
-      return answers.space != null;
   }
 };
 
@@ -133,8 +121,6 @@ export const nextStep = (
     case "frequency":
       return "when";
     case "when":
-      return "space_needed";
-    case "space_needed":
       return "rooms";
   }
 };
@@ -149,13 +135,11 @@ export const previousStep = (step: StartBookingStep, answers: StartBookingAnswer
       return answers.isMinistryBooking ? "select_ministry" : "ministry_choice";
     case "when":
       return "frequency";
-    case "space_needed":
-      return "when";
   }
 };
 
 export const buildRoomsSearchQuery = (answers: StartBookingAnswers): RoomsSearchQuery | null => {
-  if (!answers.when.date || answers.space == null) {
+  if (!answers.when.date) {
     return null;
   }
   if (hasHalfFilledTime(answers.when)) {
@@ -164,7 +148,6 @@ export const buildRoomsSearchQuery = (answers: StartBookingAnswers): RoomsSearch
 
   const query: RoomsSearchQuery = {
     date: answers.when.date,
-    space: answers.space === "multiple" ? "multiple" : "single",
   };
 
   if (answers.when.start && answers.when.end) {
@@ -174,10 +157,6 @@ export const buildRoomsSearchQuery = (answers: StartBookingAnswers): RoomsSearch
 
   if (answers.isMinistryBooking && answers.ministryId) {
     query.ministryId = answers.ministryId;
-  }
-
-  if (answers.space === "gym" || answers.space === "sanctuary") {
-    query.room = ROOM_SHORTCUT_CODES[answers.space];
   }
 
   return query;
@@ -198,22 +177,15 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
 
   const start = parseTimeOfDay(params.get("start"));
   const end = parseTimeOfDay(params.get("end"));
-  const space: RoomsSpace = params.get("space") === "multiple" ? "multiple" : "single";
-  const roomParam = params.get("room");
-  const room: RoomShortcutCode | undefined =
-    roomParam === "gym" || roomParam === "sanctuary-hall" ? roomParam : undefined;
   const ministryId = params.get("ministryId") || undefined;
 
-  const query: RoomsSearchQuery = { date, space };
+  const query: RoomsSearchQuery = { date };
   if (start && end && isWhenEndAfterStart({ date, start, end })) {
     query.start = start;
     query.end = end;
   }
   if (ministryId) {
     query.ministryId = ministryId;
-  }
-  if (room) {
-    query.room = room;
   }
   return query;
 };
@@ -227,12 +199,8 @@ export const toRoomsSearchParams = (query: RoomsSearchQuery): URLSearchParams =>
   if (query.end) {
     params.set("end", query.end);
   }
-  params.set("space", query.space);
   if (query.ministryId) {
     params.set("ministryId", query.ministryId);
-  }
-  if (query.room) {
-    params.set("room", query.room);
   }
   return params;
 };
@@ -241,6 +209,10 @@ export interface BookingDetailsQuery extends RoomsSearchQuery {
   start: string;
   end: string;
   roomIds: string[];
+  /** Legacy URL param; ignored for new Timetable navigation. */
+  space?: RoomsSpace;
+  /** Legacy room shortcut; ignored for new Timetable navigation. */
+  room?: RoomShortcutCode;
 }
 
 const MAX_BOOKING_DETAIL_ROOMS = 3;
@@ -257,6 +229,25 @@ const parseRoomIdsParam = (params: URLSearchParams): string[] => {
     .slice(0, MAX_BOOKING_DETAIL_ROOMS);
 };
 
+const parseLegacySpace = (params: URLSearchParams): RoomsSpace | undefined => {
+  const space = params.get("space");
+  if (space === "multiple") {
+    return "multiple";
+  }
+  if (space === "single") {
+    return "single";
+  }
+  return undefined;
+};
+
+const parseLegacyRoomShortcut = (params: URLSearchParams): RoomShortcutCode | undefined => {
+  const roomParam = params.get("room");
+  if (roomParam === "gym" || roomParam === "sanctuary-hall") {
+    return roomParam;
+  }
+  return undefined;
+};
+
 export const parseBookingDetailsQuery = (params: URLSearchParams): BookingDetailsQuery | null => {
   const search = parseRoomsSearchQuery(params);
   if (!search?.start || !search.end) {
@@ -266,16 +257,32 @@ export const parseBookingDetailsQuery = (params: URLSearchParams): BookingDetail
   if (roomIds.length === 0) {
     return null;
   }
+  const legacy: Pick<BookingDetailsQuery, "space" | "room"> = {};
+  const space = parseLegacySpace(params);
+  if (space) {
+    legacy.space = space;
+  }
+  const room = parseLegacyRoomShortcut(params);
+  if (room) {
+    legacy.room = room;
+  }
   return {
     ...search,
     start: search.start,
     end: search.end,
     roomIds,
+    ...legacy,
   };
 };
 
 export const toBookingDetailsSearchParams = (query: BookingDetailsQuery): URLSearchParams => {
   const params = toRoomsSearchParams(query);
   params.set("rooms", query.roomIds.join(","));
+  if (query.space) {
+    params.set("space", query.space);
+  }
+  if (query.room) {
+    params.set("room", query.room);
+  }
   return params;
 };
