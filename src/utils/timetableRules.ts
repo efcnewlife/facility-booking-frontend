@@ -176,6 +176,12 @@ export const intervalsMatch = (left: TimeRange, right: TimeRange): boolean => {
   return left.start === right.start && left.end === right.end;
 };
 
+export const intervalsOverlap = (left: TimeRange, right: TimeRange): boolean => {
+  return (
+    clockToMinutes(left.start) < clockToMinutes(right.end) && clockToMinutes(right.start) < clockToMinutes(left.end)
+  );
+};
+
 export const hasDuplicateLine = (
   lines: BookingLine[],
   candidate: Pick<BookingLine, "facilityId" | "start" | "end">
@@ -462,6 +468,12 @@ export interface CellBlock extends TimeRange {
   state: CellState;
 }
 
+export type AvailableOverlayKind = "whenSeed" | "pinned" | "hover";
+
+export interface TimetableDisplayBlock extends CellBlock {
+  overlayKind?: AvailableOverlayKind;
+}
+
 export const contiguousBlocks = (room: RoomDay): CellBlock[] => {
   const blocks: CellBlock[] = [];
   for (const cell of room.cells) {
@@ -499,23 +511,30 @@ export const displayBlocksForCart = (
   room: RoomDay,
   state: TimetableCartState,
   hover: HoverPreview | null = null
-): CellBlock[] => {
+): TimetableDisplayBlock[] => {
   const occupied = contiguousBlocks(room).filter(
     (block) => block.state === "unavailable" || block.state === "override"
   );
-  const overlays: CellBlock[] = [];
-
-  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && state.pinned?.facilityId !== room.id) {
-    overlays.push({ start: state.whenSeed.start, end: state.whenSeed.end, state: "available" });
-  }
+  const overlays: TimetableDisplayBlock[] = [];
 
   const pinned = pinnedIntervalForRoom(state, room.id);
+  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && !pinned) {
+    overlays.push({
+      start: state.whenSeed.start,
+      end: state.whenSeed.end,
+      state: "available",
+      overlayKind: "whenSeed",
+    });
+  }
+
   if (pinned && isRoomAvailable(room, pinned)) {
-    overlays.push({ start: pinned.start, end: pinned.end, state: "available" });
-  } else if (!pinned && hover?.roomId === room.id) {
+    overlays.push({ start: pinned.start, end: pinned.end, state: "available", overlayKind: "pinned" });
+  }
+
+  if (hover?.roomId === room.id) {
     const preview = emptyTimeBookInterval(room, hover.cellStart);
-    if (preview) {
-      overlays.push({ start: preview.start, end: preview.end, state: "available" });
+    if (preview && !(pinned && intervalsOverlap(preview, pinned))) {
+      overlays.push({ start: preview.start, end: preview.end, state: "available", overlayKind: "hover" });
     }
   }
 

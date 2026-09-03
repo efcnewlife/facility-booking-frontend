@@ -190,6 +190,11 @@
     "nextRooms": "下一組房間",
     "book": "預訂",
     "add": "加入",
+    "addedToCart": "已加入購物車",
+    "cart": {
+      "title": "預訂購物車",
+      "empty": "在時刻表確認時間後即可加入預訂項目。"
+    },
     "available": "可預訂",
     "unavailable": "不可預訂",
     "closed": "關閉",

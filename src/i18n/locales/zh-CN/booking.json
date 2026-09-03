@@ -190,6 +190,11 @@
     "nextRooms": "下一组房间",
     "book": "预订",
     "add": "加入",
+    "addedToCart": "已加入购物车",
+    "cart": {
+      "title": "预订购物车",
+      "empty": "在时刻表确认时间后即可加入预订项目。"
+    },
     "available": "可预订",
     "unavailable": "不可预订",
     "closed": "关闭",

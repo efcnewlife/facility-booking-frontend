@@ -190,6 +190,11 @@
     "nextRooms": "Next rooms",
     "book": "BOOK",
     "add": "ADD",
+    "addedToCart": "Added to cart",
+    "cart": {
+      "title": "Booking cart",
+      "empty": "Confirm a time on the timetable to add a booking line."
+    },
     "available": "Available",
     "unavailable": "Unavailable",
     "closed": "Closed",
