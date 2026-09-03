@@ -230,7 +230,7 @@ describe("cart mutations", () => {
   it("updates one line without creating a duplicate", () => {
     const state: TimetableCartState = {
       lines: [
-        { facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 },
+        { facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1, lineSubtotal: "50.00", currency: "CAD" },
         { facilityId: "chapel-id", start: "10:00", end: "11:00", sequence: 2 },
       ],
       pinned: null,
@@ -242,6 +242,8 @@ describe("cart mutations", () => {
       start: "10:00",
       end: "12:00",
       sequence: 1,
+      lineSubtotal: undefined,
+      currency: undefined,
     });
     expect(hasDuplicateLine(updated!.lines, { facilityId: "chapel-id", start: "10:00", end: "11:00" })).toBe(true);
   });

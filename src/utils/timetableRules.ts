@@ -39,6 +39,8 @@ export type WhenSeedRange = TimeRange;
 export interface BookingLine extends TimeRange {
   facilityId: string;
   sequence: number;
+  lineSubtotal?: string | number | null;
+  currency?: string | null;
 }
 
 export interface PinnedInterval extends TimeRange {
@@ -273,6 +275,8 @@ export const updateCartLine = (
     start: line.start,
     end: line.end,
     sequence,
+    lineSubtotal: undefined,
+    currency: undefined,
   };
   return {
     ...state,
@@ -284,6 +288,18 @@ export const removeCartLine = (state: TimetableCartState, sequence: number): Tim
   return {
     ...state,
     lines: state.lines.filter((line) => line.sequence !== sequence),
+  };
+};
+
+export const setCartLineQuote = (
+  state: TimetableCartState,
+  sequence: number,
+  lineSubtotal: string | number | null,
+  currency: string | null
+): TimetableCartState => {
+  return {
+    ...state,
+    lines: state.lines.map((line) => (line.sequence === sequence ? { ...line, lineSubtotal, currency } : line)),
   };
 };
 

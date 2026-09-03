@@ -18,12 +18,24 @@ interface CreateBookingPayload {
   remark?: string;
 }
 
-interface PreviewQuotePayload {
+export interface PreviewQuoteLinePayload {
+  facilityId: string;
   startAt: string;
   endAt: string;
+}
+
+export interface PreviewQuotePayload {
   ministryId?: string | null;
   isMissionAligned?: boolean;
-  rooms: Array<{ facilityId: string }>;
+  lines: PreviewQuoteLinePayload[];
+}
+
+interface ApiPreviewQuoteRoomLine {
+  facilityId?: string;
+  facility_id?: string;
+  lineSubtotal?: string | number | null;
+  line_subtotal?: string | number | null;
+  currency?: string | null;
 }
 
 interface ApiPreviewQuote {
@@ -36,6 +48,14 @@ interface ApiPreviewQuote {
   quotedAmount?: string | number | null;
   quoted_amount?: string | number | null;
   currency?: string | null;
+  roomLines?: ApiPreviewQuoteRoomLine[];
+  room_lines?: ApiPreviewQuoteRoomLine[];
+}
+
+export interface MemberPreviewQuoteRoomLine {
+  facilityId: string;
+  lineSubtotal: string | number | null;
+  currency: string | null;
 }
 
 export interface MemberPreviewQuote {
@@ -44,6 +64,7 @@ export interface MemberPreviewQuote {
   surchargeAmount: string | number | null;
   quotedAmount: string | number | null;
   currency: string | null;
+  roomLines: MemberPreviewQuoteRoomLine[];
 }
 
 interface ApiBookingDetail {
@@ -90,12 +111,18 @@ class FacilityService {
       throw new Error(response.message || "Failed to load preview quote");
     }
     const data = response.data;
+    const rawRoomLines = data.roomLines ?? data.room_lines ?? [];
     return {
       subtotalAmount: data.subtotalAmount ?? data.subtotal_amount ?? null,
       discountAmount: data.discountAmount ?? data.discount_amount ?? null,
       surchargeAmount: data.surchargeAmount ?? data.surcharge_amount ?? null,
       quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
       currency: data.currency ?? null,
+      roomLines: rawRoomLines.map((line) => ({
+        facilityId: String(line.facilityId ?? line.facility_id ?? ""),
+        lineSubtotal: line.lineSubtotal ?? line.line_subtotal ?? null,
+        currency: line.currency ?? data.currency ?? null,
+      })),
     };
   }
 
