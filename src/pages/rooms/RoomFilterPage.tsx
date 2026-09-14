@@ -401,7 +401,7 @@ const RoomFilterPage = () => {
   }
 
   const handlePinCell = (room: RoomDay, cellStart: string) => {
-    if (!isBookableCellForCart(room, cellStart, cartState.pinned)) {
+    if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
     }
     setCartState((current) => pinInterval(current, room, cellStart));
@@ -494,7 +494,7 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerUp = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (!isBookableCellForCart(room, cellStart, cartState.pinned)) {
+    if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
     }
     const target = { roomId: room.id, cellStart };
@@ -762,8 +762,7 @@ const RoomFilterPage = () => {
                         {paddedRooms.map((room, roomIndex) =>
                           Array.from({ length: 48 }, (_, cellIndex) => {
                             const cell = room?.cells[cellIndex];
-                            const bookable =
-                              room && cell ? isBookableCellForCart(room, cell.start, cartState.pinned) : false;
+                            const bookable = room && cell ? isBookableCellForCart(room, cell.start, cartState) : false;
                             return (
                               <button
                                 className={cn(
@@ -806,12 +805,13 @@ const RoomFilterPage = () => {
                             const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                             const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
                             const isPinnedOverlay = block.overlayKind === "pinned";
+                            const isCommittedOverlay = block.overlayKind === "committed";
                             const bookableStart =
                               isPinnedOverlay &&
                               block.state === "available" &&
-                              isBookableCellForCart(room, block.start, cartState.pinned);
+                              isBookableCellForCart(room, block.start, cartState);
                             const blockAction =
-                              isPinnedOverlay && block.state === "available"
+                              (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
                                 ? blockActionForInterval(cartState.lines, room.id, block)
                                 : null;
                             return (
@@ -837,7 +837,9 @@ const RoomFilterPage = () => {
                                     {t("timetable.add")}
                                   </button>
                                 ) : null}
-                                {block.state === "available" && isPinnedOverlay && blockAction === "checkmark" ? (
+                                {block.state === "available" &&
+                                (isPinnedOverlay || isCommittedOverlay) &&
+                                blockAction === "checkmark" ? (
                                   <span
                                     aria-label={t("timetable.addedToCart")}
                                     className="pointer-events-none inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-green text-white"

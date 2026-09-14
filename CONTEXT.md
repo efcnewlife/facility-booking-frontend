@@ -85,7 +85,7 @@ The question flow after Home. Ministry choice: Yes goes to ministry name, No ski
 _Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow
 
 **One-time**:
-A booking on a single calendar day. The date must be today through one year ahead. Each Booking line has its own start–end on that same day; lines cannot cross midnight. A booking with multiple lines cannot span more than one calendar day. One booking may include up to three lines, including more than one line for the same room at different times on that day.
+A booking on a single calendar day. The date must be today through one year ahead. Each Booking line has its own start–end on that same day; lines cannot cross midnight. A booking with multiple lines cannot span more than one calendar day. One booking may include up to the Booking line cap lines, including more than one line for the same room at different times on that day.
 _Avoid_: one-off as the canonical term, unbounded future dates, overnight or next-day as One-time, a single shared time for every room in the booking, multi-room bookings across two calendar days
 
 **When**:
@@ -105,20 +105,28 @@ The editable summary on the Timetable: Ministry (when shown), Repetition, Date, 
 _Avoid_: Start Time and End Time on the bar, # of rooms, Single/Multiple, Room shortcut, a read-only recap, showing Ministry for Owner position alone, treating pending-only applicants as able to attach a ministry
 
 **Booking cart**:
-The right-hand panel on the Timetable listing confirmed Booking lines after Confirm Booking Time. Review Booking sits at the top of this panel. Each line shows a room thumbnail, name, that line's time, line subtotal, Remove, and Edit. At most three lines per booking, including multiple lines for the same room at different times. Removing a line restores ADD on that Timetable block; Edit reopens Confirm Booking Time for that line.
-_Avoid_: cart on Booking Details as the primary picker, Review Booking only for Multiple, a single shared time for all lines
+The right-hand panel on the Timetable listing confirmed Booking lines after Confirm Booking Time. Review Booking sits at the top of this panel. Each line shows a room thumbnail, name, that line's time, line subtotal, Remove, and Edit. Up to the Booking line cap lines per booking, including multiple lines for the same room at different times. Removing a line restores ADD on that Timetable block; Edit reopens Confirm Booking Time for that line. Persists in the browser's localStorage keyed to the search date and ministry, so a page refresh does not lose it; a stored cart for a different date or ministry is treated as empty rather than restored.
+_Avoid_: cart on Booking Details as the primary picker, Review Booking only for Multiple, a single shared time for all lines, assuming three is still the cap, assuming a refresh clears the cart
+
+**Booking line cap**:
+The maximum number of lines the Booking cart or Booking Details will accept. Backend-configurable, not a fixed 3; the Timetable reads the live value from the availability response so it can't drift from what the server enforces.
+_Avoid_: hardcoding 3 as the limit, assuming the cap can't change without a frontend deploy
+
+**Booking Draft**:
+The backend resource behind Booking Details, identified by `checkoutId` in the URL. Created from the Booking cart when Review Booking is clicked; Edit/Remove on Booking Details update the same Draft in place. Only the member who created it can open it.
+_Avoid_: treating it as a paid or locked reservation, a link safe to share with someone else
 
 **Booking line**:
 One room plus one start–end interval the member confirmed for a One-time booking, on the same calendar day as every other line in that booking. Lines live in the Booking cart before Review Booking and on Booking Details. The same room may appear on more than one line in one booking.
 _Avoid_: Booking interval as one span for all rooms, line without its own time, a line on a different calendar day from sibling lines in the same booking
 
 **Pinned interval**:
-The single-room span the member commits on the Timetable by clicking after hover preview, before ADD. It is not in the Booking cart until Confirm Booking Time succeeds. Clicking a room sets or changes only that room's Pinned interval; other rooms keep When seed highlight when present.
-_Avoid_: pinning all rooms from one click, treating pin as cart membership, BOOK
+The single-room span the member commits on the Timetable by clicking after hover preview, before ADD. It is not in the Booking cart until Confirm Booking Time succeeds. Clicking a room sets or changes only that room's Pinned interval; other rooms keep When seed highlight when present. Unlike the Booking cart, it is not persisted — a page refresh always clears it.
+_Avoid_: pinning all rooms from one click, treating pin as cart membership, BOOK, expecting it to survive a refresh
 
 **Booking Details**:
-The confirm page after Review Booking from the Booking cart. The route is `/booking-details`. A back control above the title returns to the Timetable with cart state preserved. Date, ministry, and Booking lines travel in the query as a draft snapshot, not a backend lock. Each visit reloads availability and Payment Summary. If any line is no longer available, Confirm stays disabled. Confirm calls create booking; success goes to Payment. There is no single Time row at the top; each Space row shows a thumbnail, that line's time, Edit, and Remove. Below all Space rows, + Room returns to the Timetable to add more lines.
-_Avoid_: a single shared Time field, confirm modal as the product name, treating the query as a paid reservation, skipping back to Timetable
+The confirm page after Review Booking from the Booking cart. The route is `/booking-details`, carrying `?checkoutId=` for its Booking Draft. A back control above the title returns to the Timetable with cart state preserved. Each visit reloads availability and Payment Summary from that Draft — it still never locks the room. If any line is no longer available, Confirm stays disabled. Confirm calls create booking, which also deletes the Draft; success goes to Payment. There is no single Time row at the top; each Space row shows a thumbnail, that line's time, Edit, and Remove — Edit/Remove PATCH the Draft in place, so the URL doesn't change. Below all Space rows, + Room returns to the Timetable to add more lines. Opening someone else's `checkoutId`, or one already consumed by Confirm, shows Not Found.
+_Avoid_: a single shared Time field, confirm modal as the product name, treating the query as a paid reservation, skipping back to Timetable, a link safe to share with another member, encoding Booking lines directly in the query
 
 **Payment Summary**:
 The Booking Details aside that shows rate, ministry discount, tax, and total. The backend calculates the money; the client displays it.
