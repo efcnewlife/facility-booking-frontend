@@ -195,6 +195,7 @@
     "success": "Booking created successfully.",
     "loadError": "Failed to load room availability.",
     "createError": "Failed to create booking.",
+    "reviewError": "Failed to start checkout.",
     "halfFilledTime": "Start and end must both be empty or both set.",
     "whenInvalid": "Choose a date from today through one year ahead. If Time is set, it must stay on that day and start before end.",
     "errorTitle": "Unable to continue",

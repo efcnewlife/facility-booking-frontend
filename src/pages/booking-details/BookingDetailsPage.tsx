@@ -1,14 +1,17 @@
-import facilityService from "@/api/services/facilityService";
+import facilityService, { BookingDraftNotFoundError } from "@/api/services/facilityService";
+import NotFoundPage from "@/pages/not-found/NotFoundPage";
+import type { BookingCartDraft } from "@/utils/bookingCartDraft";
 import {
   allLinesCoverAvailability,
+  bookingDraftDetailToCartDraft,
   buildCreateBookingPayload,
   buildPreviewQuotePayload,
   canAddRoomToDraft,
   removeLineFromDraft,
 } from "@/utils/bookingDetailsDraft";
-import { parseBookingCartDraft, toBookingCartDraftParams } from "@/utils/bookingCartDraft";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
-import { parseRoomsSearchQuery, toRoomsSearchParams } from "@/utils/startBookingFlow";
+import { toRoomsSearchParams } from "@/utils/startBookingFlow";
+import { saveTimetableCart } from "@/utils/timetableCartStorage";
 import { MAX_BOOKING_LINES, type RoomDay } from "@/utils/timetableRules";
 import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
@@ -40,29 +43,57 @@ const messageFromUnknown = (err: unknown, fallback: string): string => {
 const BookingDetailsPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const draft = useMemo(() => parseBookingCartDraft(searchParams), [searchParams]);
-  const roomsSearch = useMemo(() => parseRoomsSearchQuery(searchParams), [searchParams]);
+  const [searchParams] = useSearchParams();
+  const checkoutId = searchParams.get("checkoutId");
 
+  const [draft, setDraft] = useState<BookingCartDraft | null>(null);
+  const [notFound, setNotFound] = useState(false);
   const [rooms, setRooms] = useState<RoomDay[]>([]);
   const [maxBookingLines, setMaxBookingLines] = useState(MAX_BOOKING_LINES);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummaryLabels>(() =>
     mapPaymentSummary(null, i18nInstance.language)
   );
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(() => Boolean(checkoutId));
   const [confirming, setConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const loadDraft = useCallback(async () => {
-    if (!draft) {
+  const loadDraftDetail = useCallback(async () => {
+    if (!checkoutId) {
       return;
     }
     setLoading(true);
     setError(null);
+    setNotFound(false);
     setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     try {
-      const { rooms, maxBookingLines: cap } = await facilityService.getAvailability(draft.date, draft.ministryId);
-      setRooms(rooms);
+      const detail = await facilityService.getBookingDraft(checkoutId);
+      setDraft(bookingDraftDetailToCartDraft(detail));
+    } catch (err) {
+      if (err instanceof BookingDraftNotFoundError) {
+        setNotFound(true);
+      } else {
+        setError(messageFromUnknown(err, t("timetable.loadError")));
+        setDraft(null);
+      }
+      setLoading(false);
+    }
+  }, [checkoutId, i18nInstance.language, t]);
+
+  useEffect(() => {
+    void loadDraftDetail();
+  }, [loadDraftDetail]);
+
+  const loadPriceAndAvailability = useCallback(async () => {
+    if (!draft) {
+      return;
+    }
+    setLoading(true);
+    try {
+      const { rooms: items, maxBookingLines: cap } = await facilityService.getAvailability(
+        draft.date,
+        draft.ministryId
+      );
+      setRooms(items);
       setMaxBookingLines(cap);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.loadError")));
@@ -79,8 +110,8 @@ const BookingDetailsPage = () => {
   }, [draft, i18nInstance.language, t]);
 
   useEffect(() => {
-    void loadDraft();
-  }, [loadDraft]);
+    void loadPriceAndAvailability();
+  }, [loadPriceAndAvailability]);
 
   const linesAvailable = useMemo(() => {
     if (!draft || rooms.length === 0) {
@@ -96,22 +127,35 @@ const BookingDetailsPage = () => {
     return linesAvailable;
   }, [confirming, draft, linesAvailable, loading]);
 
-  if (!draft) {
-    if (!roomsSearch?.date) {
-      return <Navigate replace to="/" />;
-    }
-    return <Navigate replace to={{ pathname: "/rooms", search: toRoomsSearchParams(roomsSearch).toString() }} />;
+  if (!checkoutId) {
+    return <Navigate replace to="/" />;
   }
 
-  const goToTimetable = (nextDraft: typeof draft | null) => {
-    if (!nextDraft) {
-      navigate({
-        pathname: "/rooms",
-        search: toRoomsSearchParams({ date: draft.date, ministryId: draft.ministryId }).toString(),
-      });
-      return;
-    }
-    navigate({ pathname: "/rooms", search: toBookingCartDraftParams(nextDraft).toString() });
+  if (notFound) {
+    return <NotFoundPage />;
+  }
+
+  if (!draft) {
+    return (
+      <main className="flex flex-1 items-center justify-center bg-surface-container px-4 py-10">
+        {error ? (
+          <p className="m-0 text-sm font-medium text-error" role="alert">
+            {error}
+          </p>
+        ) : (
+          <Spinner showText size="sm" text={t("startBooking.loading")} />
+        )}
+      </main>
+    );
+  }
+
+  const goToTimetable = (nextDraft: BookingCartDraft | null) => {
+    saveTimetableCart(window.localStorage, nextDraft);
+    const target = nextDraft ?? draft;
+    navigate({
+      pathname: "/rooms",
+      search: toRoomsSearchParams({ date: target.date, ministryId: target.ministryId }).toString(),
+    });
   };
 
   const handleRemove = (sequence: number) => {
@@ -120,7 +164,7 @@ const BookingDetailsPage = () => {
       goToTimetable(null);
       return;
     }
-    setSearchParams(toBookingCartDraftParams(nextDraft), { replace: true });
+    setDraft(nextDraft);
   };
 
   const handleConfirm = async () => {
@@ -130,7 +174,7 @@ const BookingDetailsPage = () => {
     setConfirming(true);
     setError(null);
     try {
-      const created = await facilityService.createBooking(buildCreateBookingPayload(draft));
+      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, checkoutId));
       navigate(`/payment/${created.id}`);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.createError")));
