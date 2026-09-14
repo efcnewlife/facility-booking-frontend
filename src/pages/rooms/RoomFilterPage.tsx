@@ -428,6 +428,10 @@ const RoomFilterPage = () => {
     setEditingSequence(undefined);
   };
 
+  const persistCartState = (state: TimetableCartState) => {
+    saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, appliedMinistryId, state));
+  };
+
   const handleConfirmBookingTime = async (interval: BookingInterval) => {
     if (!confirmRoom || !appliedDate) {
       return;
@@ -460,7 +464,7 @@ const RoomFilterPage = () => {
       return;
     }
     setCartState(nextState);
-    saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, appliedMinistryId, nextState));
+    persistCartState(nextState);
     const line = nextState.lines.find((item) => item.sequence === quotedSequence);
     if (!line) {
       return;
@@ -875,7 +879,7 @@ const RoomFilterPage = () => {
           onRemove={(sequence) => {
             setCartState((current) => {
               const next = removeCartLine(current, sequence);
-              saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, appliedMinistryId, next));
+              persistCartState(next);
               return next;
             });
           }}
