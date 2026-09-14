@@ -17,6 +17,7 @@ import {
   hasDuplicateLine,
   hasNoMatchingResults,
   intervalStaysOnSameDay,
+  isBookableCellForCart,
   isRoomAvailable,
   isTimetableInitialLoad,
   isWhenSeedEligible,
@@ -478,6 +479,86 @@ describe("displayBlocksForCart", () => {
       { start: "09:30", end: "10:30", state: "available", overlayKind: "pinned" },
       { start: "14:00", end: "15:00", state: "available", overlayKind: "hover" },
     ]);
+  });
+
+  it("paints a committed overlay for each cart line regardless of pinned state", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "09:30", end: "10:30", state: "available", overlayKind: "committed" },
+    ]);
+  });
+
+  it("paints committed and pinned overlays together for different intervals on the same room", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: { facilityId: "gym-id", start: "14:00", end: "15:00" },
+      whenSeed: null,
+    };
+    expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "09:30", end: "10:30", state: "available", overlayKind: "committed" },
+      { start: "14:00", end: "15:00", state: "available", overlayKind: "pinned" },
+    ]);
+  });
+
+  it("does not paint hover preview when it overlaps a committed line", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    expect(
+      displayBlocksForCart(gym(), state, { roomId: "gym-id", cellStart: "09:30" }).filter(
+        (block) => block.state === "available"
+      )
+    ).toEqual([{ start: "09:30", end: "10:30", state: "available", overlayKind: "committed" }]);
+  });
+});
+
+describe("Timetable checkmark reflects cart membership, not the pinned interval (regression #84)", () => {
+  it("keeps the checkmark once Confirm Booking Time clears the pinned interval", () => {
+    const pinnedState = pinInterval(emptyCartState(), gym(), "09:30");
+    const confirmed = addCartLine(pinnedState, { facilityId: "gym-id", start: "09:30", end: "10:30" });
+    expect(confirmed).not.toBeNull();
+    const state = confirmed!;
+
+    expect(state.pinned).toBeNull();
+
+    const blocks = displayBlocksForCart(gym(), state).filter((block) => block.state === "available");
+    expect(blocks).toEqual([{ start: "09:30", end: "10:30", state: "available", overlayKind: "committed" }]);
+    expect(blockActionForInterval(state.lines, "gym-id", blocks[0])).toBe("checkmark");
+  });
+
+  it("keeps another interval in the same room's column hoverable, pinnable, and ADD-eligible", () => {
+    const withLine: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    expect(isBookableCellForCart(gym(), "14:00", withLine.pinned)).toBe(true);
+
+    const nowPinned = pinInterval(withLine, gym(), "14:00");
+    const blocks = displayBlocksForCart(gym(), nowPinned).filter((block) => block.state === "available");
+    expect(blocks).toEqual([
+      { start: "09:30", end: "10:30", state: "available", overlayKind: "committed" },
+      { start: "14:00", end: "15:00", state: "available", overlayKind: "pinned" },
+    ]);
+    expect(blockActionForInterval(nowPinned.lines, "gym-id", { start: "14:00", end: "15:00" })).toBe("add");
+  });
+
+  it("restores ADD on the block once the matching line is removed from the cart", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    const afterRemove = removeCartLine(state, 1);
+    const blocks = displayBlocksForCart(gym(), afterRemove).filter((block) => block.state === "available");
+    expect(blocks.some((block) => block.overlayKind === "committed")).toBe(false);
+    expect(blockActionForInterval(afterRemove.lines, "gym-id", { start: "09:30", end: "10:30" })).toBe("add");
   });
 });
 

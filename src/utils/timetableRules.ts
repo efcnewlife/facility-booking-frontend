@@ -484,7 +484,7 @@ export interface CellBlock extends TimeRange {
   state: CellState;
 }
 
-export type AvailableOverlayKind = "whenSeed" | "pinned" | "hover";
+export type AvailableOverlayKind = "whenSeed" | "pinned" | "hover" | "committed";
 
 export interface TimetableDisplayBlock extends CellBlock {
   overlayKind?: AvailableOverlayKind;
@@ -533,6 +533,11 @@ export const displayBlocksForCart = (
   );
   const overlays: TimetableDisplayBlock[] = [];
 
+  const committedLines = state.lines.filter((line) => line.facilityId === room.id);
+  for (const line of committedLines) {
+    overlays.push({ start: line.start, end: line.end, state: "available", overlayKind: "committed" });
+  }
+
   const pinned = pinnedIntervalForRoom(state, room.id);
   if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && !pinned) {
     overlays.push({
@@ -549,7 +554,9 @@ export const displayBlocksForCart = (
 
   if (hover?.roomId === room.id) {
     const preview = emptyTimeBookInterval(room, hover.cellStart);
-    if (preview && !(pinned && intervalsOverlap(preview, pinned))) {
+    const overlapsPinned = preview != null && pinned != null && intervalsOverlap(preview, pinned);
+    const overlapsCommitted = preview != null && committedLines.some((line) => intervalsOverlap(preview, line));
+    if (preview && !overlapsPinned && !overlapsCommitted) {
       overlays.push({ start: preview.start, end: preview.end, state: "available", overlayKind: "hover" });
     }
   }
