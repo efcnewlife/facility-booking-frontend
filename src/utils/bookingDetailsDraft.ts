@@ -48,14 +48,20 @@ export const envelopeClocks = (lines: BookingLineDraft[]): { start: string; end:
   return { start: minStart, end: maxEnd };
 };
 
+const mapDraftLineToInterval = (
+  date: string,
+  line: BookingLineDraft
+): { facilityId: string; startAt: string; endAt: string; sequence: number } => ({
+  facilityId: line.facilityId,
+  startAt: combineDateAndClock(date, line.start),
+  endAt: combineDateAndClock(date, line.end),
+  sequence: line.sequence,
+});
+
 export const buildPreviewQuotePayload = (draft: BookingCartDraft): PreviewQuotePayload => ({
   ministryId: draft.ministryId || null,
   isMissionAligned: Boolean(draft.ministryId),
-  lines: draft.lines.map((line) => ({
-    facilityId: line.facilityId,
-    startAt: combineDateAndClock(draft.date, line.start),
-    endAt: combineDateAndClock(draft.date, line.end),
-  })),
+  lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
 });
 
 export const buildCreateBookingPayload = (
@@ -68,24 +74,14 @@ export const buildCreateBookingPayload = (
     endAt: combineDateAndClock(draft.date, envelope.end),
     ministryId: draft.ministryId || null,
     isMissionAligned: Boolean(draft.ministryId),
-    rooms: draft.lines.map((line) => ({
-      facilityId: line.facilityId,
-      startAt: combineDateAndClock(draft.date, line.start),
-      endAt: combineDateAndClock(draft.date, line.end),
-      sequence: line.sequence,
-    })),
+    rooms: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
     bookingDraftId: bookingDraftId || null,
   };
 };
 
 export const buildCreateBookingDraftPayload = (draft: BookingCartDraft): CreateBookingDraftPayload => ({
   ministryId: draft.ministryId || null,
-  lines: draft.lines.map((line) => ({
-    facilityId: line.facilityId,
-    startAt: combineDateAndClock(draft.date, line.start),
-    endAt: combineDateAndClock(draft.date, line.end),
-    sequence: line.sequence,
-  })),
+  lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
 });
 
 export const bookingDraftDetailToCartDraft = (detail: BookingDraftDetail): BookingCartDraft => ({
