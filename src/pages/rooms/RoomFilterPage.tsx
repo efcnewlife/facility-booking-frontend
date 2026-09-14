@@ -7,13 +7,13 @@ import type { MinistryItem } from "@/types/ministry";
 import {
   cartStateToDraft,
   draftToCartState,
-  parseBookingCartDraft,
   toBookingCartDraftParams,
   whenSeedFromSearch,
 } from "@/utils/bookingCartDraft";
 import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import { parseRoomsSearchQuery, toRoomsSearchParams, type RoomsSearchQuery } from "@/utils/startBookingFlow";
+import { loadTimetableCart, saveTimetableCart } from "@/utils/timetableCartStorage";
 import {
   addCartLine,
   blockActionForInterval,
@@ -136,10 +136,13 @@ const CapacityIcon = () => (
   </svg>
 );
 
-const buildInitialCartState = (params: URLSearchParams, query: RoomsSearchQuery | null): TimetableCartState => {
+const buildInitialCartState = (query: RoomsSearchQuery | null): TimetableCartState => {
   const whenSeed = whenSeedFromSearch(query?.start, query?.end);
-  const draft = parseBookingCartDraft(params);
-  if (draft && query?.date && draft.date === query.date) {
+  if (!query?.date) {
+    return emptyCartState(whenSeed);
+  }
+  const draft = loadTimetableCart(window.localStorage, query.date, query.ministryId);
+  if (draft) {
     return draftToCartState(draft, whenSeed);
   }
   return emptyCartState(whenSeed);
@@ -164,9 +167,7 @@ const RoomFilterPage = () => {
   const [pageIndex, setPageIndex] = useState(0);
   const [rooms, setRooms] = useState<RoomDay[]>([]);
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
-  const [cartState, setCartState] = useState<TimetableCartState>(() =>
-    buildInitialCartState(searchParams, initialQuery)
-  );
+  const [cartState, setCartState] = useState<TimetableCartState>(() => buildInitialCartState(initialQuery));
   const [loading, setLoading] = useState(() => Boolean(initialQuery?.date));
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
@@ -427,6 +428,10 @@ const RoomFilterPage = () => {
     setEditingSequence(undefined);
   };
 
+  const persistCartState = (state: TimetableCartState) => {
+    saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, appliedMinistryId, state));
+  };
+
   const handleConfirmBookingTime = async (interval: BookingInterval) => {
     if (!confirmRoom || !appliedDate) {
       return;
@@ -459,6 +464,7 @@ const RoomFilterPage = () => {
       return;
     }
     setCartState(nextState);
+    persistCartState(nextState);
     const line = nextState.lines.find((item) => item.sequence === quotedSequence);
     if (!line) {
       return;
@@ -871,7 +877,11 @@ const RoomFilterPage = () => {
             }
           }}
           onRemove={(sequence) => {
-            setCartState((current) => removeCartLine(current, sequence));
+            setCartState((current) => {
+              const next = removeCartLine(current, sequence);
+              persistCartState(next);
+              return next;
+            });
           }}
           onReview={handleReviewBooking}
           rooms={rooms}
