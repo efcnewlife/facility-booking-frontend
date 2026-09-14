@@ -1,6 +1,6 @@
 import moment from "moment";
 
-import { intervalStaysOnSameDay, MAX_BOOKING_LINES, type WhenSeedRange } from "./timetableRules";
+import { intervalStaysOnSameDay, type WhenSeedRange } from "./timetableRules";
 import type { BookingLine, TimetableCartState } from "./timetableRules";
 
 const DATE_FORMAT = "YYYY-MM-DD";
@@ -66,9 +66,6 @@ const parseLinesParam = (raw: string | null): BookingLineDraft[] => {
     }
     seen.add(key);
     lines.push(line);
-    if (lines.length >= MAX_BOOKING_LINES) {
-      break;
-    }
   }
   return lines.sort((left, right) => left.sequence - right.sequence);
 };
@@ -103,7 +100,6 @@ export const toBookingCartDraftParams = (draft: BookingCartDraft): URLSearchPara
     "lines",
     [...draft.lines]
       .sort((left, right) => left.sequence - right.sequence)
-      .slice(0, MAX_BOOKING_LINES)
       .map(encodeLine)
       .join(LINE_SEP)
   );

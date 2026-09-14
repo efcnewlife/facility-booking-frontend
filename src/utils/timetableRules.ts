@@ -206,9 +206,10 @@ export const nextLineSequence = (lines: BookingLine[]): number => {
 
 export const canAddCartLine = (
   state: TimetableCartState,
-  line: Pick<BookingLine, "facilityId" | "start" | "end">
+  line: Pick<BookingLine, "facilityId" | "start" | "end">,
+  maxLines: number = MAX_BOOKING_LINES
 ): boolean => {
-  if (state.lines.length >= MAX_BOOKING_LINES) {
+  if (state.lines.length >= maxLines) {
     return false;
   }
   if (hasDuplicateLine(state.lines, line)) {
@@ -241,9 +242,10 @@ export const pinnedIntervalForRoom = (state: TimetableCartState, facilityId: str
 
 export const addCartLine = (
   state: TimetableCartState,
-  line: Pick<BookingLine, "facilityId" | "start" | "end">
+  line: Pick<BookingLine, "facilityId" | "start" | "end">,
+  maxLines: number = MAX_BOOKING_LINES
 ): TimetableCartState | null => {
-  if (!canAddCartLine(state, line)) {
+  if (!canAddCartLine(state, line, maxLines)) {
     return null;
   }
   const nextLine: BookingLine = {

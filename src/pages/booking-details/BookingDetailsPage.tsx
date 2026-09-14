@@ -9,7 +9,7 @@ import {
 import { parseBookingCartDraft, toBookingCartDraftParams } from "@/utils/bookingCartDraft";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { parseRoomsSearchQuery, toRoomsSearchParams } from "@/utils/startBookingFlow";
-import type { RoomDay } from "@/utils/timetableRules";
+import { MAX_BOOKING_LINES, type RoomDay } from "@/utils/timetableRules";
 import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -45,6 +45,7 @@ const BookingDetailsPage = () => {
   const roomsSearch = useMemo(() => parseRoomsSearchQuery(searchParams), [searchParams]);
 
   const [rooms, setRooms] = useState<RoomDay[]>([]);
+  const [maxBookingLines, setMaxBookingLines] = useState(MAX_BOOKING_LINES);
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummaryLabels>(() =>
     mapPaymentSummary(null, i18nInstance.language)
   );
@@ -60,8 +61,9 @@ const BookingDetailsPage = () => {
     setError(null);
     setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     try {
-      const items = await facilityService.getAvailability(draft.date, draft.ministryId);
-      setRooms(items);
+      const { rooms, maxBookingLines: cap } = await facilityService.getAvailability(draft.date, draft.ministryId);
+      setRooms(rooms);
+      setMaxBookingLines(cap);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.loadError")));
       setRooms([]);
@@ -139,7 +141,7 @@ const BookingDetailsPage = () => {
 
   const formattedDate = moment(draft.date).locale(i18nInstance.language).format("dddd, MMMM D, YYYY");
   const linesUncovered = !loading && !linesAvailable;
-  const showAddRoom = canAddRoomToDraft(draft);
+  const showAddRoom = canAddRoomToDraft(draft, maxBookingLines);
 
   const roomForLine = (facilityId: string): RoomDay | undefined => {
     return rooms.find((room) => room.id === facilityId);
