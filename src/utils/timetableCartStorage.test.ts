@@ -100,7 +100,7 @@ describe("loadTimetableCart", () => {
     expect(loadTimetableCart(storage, "2026-09-14", "m-1")).toBeNull();
   });
 
-  it("drops duplicate lines and caps at the Booking line cap", () => {
+  it("drops duplicate lines without truncating to the hardcoded default", () => {
     const storage = createFakeStorage({
       [TIMETABLE_CART_STORAGE_KEY]: JSON.stringify({
         date: "2026-09-14",
@@ -114,6 +114,6 @@ describe("loadTimetableCart", () => {
         ],
       }),
     });
-    expect(loadTimetableCart(storage, "2026-09-14", "m-1")?.lines).toHaveLength(3);
+    expect(loadTimetableCart(storage, "2026-09-14", "m-1")?.lines).toHaveLength(4);
   });
 });

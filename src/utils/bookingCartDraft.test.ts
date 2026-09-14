@@ -37,11 +37,11 @@ describe("parseBookingCartDraft", () => {
     });
   });
 
-  it("drops duplicate lines and caps at three", () => {
+  it("drops duplicate lines without truncating to the hardcoded default", () => {
     const params = new URLSearchParams(
       "date=2026-09-01&lines=1~room-a~10:00~11:00,2~room-a~10:00~11:00,3~room-b~12:00~13:00,4~room-c~13:00~14:00,5~room-d~14:00~15:00"
     );
-    expect(parseBookingCartDraft(params)?.lines).toHaveLength(3);
+    expect(parseBookingCartDraft(params)?.lines).toHaveLength(4);
   });
 });
 
@@ -63,6 +63,20 @@ describe("toBookingCartDraftParams", () => {
         { sequence: 2, facilityId: "room-b", start: "14:00", end: "15:00" },
       ],
     });
+  });
+
+  it("round-trips a draft with more than the hardcoded default line count, under a live cap", () => {
+    const draft = {
+      date: "2026-09-01",
+      ministryId: "m-1",
+      lines: [1, 2, 3, 4].map((sequence) => ({
+        sequence,
+        facilityId: `room-${sequence}`,
+        start: "10:00",
+        end: "11:00",
+      })),
+    };
+    expect(parseBookingCartDraft(toBookingCartDraftParams(draft))?.lines).toHaveLength(4);
   });
 });
 

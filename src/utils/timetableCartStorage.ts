@@ -1,5 +1,5 @@
 import type { BookingCartDraft, BookingLineDraft } from "./bookingCartDraft";
-import { hasDuplicateLine, intervalStaysOnSameDay, MAX_BOOKING_LINES } from "./timetableRules";
+import { hasDuplicateLine, intervalStaysOnSameDay } from "./timetableRules";
 
 export const TIMETABLE_CART_STORAGE_KEY = "facilityBooking.timetableCart";
 
@@ -45,9 +45,6 @@ const sanitizeLines = (raw: unknown): BookingLineDraft[] => {
       continue;
     }
     lines.push(line);
-    if (lines.length >= MAX_BOOKING_LINES) {
-      break;
-    }
   }
   return lines.sort((left, right) => left.sequence - right.sequence);
 };

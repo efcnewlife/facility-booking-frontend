@@ -77,6 +77,6 @@ export const removeLineFromDraft = (draft: BookingCartDraft, sequence: number): 
   return { ...draft, lines };
 };
 
-export const canAddRoomToDraft = (draft: BookingCartDraft): boolean => {
-  return draft.lines.length < MAX_BOOKING_LINES;
+export const canAddRoomToDraft = (draft: BookingCartDraft, maxLines: number = MAX_BOOKING_LINES): boolean => {
+  return draft.lines.length < maxLines;
 };

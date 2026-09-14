@@ -107,7 +107,7 @@ describe("removeLineFromDraft", () => {
 });
 
 describe("canAddRoomToDraft", () => {
-  it("allows add room until three lines", () => {
+  it("allows add room until three lines by default", () => {
     expect(canAddRoomToDraft(baseDraft)).toBe(true);
     expect(
       canAddRoomToDraft({
@@ -115,5 +115,14 @@ describe("canAddRoomToDraft", () => {
         lines: [...baseDraft.lines, { sequence: 3, facilityId: "room-c", start: "16:00", end: "17:00" }],
       })
     ).toBe(false);
+  });
+
+  it("honors a live cap passed in from the availability response", () => {
+    const threeLineDraft = {
+      ...baseDraft,
+      lines: [...baseDraft.lines, { sequence: 3, facilityId: "room-c", start: "16:00", end: "17:00" }],
+    };
+    expect(canAddRoomToDraft(threeLineDraft, 10)).toBe(true);
+    expect(canAddRoomToDraft(baseDraft, 2)).toBe(false);
   });
 });
