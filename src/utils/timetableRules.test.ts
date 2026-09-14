@@ -223,6 +223,25 @@ describe("cart mutations", () => {
     expect(canAddCartLine(state, { facilityId: "gym-id", start: "15:00", end: "16:00" })).toBe(false);
   });
 
+  it("enforces a live cap passed in from the availability response instead of the hardcoded default", () => {
+    let state = emptyCartState();
+    state = addCartLine(state, baseLine, 2)!;
+    state = addCartLine(state, { facilityId: "chapel-id", start: "10:00", end: "11:00" }, 2)!;
+    expect(state.lines).toHaveLength(2);
+    expect(canAddCartLine(state, { facilityId: "sanctuary-id", start: "10:00", end: "11:00" }, 2)).toBe(false);
+    expect(addCartLine(state, { facilityId: "sanctuary-id", start: "10:00", end: "11:00" }, 2)).toBeNull();
+  });
+
+  it("allows up to the live cap when it is higher than the hardcoded default", () => {
+    let state = emptyCartState();
+    const rooms = ["gym-id", "chapel-id", "sanctuary-id", "office-id"];
+    for (const facilityId of rooms) {
+      state = addCartLine(state, { facilityId, start: "10:00", end: "11:00" }, 10)!;
+    }
+    expect(state.lines).toHaveLength(4);
+    expect(canAddCartLine(state, { facilityId: "gym-id", start: "15:00", end: "16:00" }, 10)).toBe(true);
+  });
+
   it("rejects lines that cross midnight", () => {
     expect(intervalStaysOnSameDay({ start: "23:00", end: "01:00" })).toBe(false);
     expect(canAddCartLine(emptyCartState(), { facilityId: "gym-id", start: "23:00", end: "01:00" })).toBe(false);

@@ -27,6 +27,7 @@ import {
   intervalsOverlap,
   isBookableCellForCart,
   isTimetableInitialLoad,
+  MAX_BOOKING_LINES,
   minutesToClock,
   pinInterval,
   removeCartLine,
@@ -166,6 +167,7 @@ const RoomFilterPage = () => {
   const [capacityBand, setCapacityBand] = useState<CapacityBand | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [rooms, setRooms] = useState<RoomDay[]>([]);
+  const [maxBookingLines, setMaxBookingLines] = useState(MAX_BOOKING_LINES);
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
   const [cartState, setCartState] = useState<TimetableCartState>(() => buildInitialCartState(initialQuery));
   const [loading, setLoading] = useState(() => Boolean(initialQuery?.date));
@@ -203,8 +205,12 @@ const RoomFilterPage = () => {
     setLoading(true);
     setError(null);
     try {
-      const items = await facilityService.getAvailability(appliedDate, appliedMinistryId);
+      const { rooms: items, maxBookingLines: cap } = await facilityService.getAvailability(
+        appliedDate,
+        appliedMinistryId
+      );
       setRooms(items);
+      setMaxBookingLines(cap);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("timetable.loadError"));
     } finally {
@@ -449,11 +455,15 @@ const RoomFilterPage = () => {
         quotedSequence = editingSequence;
       }
     } else {
-      const next = addCartLine(cartState, {
-        facilityId: confirmRoom.id,
-        start: interval.start,
-        end: interval.end,
-      });
+      const next = addCartLine(
+        cartState,
+        {
+          facilityId: confirmRoom.id,
+          start: interval.start,
+          end: interval.end,
+        },
+        maxBookingLines
+      );
       if (next) {
         nextState = next;
         quotedSequence = next.lines[next.lines.length - 1]?.sequence;

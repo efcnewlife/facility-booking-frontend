@@ -1,6 +1,10 @@
 import { API_ENDPOINTS, HTTP_STATUS } from "@/api/config";
 import type { ApiError } from "@/types/api";
-import { mapAvailabilityToRoomDays, type ApiRoomAvailabilityList } from "@/utils/availabilityMapper";
+import {
+  mapAvailabilityToRoomDays,
+  maxBookingLinesFromPayload,
+  type ApiRoomAvailabilityList,
+} from "@/utils/availabilityMapper";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
 
@@ -93,7 +97,10 @@ const isApiError = (err: unknown): err is ApiError => {
 };
 
 class FacilityService {
-  async getAvailability(date: string, ministryId?: string | null): Promise<RoomDay[]> {
+  async getAvailability(
+    date: string,
+    ministryId?: string | null
+  ): Promise<{ rooms: RoomDay[]; maxBookingLines: number }> {
     const params: Record<string, unknown> = { date };
     if (ministryId) {
       params.ministryId = ministryId;
@@ -102,7 +109,10 @@ class FacilityService {
     if (!response.success || !response.data) {
       throw new Error(response.message || "Failed to load availability");
     }
-    return mapAvailabilityToRoomDays(response.data);
+    return {
+      rooms: mapAvailabilityToRoomDays(response.data),
+      maxBookingLines: maxBookingLinesFromPayload(response.data),
+    };
   }
 
   async previewQuote(payload: PreviewQuotePayload): Promise<MemberPreviewQuote> {

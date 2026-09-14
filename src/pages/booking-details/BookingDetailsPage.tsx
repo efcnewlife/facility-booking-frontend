@@ -60,8 +60,8 @@ const BookingDetailsPage = () => {
     setError(null);
     setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     try {
-      const items = await facilityService.getAvailability(draft.date, draft.ministryId);
-      setRooms(items);
+      const { rooms } = await facilityService.getAvailability(draft.date, draft.ministryId);
+      setRooms(rooms);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.loadError")));
       setRooms([]);

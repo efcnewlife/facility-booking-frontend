@@ -1,4 +1,5 @@
 import {
+  MAX_BOOKING_LINES,
   SLOT_MINUTES,
   clockToMinutes,
   minutesToClock,
@@ -44,7 +45,14 @@ interface ApiRoomAvailabilityItem {
 export interface ApiRoomAvailabilityList {
   date: string;
   items: ApiRoomAvailabilityItem[];
+  maxBookingLines?: number;
 }
+
+export const maxBookingLinesFromPayload = (payload: ApiRoomAvailabilityList): number => {
+  return typeof payload.maxBookingLines === "number" && payload.maxBookingLines > 0
+    ? payload.maxBookingLines
+    : MAX_BOOKING_LINES;
+};
 
 const CELL_STATES: CellState[] = ["available", "unavailable", "closed", "override"];
 

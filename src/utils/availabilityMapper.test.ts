@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { mapAvailabilityToRoomDays } from "./availabilityMapper";
+import { mapAvailabilityToRoomDays, maxBookingLinesFromPayload } from "./availabilityMapper";
+import { MAX_BOOKING_LINES } from "./timetableRules";
 
 describe("mapAvailabilityToRoomDays", () => {
   it("maps cells and Template duration from the member availability payload", () => {
@@ -121,5 +122,18 @@ describe("mapAvailabilityToRoomDays", () => {
     expect(rooms[0]?.cells.find((cell) => cell.start === "16:00")?.state).toBe("available");
     expect(rooms[0]?.cells.find((cell) => cell.start === "07:30")?.state).toBe("closed");
     expect(rooms[0]?.cells.find((cell) => cell.start === "17:00")?.state).toBe("closed");
+  });
+});
+
+describe("maxBookingLinesFromPayload", () => {
+  it("reads the live cap carried on the availability response", () => {
+    expect(maxBookingLinesFromPayload({ date: "2026-07-20", items: [], maxBookingLines: 2 })).toBe(2);
+    expect(maxBookingLinesFromPayload({ date: "2026-07-20", items: [], maxBookingLines: 10 })).toBe(10);
+  });
+
+  it("falls back to the default cap when the response omits or malforms the field", () => {
+    expect(maxBookingLinesFromPayload({ date: "2026-07-20", items: [] })).toBe(MAX_BOOKING_LINES);
+    expect(maxBookingLinesFromPayload({ date: "2026-07-20", items: [], maxBookingLines: 0 })).toBe(MAX_BOOKING_LINES);
+    expect(maxBookingLinesFromPayload({ date: "2026-07-20", items: [], maxBookingLines: -1 })).toBe(MAX_BOOKING_LINES);
   });
 });
