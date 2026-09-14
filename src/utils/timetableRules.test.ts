@@ -538,7 +538,7 @@ describe("Timetable checkmark reflects cart membership, not the pinned interval 
       pinned: null,
       whenSeed: null,
     };
-    expect(isBookableCellForCart(gym(), "14:00", withLine.pinned)).toBe(true);
+    expect(isBookableCellForCart(gym(), "14:00", withLine)).toBe(true);
 
     const nowPinned = pinInterval(withLine, gym(), "14:00");
     const blocks = displayBlocksForCart(gym(), nowPinned).filter((block) => block.state === "available");
@@ -559,6 +559,32 @@ describe("Timetable checkmark reflects cart membership, not the pinned interval 
     const blocks = displayBlocksForCart(gym(), afterRemove).filter((block) => block.state === "available");
     expect(blocks.some((block) => block.overlayKind === "committed")).toBe(false);
     expect(blockActionForInterval(afterRemove.lines, "gym-id", { start: "09:30", end: "10:30" })).toBe("add");
+  });
+
+  it("moves the checkmark to the new interval and clears the old one when a line is edited", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    const edited = updateCartLine(state, 1, { facilityId: "gym-id", start: "11:00", end: "12:00" });
+    expect(edited).not.toBeNull();
+    const nextState = edited!;
+
+    const blocks = displayBlocksForCart(gym(), nextState).filter((block) => block.state === "available");
+    expect(blocks).toEqual([{ start: "11:00", end: "12:00", state: "available", overlayKind: "committed" }]);
+    expect(blockActionForInterval(nextState.lines, "gym-id", blocks[0])).toBe("checkmark");
+  });
+
+  it("blocks re-pinning a cell already covered by a committed line, preventing a duplicate overlay", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
+      pinned: null,
+      whenSeed: null,
+    };
+    expect(isBookableCellForCart(gym(), "09:30", state)).toBe(false);
+    expect(isBookableCellForCart(gym(), "10:00", state)).toBe(false);
+    expect(isBookableCellForCart(gym(), "14:00", state)).toBe(true);
   });
 });
 

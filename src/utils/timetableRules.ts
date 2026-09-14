@@ -156,9 +156,14 @@ export const isBookableCell = (room: RoomDay, cellStart: string, interval: Booki
   return emptyTimeBookInterval(room, cellStart) != null;
 };
 
-export const isBookableCellForCart = (room: RoomDay, cellStart: string, pinned: PinnedInterval | null): boolean => {
-  if (pinned?.facilityId === room.id && isCellInInterval(cellStart, pinned) && isRoomAvailable(room, pinned)) {
+export const isBookableCellForCart = (room: RoomDay, cellStart: string, state: TimetableCartState): boolean => {
+  const pinned = pinnedIntervalForRoom(state, room.id);
+  if (pinned && isCellInInterval(cellStart, pinned) && isRoomAvailable(room, pinned)) {
     return true;
+  }
+  const committedOnRoom = state.lines.filter((line) => line.facilityId === room.id);
+  if (committedOnRoom.some((line) => isCellInInterval(cellStart, line))) {
+    return false;
   }
   return emptyTimeBookInterval(room, cellStart) != null;
 };
