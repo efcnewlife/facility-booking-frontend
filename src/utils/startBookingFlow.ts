@@ -1,6 +1,12 @@
 import moment from "moment";
 
-export const START_BOOKING_STEPS = ["ministry_choice", "select_ministry", "frequency", "when"] as const;
+export const START_BOOKING_STEPS = [
+  "ministry_choice",
+  "select_ministry",
+  "frequency",
+  "when",
+  "recurring_when",
+] as const;
 
 export type StartBookingStep = (typeof START_BOOKING_STEPS)[number];
 
@@ -10,10 +16,20 @@ export type RoomsSpace = "single" | "multiple";
 
 export type RoomShortcutCode = "gym" | "sanctuary-hall";
 
+export type RecurringUsePeriod = "jan_jun" | "jul_dec";
+
 export interface WhenValue {
   date: string | null;
   start: string | null;
   end: string | null;
+}
+
+export interface RecurringWhenValue {
+  firstOccurrenceDate: string | null;
+  lastOccurrenceDate: string | null;
+  startTime: string | null;
+  endTime: string | null;
+  roomIds: string[];
 }
 
 export interface StartBookingAnswers {
@@ -21,6 +37,7 @@ export interface StartBookingAnswers {
   ministryId: string | null;
   frequency: BookingFrequency | null;
   when: WhenValue;
+  recurringWhen: RecurringWhenValue;
 }
 
 export interface RoomsSearchQuery {
@@ -92,6 +109,79 @@ export const isWhenValid = (when: WhenValue, now: Date): boolean => {
   return true;
 };
 
+export const occurrencePeriodForDate = (date: string): RecurringUsePeriod | null => {
+  const parsed = moment(date, DATE_FORMAT, true);
+  if (!parsed.isValid()) {
+    return null;
+  }
+  return parsed.month() <= 5 ? "jan_jun" : "jul_dec";
+};
+
+export const isSameWeekday = (dateA: string, dateB: string): boolean => {
+  const a = moment(dateA, DATE_FORMAT, true);
+  const b = moment(dateB, DATE_FORMAT, true);
+  if (!a.isValid() || !b.isValid()) {
+    return false;
+  }
+  return a.day() === b.day();
+};
+
+/** Mirrors the backend's weekly_occurrence_dates: every 7 days from first through last, inclusive. */
+export const weeklyOccurrenceDates = (firstOccurrenceDate: string, lastOccurrenceDate: string): string[] => {
+  const first = moment(firstOccurrenceDate, DATE_FORMAT, true);
+  const last = moment(lastOccurrenceDate, DATE_FORMAT, true);
+  if (!first.isValid() || !last.isValid() || last.isBefore(first, "day")) {
+    return [];
+  }
+  const dates: string[] = [];
+  const cursor = first.clone();
+  while (!cursor.isAfter(last, "day")) {
+    dates.push(cursor.format(DATE_FORMAT));
+    cursor.add(7, "days");
+  }
+  return dates;
+};
+
+const isRecurringTimeRangeValid = (value: RecurringWhenValue): boolean => {
+  if (!value.startTime || !value.endTime) {
+    return false;
+  }
+  const start = moment(value.startTime, TIME_FORMAT, true);
+  const end = moment(value.endTime, TIME_FORMAT, true);
+  if (!start.isValid() || !end.isValid()) {
+    return false;
+  }
+  return end.isAfter(start);
+};
+
+export const isRecurringWhenValid = (value: RecurringWhenValue, now: Date): boolean => {
+  if (!value.firstOccurrenceDate || !value.lastOccurrenceDate) {
+    return false;
+  }
+  const first = moment(value.firstOccurrenceDate, DATE_FORMAT, true);
+  const last = moment(value.lastOccurrenceDate, DATE_FORMAT, true);
+  if (!first.isValid() || !last.isValid()) {
+    return false;
+  }
+  const today = moment(now).startOf("day");
+  if (first.isBefore(today, "day")) {
+    return false;
+  }
+  if (last.isBefore(first, "day")) {
+    return false;
+  }
+  if (!isSameWeekday(value.firstOccurrenceDate, value.lastOccurrenceDate)) {
+    return false;
+  }
+  if (occurrencePeriodForDate(value.firstOccurrenceDate) !== occurrencePeriodForDate(value.lastOccurrenceDate)) {
+    return false;
+  }
+  if (!isRecurringTimeRangeValid(value)) {
+    return false;
+  }
+  return value.roomIds.length > 0;
+};
+
 export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers, now: Date = new Date()): boolean => {
   switch (step) {
     case "ministry_choice":
@@ -99,9 +189,11 @@ export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers,
     case "select_ministry":
       return hasMinistryId(answers);
     case "frequency":
-      return answers.frequency === "one_time";
+      return answers.frequency === "one_time" || answers.frequency === "repeated";
     case "when":
       return isWhenValid(answers.when, now);
+    case "recurring_when":
+      return isRecurringWhenValid(answers.recurringWhen, now);
   }
 };
 
@@ -109,7 +201,7 @@ export const nextStep = (
   step: StartBookingStep,
   answers: StartBookingAnswers,
   now: Date = new Date()
-): StartBookingStep | "rooms" | null => {
+): StartBookingStep | "rooms" | "create_series" | null => {
   if (!canAdvance(step, answers, now)) {
     return null;
   }
@@ -119,9 +211,11 @@ export const nextStep = (
     case "select_ministry":
       return "frequency";
     case "frequency":
-      return "when";
+      return answers.frequency === "repeated" ? "recurring_when" : "when";
     case "when":
       return "rooms";
+    case "recurring_when":
+      return "create_series";
   }
 };
 
@@ -134,6 +228,8 @@ export const previousStep = (step: StartBookingStep, answers: StartBookingAnswer
     case "frequency":
       return answers.isMinistryBooking ? "select_ministry" : "ministry_choice";
     case "when":
+      return "frequency";
+    case "recurring_when":
       return "frequency";
   }
 };

@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildRoomsSearchQuery,
   canAdvance,
+  isRecurringWhenValid,
+  isSameWeekday,
   isStartBookingStep,
   isWhenEndAfterStart,
   isWhenValid,
@@ -11,21 +13,37 @@ import {
   previousStep,
   toBookingDetailsSearchParams,
   toRoomsSearchParams,
+  occurrencePeriodForDate,
+  weeklyOccurrenceDates,
+  type RecurringWhenValue,
   type StartBookingAnswers,
 } from "./startBookingFlow";
 
 const blankWhen = { date: null, start: null, end: null };
+const blankRecurringWhen: RecurringWhenValue = {
+  firstOccurrenceDate: null,
+  lastOccurrenceDate: null,
+  startTime: null,
+  endTime: null,
+  roomIds: [],
+};
 
 const answers = (overrides: Partial<StartBookingAnswers> = {}): StartBookingAnswers => {
-  const { when: whenOverride, ...rest } = overrides;
+  const { when: whenOverride, recurringWhen: recurringWhenOverride, ...rest } = overrides;
   return {
     isMinistryBooking: null,
     ministryId: null,
     frequency: null,
     ...rest,
     when: { ...blankWhen, ...whenOverride },
+    recurringWhen: { ...blankRecurringWhen, ...recurringWhenOverride },
   };
 };
+
+const recurringWhen = (overrides: Partial<RecurringWhenValue> = {}): RecurringWhenValue => ({
+  ...blankRecurringWhen,
+  ...overrides,
+});
 
 describe("isStartBookingStep", () => {
   it("accepts the four Start booking questions", () => {
@@ -67,8 +85,24 @@ describe("nextStep", () => {
     expect(nextStep("frequency", answers({ frequency: "one_time" }))).toBe("when");
   });
 
-  it("does not continue from Repeated", () => {
-    expect(nextStep("frequency", answers({ frequency: "repeated" }))).toBe(null);
+  it("goes from Repeated to the recurring occurrence form", () => {
+    expect(nextStep("frequency", answers({ frequency: "repeated" }))).toBe("recurring_when");
+  });
+
+  it("goes from a valid recurring When to series creation", () => {
+    const now = new Date("2026-08-13T12:00:00");
+    const valid = recurringWhen({
+      firstOccurrenceDate: "2026-08-20",
+      lastOccurrenceDate: "2026-09-24",
+      startTime: "09:00",
+      endTime: "10:00",
+      roomIds: ["room-1"],
+    });
+    expect(nextStep("recurring_when", answers({ recurringWhen: valid }), now)).toBe("create_series");
+  });
+
+  it("does not continue from an incomplete recurring When", () => {
+    expect(nextStep("recurring_when", answers())).toBe(null);
   });
 
   it("goes from a date-only When to the Timetable", () => {
@@ -104,6 +138,10 @@ describe("previousStep", () => {
   it("returns frequency from date and time", () => {
     expect(previousStep("when", answers({ frequency: "one_time" }))).toBe("frequency");
   });
+
+  it("returns frequency from the recurring occurrence form", () => {
+    expect(previousStep("recurring_when", answers({ frequency: "repeated" }))).toBe("frequency");
+  });
 });
 
 describe("canAdvance", () => {
@@ -118,8 +156,8 @@ describe("canAdvance", () => {
     expect(canAdvance("select_ministry", answers({ isMinistryBooking: true, ministryId: "m-1" }))).toBe(true);
   });
 
-  it("allows frequency Continue only for One-time", () => {
-    expect(canAdvance("frequency", answers({ frequency: "repeated" }))).toBe(false);
+  it("allows frequency Continue for either One-time or Repeated", () => {
+    expect(canAdvance("frequency", answers({ frequency: "repeated" }))).toBe(true);
     expect(canAdvance("frequency", answers({ frequency: "one_time" }))).toBe(true);
     expect(canAdvance("frequency", answers())).toBe(false);
   });
@@ -189,6 +227,98 @@ describe("isWhenValid", () => {
 
   it("accepts an end of 24:00 on the same calendar day", () => {
     expect(isWhenValid({ date: "2026-08-14", start: "23:00", end: "24:00" }, now)).toBe(true);
+  });
+});
+
+describe("occurrencePeriodForDate", () => {
+  it("treats January through June as jan_jun", () => {
+    expect(occurrencePeriodForDate("2026-01-01")).toBe("jan_jun");
+    expect(occurrencePeriodForDate("2026-06-30")).toBe("jan_jun");
+  });
+
+  it("treats July through December as jul_dec", () => {
+    expect(occurrencePeriodForDate("2026-07-01")).toBe("jul_dec");
+    expect(occurrencePeriodForDate("2026-12-31")).toBe("jul_dec");
+  });
+
+  it("returns null for an invalid date", () => {
+    expect(occurrencePeriodForDate("not-a-date")).toBe(null);
+  });
+});
+
+describe("isSameWeekday", () => {
+  it("accepts dates seven days apart", () => {
+    expect(isSameWeekday("2026-08-20", "2026-08-27")).toBe(true);
+  });
+
+  it("rejects dates on different weekdays", () => {
+    expect(isSameWeekday("2026-08-20", "2026-08-28")).toBe(false);
+  });
+});
+
+describe("weeklyOccurrenceDates", () => {
+  it("generates every 7 days from first through last, inclusive", () => {
+    expect(weeklyOccurrenceDates("2026-08-20", "2026-09-10")).toEqual([
+      "2026-08-20",
+      "2026-08-27",
+      "2026-09-03",
+      "2026-09-10",
+    ]);
+  });
+
+  it("returns a single date when first equals last", () => {
+    expect(weeklyOccurrenceDates("2026-08-20", "2026-08-20")).toEqual(["2026-08-20"]);
+  });
+
+  it("returns an empty list when last is before first", () => {
+    expect(weeklyOccurrenceDates("2026-08-27", "2026-08-20")).toEqual([]);
+  });
+});
+
+describe("isRecurringWhenValid", () => {
+  const now = new Date("2026-08-13T12:00:00");
+  const valid = recurringWhen({
+    firstOccurrenceDate: "2026-08-20",
+    lastOccurrenceDate: "2026-09-24",
+    startTime: "09:00",
+    endTime: "10:00",
+    roomIds: ["room-1"],
+  });
+
+  it("accepts a complete, same-weekday, same-use-period range with rooms", () => {
+    expect(isRecurringWhenValid(valid, now)).toBe(true);
+  });
+
+  it("rejects a blank recurring When", () => {
+    expect(isRecurringWhenValid(blankRecurringWhen, now)).toBe(false);
+  });
+
+  it("rejects a first occurrence before today", () => {
+    expect(isRecurringWhenValid({ ...valid, firstOccurrenceDate: "2026-08-12" }, now)).toBe(false);
+  });
+
+  it("rejects a last occurrence before the first", () => {
+    expect(isRecurringWhenValid({ ...valid, lastOccurrenceDate: "2026-08-13" }, now)).toBe(false);
+  });
+
+  it("rejects a last occurrence on a different weekday", () => {
+    expect(isRecurringWhenValid({ ...valid, lastOccurrenceDate: "2026-09-25" }, now)).toBe(false);
+  });
+
+  it("rejects a range spanning two use periods", () => {
+    expect(
+      isRecurringWhenValid({ ...valid, firstOccurrenceDate: "2026-06-25", lastOccurrenceDate: "2026-07-30" }, now)
+    ).toBe(false);
+  });
+
+  it("rejects a missing or inverted shared time window", () => {
+    expect(isRecurringWhenValid({ ...valid, startTime: null, endTime: null }, now)).toBe(false);
+    expect(isRecurringWhenValid({ ...valid, startTime: "10:00", endTime: "09:00" }, now)).toBe(false);
+    expect(isRecurringWhenValid({ ...valid, startTime: "10:00", endTime: "10:00" }, now)).toBe(false);
+  });
+
+  it("rejects an empty room selection", () => {
+    expect(isRecurringWhenValid({ ...valid, roomIds: [] }, now)).toBe(false);
   });
 });
 

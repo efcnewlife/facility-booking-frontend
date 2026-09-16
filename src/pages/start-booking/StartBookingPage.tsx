@@ -1,34 +1,43 @@
-import facilityService from "@/api/services/facilityService";
+import facilityService, { type RecurringBookingSeriesDetail } from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
 import ChoicePill from "@/components/booking/ChoicePill";
 import StartBookingProgress from "@/components/booking/StartBookingProgress";
 import { useAuth } from "@/context/AuthContext";
 import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
+import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
+import { buildCreateRecurringBookingSeriesPayload } from "@/utils/recurringBookingSeries";
 import { clearStartBookingState } from "@/utils/startBookingEntry";
 import {
   buildRoomsSearchQuery,
   canAdvance,
-  isStartBookingStep,
+  isSameWeekday,
   isWhenEndAfterStart,
+  isStartBookingStep,
   nextStep,
   previousStep,
   toRoomsSearchParams,
+  occurrencePeriodForDate,
+  weeklyOccurrenceDates,
   type BookingFrequency,
+  type RecurringWhenValue,
   type StartBookingAnswers,
   type StartBookingStep,
 } from "@/utils/startBookingFlow";
+import { MAX_BOOKING_LINES, type RoomDay } from "@/utils/timetableRules";
 import {
   Alert,
   Button,
+  Checkbox,
   DatePicker,
   Select,
+  Spinner,
   TimePicker,
   type DatePickerValue,
   type TimePickerValue,
 } from "@efcnewlife/newlife-ui";
 import moment from "moment";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdArrowBack } from "react-icons/md";
 import { useNavigate, useSearchParams } from "react-router";
@@ -70,6 +79,16 @@ const StartBookingPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recurringFirstDate, setRecurringFirstDate] = useState<DatePickerValue>(null);
+  const [recurringLastDate, setRecurringLastDate] = useState<DatePickerValue>(null);
+  const [recurringStartValue, setRecurringStartValue] = useState<TimePickerValue>(null);
+  const [recurringEndValue, setRecurringEndValue] = useState<TimePickerValue>(null);
+  const [recurringRoomIds, setRecurringRoomIds] = useState<string[]>([]);
+  const [recurringRooms, setRecurringRooms] = useState<RoomDay[]>([]);
+  const [recurringRoomsLoading, setRecurringRoomsLoading] = useState(false);
+  const [maxRecurringRooms, setMaxRecurringRooms] = useState(MAX_BOOKING_LINES);
+  const [submittingSeries, setSubmittingSeries] = useState(false);
+  const [seriesResult, setSeriesResult] = useState<RecurringBookingSeriesDetail | null>(null);
   const now = new Date();
   const minDate = moment(now).format("YYYY-MM-DD");
   const maxDate = moment(now).add(1, "year").format("YYYY-MM-DD");
@@ -80,14 +99,57 @@ const StartBookingPage = () => {
     end: endValue?.format("HH:mm") ?? null,
   };
 
+  const recurringFirstOccurrenceDate = recurringFirstDate?.format("YYYY-MM-DD") ?? null;
+  const recurringLastOccurrenceDate = recurringLastDate?.format("YYYY-MM-DD") ?? null;
+  const recurringWhen: RecurringWhenValue = {
+    firstOccurrenceDate: recurringFirstOccurrenceDate,
+    lastOccurrenceDate: recurringLastOccurrenceDate,
+    startTime: recurringStartValue?.format("HH:mm") ?? null,
+    endTime: recurringEndValue?.format("HH:mm") ?? null,
+    roomIds: recurringRoomIds,
+  };
+
   const answers: StartBookingAnswers = {
     isMinistryBooking,
     ministryId,
     frequency,
     when,
+    recurringWhen,
   };
   const canGoForward = canAdvance(step, answers, now);
   const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
+
+  const recurringWeekdayMismatch =
+    Boolean(recurringFirstOccurrenceDate) &&
+    Boolean(recurringLastOccurrenceDate) &&
+    !isSameWeekday(recurringFirstOccurrenceDate as string, recurringLastOccurrenceDate as string);
+  const recurringUsePeriodMismatch =
+    !recurringWeekdayMismatch &&
+    Boolean(recurringFirstOccurrenceDate) &&
+    Boolean(recurringLastOccurrenceDate) &&
+    occurrencePeriodForDate(recurringFirstOccurrenceDate as string) !==
+      occurrencePeriodForDate(recurringLastOccurrenceDate as string);
+  const recurringLastOccurrenceError = recurringWeekdayMismatch
+    ? t("startBooking.recurringWhen.weekdayMismatch")
+    : recurringUsePeriodMismatch
+      ? t("startBooking.recurringWhen.usePeriodMismatch")
+      : undefined;
+  const recurringEndTimeError = isWhenEndAfterStart({
+    date: null,
+    start: recurringWhen.startTime,
+    end: recurringWhen.endTime,
+  })
+    ? undefined
+    : t("startBooking.when.endAfterStart");
+  const recurringOccurrenceDates = useMemo(() => {
+    if (recurringWeekdayMismatch || recurringUsePeriodMismatch) {
+      return [];
+    }
+    if (!recurringFirstOccurrenceDate || !recurringLastOccurrenceDate) {
+      return [];
+    }
+    return weeklyOccurrenceDates(recurringFirstOccurrenceDate, recurringLastOccurrenceDate);
+  }, [recurringFirstOccurrenceDate, recurringLastOccurrenceDate, recurringUsePeriodMismatch, recurringWeekdayMismatch]);
 
   const goToStep = useCallback(
     (next: StartBookingStep, ministryChoice: boolean | null = isMinistryBooking) => {
@@ -128,6 +190,66 @@ const StartBookingPage = () => {
     void clearStartBookingState(window.localStorage, () => facilityService.deleteAllMyBookingDrafts());
   }, []);
 
+  useEffect(() => {
+    if (step !== "recurring_when" || !recurringFirstOccurrenceDate) {
+      return;
+    }
+    let cancelled = false;
+    setRecurringRoomsLoading(true);
+    facilityService
+      .getAvailability(recurringFirstOccurrenceDate, isMinistryBooking ? ministryId : null)
+      .then(({ rooms: items, maxBookingLines: cap }) => {
+        if (cancelled) {
+          return;
+        }
+        setRecurringRooms(items);
+        setMaxRecurringRooms(cap);
+        setRecurringRoomIds((current) => current.filter((id) => items.some((room) => room.id === id)));
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRecurringRooms([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) {
+          setRecurringRoomsLoading(false);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [step, recurringFirstOccurrenceDate, isMinistryBooking, ministryId]);
+
+  const toggleRecurringRoom = (roomId: string) => {
+    setRecurringRoomIds((current) => {
+      if (current.includes(roomId)) {
+        return current.filter((id) => id !== roomId);
+      }
+      if (current.length >= maxRecurringRooms) {
+        return current;
+      }
+      return [...current, roomId];
+    });
+  };
+
+  const handleCreateSeries = async () => {
+    const payload = buildCreateRecurringBookingSeriesPayload(answers, now);
+    if (!payload) {
+      return;
+    }
+    setSubmittingSeries(true);
+    setError(null);
+    try {
+      const result = await facilityService.createBookingSeries(payload);
+      setSeriesResult(result);
+    } catch (err) {
+      setError(resolveRecurringBookingSeriesErrorMessage(err));
+    } finally {
+      setSubmittingSeries(false);
+    }
+  };
+
   const handleMinistryChoice = (value: string) => {
     const isMinistry = value === "yes";
     if (!isMinistry) {
@@ -167,12 +289,21 @@ const StartBookingPage = () => {
       );
       return;
     }
+    if (next === "create_series") {
+      void handleCreateSeries();
+      return;
+    }
     if (next) {
       goToStep(next);
     }
   };
 
-  const continueLabel = step === "when" ? t("startBooking.search") : t("startBooking.continue");
+  const continueLabel =
+    step === "when"
+      ? t("startBooking.search")
+      : step === "recurring_when"
+        ? t("startBooking.recurringWhen.create")
+        : t("startBooking.continue");
 
   return (
     <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col items-center px-6 py-8 sm:px-8">
@@ -275,16 +406,6 @@ const StartBookingPage = () => {
               value="repeated"
             />
           </div>
-          {frequency === "repeated" ? (
-            <Alert
-              className="mt-6"
-              message={t("startBooking.frequency.repeatedUnavailableMessage")}
-              size="lg"
-              title={t("startBooking.frequency.repeatedUnavailableTitle")}
-              variant="info"
-              width="full"
-            />
-          ) : null}
         </section>
       ) : null}
 
@@ -325,11 +446,141 @@ const StartBookingPage = () => {
         </section>
       ) : null}
 
+      {step === "recurring_when" && seriesResult ? (
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">
+            {t("startBooking.recurringResult.title")}
+          </h1>
+          <div className="mt-8 w-full space-y-4">
+            <Alert
+              message={t("startBooking.recurringResult.pendingPaymentMessage", {
+                deadline: moment(seriesResult.paymentHoldExpiresAt).format("LLL"),
+              })}
+              size="lg"
+              title={t("startBooking.recurringResult.pendingPaymentTitle")}
+              variant="info"
+              width="full"
+            />
+            <dl className="grid grid-cols-2 gap-3 rounded-lg border border-outline p-4">
+              <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.total")}</dt>
+              <dd className="text-right text-sm font-semibold text-on-surface">
+                {seriesResult.quotedAmount} {seriesResult.currency}
+              </dd>
+              <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.holdDeadline")}</dt>
+              <dd className="text-right text-sm font-semibold text-on-surface">
+                {moment(seriesResult.paymentHoldExpiresAt).format("LLL")}
+              </dd>
+              <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.initialOccurrence")}</dt>
+              <dd className="text-right text-sm font-semibold text-on-surface">
+                {moment(seriesResult.firstOccurrenceDate).format("LL")} {seriesResult.localStartTime.slice(0, 5)}–
+                {seriesResult.localEndTime.slice(0, 5)}
+              </dd>
+              <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.occurrenceCount")}</dt>
+              <dd className="text-right text-sm font-semibold text-on-surface">
+                {t("startBooking.recurringWhen.occurrenceCount", { count: seriesResult.occurrenceCount })}
+              </dd>
+              <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.rooms")}</dt>
+              <dd className="text-right text-sm font-semibold text-on-surface">
+                {(seriesResult.occurrences[0]?.facilityIds ?? [])
+                  .map((facilityId) => recurringRooms.find((room) => room.id === facilityId)?.name || facilityId)
+                  .join(", ")}
+              </dd>
+            </dl>
+          </div>
+          <Button className="mt-8" onClick={() => navigate("/")} size="md" variant="primary">
+            {t("startBooking.recurringResult.backToHome")}
+          </Button>
+        </section>
+      ) : null}
+
+      {step === "recurring_when" && !seriesResult ? (
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">
+            {t("startBooking.recurringWhen.title")}
+          </h1>
+          <div className="mt-8 w-full space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              <DatePicker
+                id="recurring-when-first"
+                label={t("startBooking.recurringWhen.firstOccurrence")}
+                minDate={minDate}
+                onChange={(value) => setRecurringFirstDate(value)}
+                placeholder={t("startBooking.when.datePlaceholder")}
+                required
+                value={recurringFirstDate}
+              />
+              <DatePicker
+                disabled={!recurringFirstOccurrenceDate}
+                error={recurringLastOccurrenceError}
+                id="recurring-when-last"
+                label={t("startBooking.recurringWhen.lastOccurrence")}
+                minDate={recurringFirstOccurrenceDate ?? minDate}
+                onChange={(value) => setRecurringLastDate(value)}
+                placeholder={t("startBooking.when.datePlaceholder")}
+                required
+                value={recurringLastDate}
+              />
+            </div>
+            {recurringOccurrenceDates.length > 0 ? (
+              <p className="text-sm text-on-surface-variant">
+                {t("startBooking.recurringWhen.occurrenceCount", { count: recurringOccurrenceDates.length })}
+              </p>
+            ) : null}
+            <div className="grid grid-cols-2 gap-3">
+              <TimePicker
+                ampm
+                id="recurring-when-start"
+                label={t("startBooking.recurringWhen.start")}
+                onChange={(value) => setRecurringStartValue(value)}
+                placeholder={t("startBooking.when.startPlaceholder")}
+                value={recurringStartValue}
+              />
+              <TimePicker
+                ampm
+                error={recurringEndTimeError}
+                id="recurring-when-end"
+                label={t("startBooking.recurringWhen.end")}
+                onChange={(value) => setRecurringEndValue(value)}
+                placeholder={t("startBooking.when.endPlaceholder")}
+                value={recurringEndValue}
+              />
+            </div>
+            <div>
+              <p className="mb-2 text-sm font-medium text-on-surface">
+                {t("startBooking.recurringWhen.rooms", { max: maxRecurringRooms })}
+              </p>
+              {!recurringFirstOccurrenceDate ? (
+                <p className="text-sm text-on-surface-variant">{t("startBooking.recurringWhen.roomsNeedDate")}</p>
+              ) : recurringRoomsLoading ? (
+                <Spinner showText size="sm" text={t("startBooking.recurringWhen.roomsLoading")} />
+              ) : recurringRooms.length === 0 ? (
+                <p className="text-sm text-on-surface-variant">{t("startBooking.recurringWhen.roomsEmpty")}</p>
+              ) : (
+                <div className="grid grid-cols-2 gap-2">
+                  {recurringRooms.map((room) => (
+                    <Checkbox
+                      checked={recurringRoomIds.includes(room.id)}
+                      disabled={!recurringRoomIds.includes(room.id) && recurringRoomIds.length >= maxRecurringRooms}
+                      id={`recurring-room-${room.id}`}
+                      key={room.id}
+                      label={`${room.name} (${room.capacity})`}
+                      onChange={() => toggleRecurringRoom(room.id)}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      ) : null}
+
       <div className="mt-10 grid w-full grid-cols-3 items-center gap-3">
         <div className="justify-self-start">
-          <Button onClick={handleBack} size="md" startIcon={<MdArrowBack className="size-4" />} variant="outline">
-            {t("startBooking.back")}
-          </Button>
+          {step === "recurring_when" && seriesResult ? null : (
+            <Button onClick={handleBack} size="md" startIcon={<MdArrowBack className="size-4" />} variant="outline">
+              {t("startBooking.back")}
+            </Button>
+          )}
         </div>
         <div className="justify-self-center">
           {step === "select_ministry" ? (
@@ -339,9 +590,11 @@ const StartBookingPage = () => {
           ) : null}
         </div>
         <div className="justify-self-end">
-          <Button disabled={!canGoForward} onClick={handleContinue} size="md" variant="primary">
-            {continueLabel}
-          </Button>
+          {step === "recurring_when" && seriesResult ? null : (
+            <Button disabled={!canGoForward || submittingSeries} onClick={handleContinue} size="md" variant="primary">
+              {submittingSeries ? t("startBooking.loading") : continueLabel}
+            </Button>
+          )}
         </div>
       </div>
 

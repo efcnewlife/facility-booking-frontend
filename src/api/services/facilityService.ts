@@ -166,6 +166,110 @@ const mapBookingDraftDetail = (data: ApiBookingDraftDetail, fallbackId: string):
   };
 };
 
+export interface CreateRecurringBookingSeriesRoomInput {
+  facilityId: string;
+  sequence?: number;
+}
+
+export interface CreateRecurringBookingSeriesPayload {
+  ministryId?: string | null;
+  firstOccurrenceDate: string;
+  lastOccurrenceDate: string;
+  localStartTime: string;
+  localEndTime: string;
+  isMissionAligned?: boolean;
+  rooms: CreateRecurringBookingSeriesRoomInput[];
+}
+
+interface ApiRecurringBookingOccurrence {
+  id: string;
+  startAt?: string;
+  start_at?: string;
+  endAt?: string;
+  end_at?: string;
+  status?: string;
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  currency?: string | null;
+  facilityIds?: string[];
+  facility_ids?: string[];
+}
+
+interface ApiRecurringBookingSeriesDetail {
+  id: string;
+  ministryId?: string | null;
+  ministry_id?: string | null;
+  firstOccurrenceDate?: string;
+  first_occurrence_date?: string;
+  lastOccurrenceDate?: string;
+  last_occurrence_date?: string;
+  localStartTime?: string;
+  local_start_time?: string;
+  localEndTime?: string;
+  local_end_time?: string;
+  status?: string;
+  paymentHoldExpiresAt?: string;
+  payment_hold_expires_at?: string;
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  currency?: string | null;
+  occurrenceCount?: number;
+  occurrence_count?: number;
+  isPriority?: boolean;
+  is_priority?: boolean;
+  occurrences?: ApiRecurringBookingOccurrence[];
+}
+
+export interface RecurringBookingSeriesOccurrence {
+  id: string;
+  startAt: string;
+  endAt: string;
+  status: string;
+  quotedAmount: string | number | null;
+  currency: string | null;
+  facilityIds: string[];
+}
+
+export interface RecurringBookingSeriesDetail {
+  id: string;
+  ministryId: string | null;
+  firstOccurrenceDate: string;
+  lastOccurrenceDate: string;
+  localStartTime: string;
+  localEndTime: string;
+  status: string;
+  paymentHoldExpiresAt: string;
+  quotedAmount: string | number | null;
+  currency: string | null;
+  occurrenceCount: number;
+  isPriority: boolean;
+  occurrences: RecurringBookingSeriesOccurrence[];
+}
+
+const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail): RecurringBookingSeriesDetail => ({
+  id: String(data.id),
+  ministryId: data.ministryId ?? data.ministry_id ?? null,
+  firstOccurrenceDate: String(data.firstOccurrenceDate ?? data.first_occurrence_date ?? ""),
+  lastOccurrenceDate: String(data.lastOccurrenceDate ?? data.last_occurrence_date ?? ""),
+  localStartTime: String(data.localStartTime ?? data.local_start_time ?? ""),
+  localEndTime: String(data.localEndTime ?? data.local_end_time ?? ""),
+  status: String(data.status ?? ""),
+  paymentHoldExpiresAt: String(data.paymentHoldExpiresAt ?? data.payment_hold_expires_at ?? ""),
+  quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
+  currency: data.currency ?? null,
+  occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
+  isPriority: Boolean(data.isPriority ?? data.is_priority),
+  occurrences: (data.occurrences ?? []).map((occurrence) => ({
+    id: String(occurrence.id),
+    startAt: String(occurrence.startAt ?? occurrence.start_at ?? ""),
+    endAt: String(occurrence.endAt ?? occurrence.end_at ?? ""),
+    status: String(occurrence.status ?? ""),
+    quotedAmount: occurrence.quotedAmount ?? occurrence.quoted_amount ?? null,
+    currency: occurrence.currency ?? null,
+    facilityIds: (occurrence.facilityIds ?? occurrence.facility_ids ?? []).map(String),
+  })),
+});
+
 class FacilityService {
   async getAvailability(
     date: string,
@@ -212,6 +316,17 @@ class FacilityService {
       throw new Error(response.message || "Failed to create booking");
     }
     return { id: String(response.data.id) };
+  }
+
+  async createBookingSeries(payload: CreateRecurringBookingSeriesPayload): Promise<RecurringBookingSeriesDetail> {
+    const response = await httpClient.post<ApiRecurringBookingSeriesDetail>(
+      API_ENDPOINTS.FACILITY.BOOKING_SERIES,
+      payload
+    );
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to create recurring booking series");
+    }
+    return mapRecurringBookingSeriesDetail(response.data);
   }
 
   async createBookingDraft(payload: CreateBookingDraftPayload): Promise<{ id: string }> {

@@ -15,7 +15,8 @@ interface StartBookingProgressProps {
 
 const StartBookingProgress = ({ step }: StartBookingProgressProps) => {
   const { t } = useTranslation("booking");
-  const currentIndex = SEGMENTS.findIndex((segment) => segment.step === step);
+  const progressStep = step === "recurring_when" ? "when" : step;
+  const currentIndex = SEGMENTS.findIndex((segment) => segment.step === progressStep);
 
   return (
     <div

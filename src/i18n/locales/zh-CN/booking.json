@@ -362,9 +362,7 @@
       "oneTime": "单次预订",
       "oneTimeHint": "个人或一次性小组活动",
       "repeated": "重复",
-      "repeatedHint": "每周、每月预订",
-      "repeatedUnavailableTitle": "尚不支持重复预订",
-      "repeatedUnavailableMessage": "系列预订尚未开放。请选择单次预订以继续。"
+      "repeatedHint": "每周预订"
     },
     "when": {
       "title": "预订时间是什么时候？",
@@ -375,6 +373,32 @@
       "end": "结束",
       "endPlaceholder": "选择结束时间",
       "endAfterStart": "结束时间必须晚于开始时间"
+    },
+    "recurringWhen": {
+      "title": "设置你的每周重复预订",
+      "firstOccurrence": "首次场次",
+      "lastOccurrence": "最后场次",
+      "start": "开始",
+      "end": "结束",
+      "occurrenceCount": "共 {{count}} 次每周场次",
+      "weekdayMismatch": "最后场次必须与首次场次为同一星期几。",
+      "usePeriodMismatch": "首次与最后场次必须在同一个 1-6 月或 7-12 月使用期间内。",
+      "rooms": "房间（最多 {{max}} 间）－所有房间共用同一时段",
+      "roomsNeedDate": "请先选择首次场次以查看可用房间。",
+      "roomsLoading": "正在加载房间…",
+      "roomsEmpty": "该日期没有可用房间。",
+      "create": "创建预订系列"
+    },
+    "recurringResult": {
+      "title": "预订系列已创建",
+      "pendingPaymentTitle": "待付款",
+      "pendingPaymentMessage": "你的预订系列将保留至 {{deadline}}，请在期限前完成付款以保留此预订。",
+      "total": "总金额",
+      "holdDeadline": "保留期限",
+      "initialOccurrence": "首次场次",
+      "occurrenceCount": "场次数",
+      "rooms": "房间",
+      "backToHome": "返回首页"
     },
     "errors": {
       "title": "发生错误",
@@ -388,7 +412,22 @@
       "ministryPrimaryRequired": "需要一位主要同工。",
       "ownerPositionNoIncumbent": "所选负责职位目前没有在任者，请改选其他职位。",
       "ownerPositionRequired": "请选择负责职位。",
-      "createMinistry": "无法创建事工。"
+      "createMinistry": "无法创建事工。",
+      "createRecurringBooking": "无法创建你的预订系列。",
+      "recurringNotEligible": "仅教会电子邮件账户可以创建重复预订。",
+      "recurringRoomsRequired": "请至少选择一个房间。",
+      "recurringInvalidTimeRange": "请确认场次日期与共用时段是否正确。",
+      "recurringMaxRooms": "你选择的房间数量超过此预订允许的上限。",
+      "recurringWeekdayMismatch": "最后场次必须与首次场次为同一星期几。",
+      "recurringUsePeriod": "首次与最后场次必须在同一个 1-6 月或 7-12 月使用期间内。",
+      "recurringAvailabilityWindow": "这些日期尚未开放重复预订，请选择较接近今天的日期。",
+      "recurringMinOccurrences": "此范围未达最少每周场次数，请选择较晚的最后场次。",
+      "recurringDstNonexistent": "由于夏令时变更，其中一个场次日期没有该当地时间，请选择其他时间。",
+      "recurringDuplicateRoom": "不能重复选择同一个房间。",
+      "recurringMinistryInactive": "此事工目前未启用。",
+      "recurringWeeklyQuota": "你当周已有一笔租借预订，个人租借每周仅限一笔。",
+      "recurringSchedulingConflict": "你选择的其中一个房间在此系列的部分场次已被预订。",
+      "recurringRoomBlackout": "你选择的其中一个房间在此系列的部分场次为关闭状态。"
     }
   },
   "wizard": {

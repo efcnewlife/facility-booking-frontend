@@ -81,8 +81,8 @@ The booking create form finds secondary stewards among active auth users by emai
 _Avoid_: invite-by-email without an existing auth user, searching Member Person records
 
 **Start booking**:
-The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then When. Search leaves this flow for the Timetable. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
-_Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow, leaving a stale cart or Draft behind after restarting
+The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then When. Choosing One-time continues to the Timetable via Search; choosing Repeated continues to its own recurring occurrence form and creates the Recurring Booking Series directly from Start booking — it does not visit the Timetable. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
+_Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow, sending Repeated through the Timetable, leaving a stale cart or Draft behind after restarting
 
 **One-time**:
 A booking on a single calendar day. The date must be today through one year ahead. Each Booking line has its own start–end on that same day; lines cannot cross midnight. A booking with multiple lines cannot span more than one calendar day. One booking may include up to the Booking line cap lines, including more than one line for the same room at different times on that day.
@@ -101,7 +101,7 @@ The post-Search screen: rooms across the top, hours down the side, for one calen
 _Avoid_: Time Table, Calendar as this screen's name, Rooms as the member-facing screen name, cropping the day to open hours only, light green under Unavailable
 
 **Search Bar**:
-The editable summary on the Timetable: Ministry (when shown), Repetition, Date, plus Update search. Controls are one size step larger than before. It does not show start time, end time, or room count. The Ministry field is hidden unless the person is a Ministry member of at least one active ministry they can book for. When the field shows and the search is Non-ministry, it shows None and they may attach such a ministry. Holding the Owner position does not by itself show this field. Update search applies date and ministry changes. Repetition stays One-time in this slice.
+The editable summary on the Timetable: Ministry (when shown), Repetition, Date, plus Update search. Controls are one size step larger than before. It does not show start time, end time, or room count. The Ministry field is hidden unless the person is a Ministry member of at least one active ministry they can book for. When the field shows and the search is Non-ministry, it shows None and they may attach such a ministry. Holding the Owner position does not by itself show this field. Update search applies date and ministry changes. Repetition stays One-time in this slice — Repeated does not reach the Timetable; it is created through its own form from Start booking.
 _Avoid_: Start Time and End Time on the bar, # of rooms, Single/Multiple, Room shortcut, a read-only recap, showing Ministry for Owner position alone, treating pending-only applicants as able to attach a ministry
 
 **Booking cart**:
@@ -199,8 +199,20 @@ The allowed One-time date range: from today through one year ahead (rolling, not
 _Avoid_: calendar year, 365-day fee window as the name of this limit
 
 **Repeated**:
-A booking frequency: the same interval on a repeating schedule (weekly, monthly). Member copy uses this word, not Recurring.
-_Avoid_: Reoccurring, Recurring (in member copy)
+A booking frequency: the same weekly interval on a repeating schedule. Member copy uses this word, not Recurring. Choosing Repeated in Start booking's One-time vs Repeated step continues to the recurring occurrence form, which creates a Recurring Booking Series.
+_Avoid_: Reoccurring, Recurring (in member copy), monthly (this slice is weekly only)
+
+**Recurring Booking Series**:
+The backend resource a Repeated Booking creates: one weekly First occurrence through Last occurrence within a single Use Period, one shared local start–end time window, and one or more rooms all using that same window. A successful create is Pending-payment with a quoted total, a hold deadline, and a materialized weekly occurrence for every date in range. There is no server-side preview/validate call in this slice — Start booking submits the create request directly and shows the resulting validation error or the Pending-payment result.
+_Avoid_: a single Booking with an RRULE field, a client-side dry run before create, treating the result as confirmed
+
+**First occurrence / Last occurrence**:
+The two dates that bound a Recurring Booking Series on Start booking's recurring occurrence form. Both must fall on the same weekday and within one Use Period; occurrences are generated every 7 days from First occurrence through Last occurrence, inclusive.
+_Avoid_: an end date that can land on a different weekday than First occurrence, treating the range as calendar days rather than weekly steps
+
+**Use Period**:
+The fixed Jan-Jun or Jul-Dec half-year a Recurring Booking Series must fit inside; derived from the month of First/Last occurrence, never chosen or sent by the client. The booking-availability window (how far ahead the member may book into an upcoming Use Period) and the minimum occurrence count are Portal-configured System Settings with no member-facing read endpoint in this slice — Start booking relies on the server's validation error, not a client-side precheck, when a range falls outside them.
+_Avoid_: calendar year, a client-computed availability window, blocking Continue on a guessed minimum-occurrence count
 
 **Gym**:
 A named facility room code in the catalog. Members find it on the Timetable like any other room; there is no Start booking shortcut to Gym.

@@ -362,9 +362,7 @@
       "oneTime": "One-time booking",
       "oneTimeHint": "Personal, one-off group events",
       "repeated": "Repeated",
-      "repeatedHint": "Weekly, monthly bookings",
-      "repeatedUnavailableTitle": "Repeated booking is not available yet",
-      "repeatedUnavailableMessage": "Series booking is not available yet. Choose One-time to continue."
+      "repeatedHint": "Weekly bookings"
     },
     "when": {
       "title": "When is your booking?",
@@ -375,6 +373,32 @@
       "end": "End",
       "endPlaceholder": "Select end time",
       "endAfterStart": "End time must be after start time"
+    },
+    "recurringWhen": {
+      "title": "Set up your weekly Repeated Booking",
+      "firstOccurrence": "First occurrence",
+      "lastOccurrence": "Last occurrence",
+      "start": "Start",
+      "end": "End",
+      "occurrenceCount": "{{count}} weekly occurrences",
+      "weekdayMismatch": "Last occurrence must fall on the same weekday as First occurrence.",
+      "usePeriodMismatch": "First and Last occurrence must be in the same Jan-Jun or Jul-Dec use period.",
+      "rooms": "Rooms (up to {{max}}) — every room shares the same time window",
+      "roomsNeedDate": "Choose First occurrence to see available rooms.",
+      "roomsLoading": "Loading rooms...",
+      "roomsEmpty": "No rooms are available for that date.",
+      "create": "Create booking series"
+    },
+    "recurringResult": {
+      "title": "Booking series created",
+      "pendingPaymentTitle": "Pending payment",
+      "pendingPaymentMessage": "Your booking series is on hold until {{deadline}}. Complete payment before then to keep it.",
+      "total": "Total",
+      "holdDeadline": "Hold deadline",
+      "initialOccurrence": "Initial occurrence",
+      "occurrenceCount": "Occurrences",
+      "rooms": "Rooms",
+      "backToHome": "Back to Home"
     },
     "errors": {
       "title": "Something went wrong",
@@ -388,7 +412,22 @@
       "ministryPrimaryRequired": "A primary steward is required.",
       "ownerPositionNoIncumbent": "The selected owner position has no incumbent. Choose another position.",
       "ownerPositionRequired": "An owner position is required.",
-      "createMinistry": "Failed to create ministry."
+      "createMinistry": "Failed to create ministry.",
+      "createRecurringBooking": "Failed to create your booking series.",
+      "recurringNotEligible": "Only church-email accounts can create a Repeated Booking.",
+      "recurringRoomsRequired": "Select at least one room.",
+      "recurringInvalidTimeRange": "Check your occurrence dates and shared time window.",
+      "recurringMaxRooms": "You selected more rooms than this booking allows.",
+      "recurringWeekdayMismatch": "Last occurrence must fall on the same weekday as First occurrence.",
+      "recurringUsePeriod": "First and Last occurrence must be in the same Jan-Jun or Jul-Dec use period.",
+      "recurringAvailabilityWindow": "Repeated Booking is not open for these dates yet. Try dates closer to today.",
+      "recurringMinOccurrences": "This range doesn't meet the minimum number of weekly occurrences. Choose a later Last occurrence.",
+      "recurringDstNonexistent": "That local time doesn't exist on one of these occurrence dates because of a daylight-saving change. Choose a different time.",
+      "recurringDuplicateRoom": "The same room can't be selected twice.",
+      "recurringMinistryInactive": "This ministry is not active.",
+      "recurringWeeklyQuota": "You already have a Rental booking that week. Personal Rentals allow one booking per week.",
+      "recurringSchedulingConflict": "One of your selected rooms is already booked for part of this series.",
+      "recurringRoomBlackout": "One of your selected rooms is closed for part of this series."
     }
   },
   "wizard": {
