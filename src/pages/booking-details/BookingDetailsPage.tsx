@@ -193,7 +193,7 @@ const BookingDetailsPage = () => {
 
   const handleOpenEdit = (sequence: number) => {
     const line = draft.lines.find((item) => item.sequence === sequence);
-    if (!line) {
+    if (!line || !roomForLine(line.facilityId)) {
       return;
     }
     setEditingSequence(sequence);
@@ -322,7 +322,7 @@ const BookingDetailsPage = () => {
                             </div>
                             <span className="flex flex-col gap-2">
                               <Button
-                                disabled={updating}
+                                disabled={updating || !room}
                                 onClick={() => handleOpenEdit(line.sequence)}
                                 size="xs"
                                 variant="outline"

@@ -105,6 +105,9 @@ export interface CreateBookingDraftPayload {
   lines: BookingDraftLineInput[];
 }
 
+/** PATCH replaces a Draft's header and lines wholesale, so the request body shape matches create. */
+export type UpdateBookingDraftPayload = CreateBookingDraftPayload;
+
 interface ApiBookingDraftLine {
   facilityId?: string;
   facility_id?: string;
@@ -234,7 +237,7 @@ class FacilityService {
     }
   }
 
-  async updateBookingDraft(bookingDraftId: string, payload: CreateBookingDraftPayload): Promise<BookingDraftDetail> {
+  async updateBookingDraft(bookingDraftId: string, payload: UpdateBookingDraftPayload): Promise<BookingDraftDetail> {
     try {
       const response = await httpClient.patch<ApiBookingDraftDetail>(
         API_ENDPOINTS.FACILITY.bookingDraft(bookingDraftId),
