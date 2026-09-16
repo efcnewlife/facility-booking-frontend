@@ -81,8 +81,8 @@ The booking create form finds secondary stewards among active auth users by emai
 _Avoid_: invite-by-email without an existing auth user, searching Member Person records
 
 **Start booking**:
-The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then When. Search leaves this flow for the Timetable. There is no Space needed step.
-_Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow
+The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then When. Search leaves this flow for the Timetable. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
+_Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow, leaving a stale cart or Draft behind after restarting
 
 **One-time**:
 A booking on a single calendar day. The date must be today through one year ahead. Each Booking line has its own start–end on that same day; lines cannot cross midnight. A booking with multiple lines cannot span more than one calendar day. One booking may include up to the Booking line cap lines, including more than one line for the same room at different times on that day.
@@ -113,8 +113,8 @@ The maximum number of lines the Booking cart or Booking Details will accept. Bac
 _Avoid_: hardcoding 3 as the limit, assuming the cap can't change without a frontend deploy
 
 **Booking Draft**:
-The backend resource behind Booking Details, identified by `checkoutId` in the URL. Created from the Booking cart when Review Booking is clicked; Edit/Remove on Booking Details update the same Draft in place. Only the member who created it can open it.
-_Avoid_: treating it as a paid or locked reservation, a link safe to share with someone else
+The backend resource behind Booking Details, identified by `checkoutId` in the URL. Created from the Booking cart when Review Booking is clicked; Edit/Remove on Booking Details update the same Draft in place. Only the member who created it can open it. Entering Start Booking again deletes all of that member's Booking Drafts.
+_Avoid_: treating it as a paid or locked reservation, a link safe to share with someone else, expecting a Draft to survive restarting Start Booking
 
 **Booking line**:
 One room plus one start–end interval the member confirmed for a One-time booking, on the same calendar day as every other line in that booking. Lines live in the Booking cart before Review Booking and on Booking Details. The same room may appear on more than one line in one booking.

@@ -1,24 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { BookingCartDraft } from "./bookingCartDraft";
-import {
-  loadTimetableCart,
-  saveTimetableCart,
-  TIMETABLE_CART_STORAGE_KEY,
-  type CartStorage,
-} from "./timetableCartStorage";
-
-const createFakeStorage = (initial: Record<string, string> = {}): CartStorage => {
-  const store = new Map(Object.entries(initial));
-  return {
-    getItem: (key) => (store.has(key) ? store.get(key)! : null),
-    setItem: (key, value) => {
-      store.set(key, value);
-    },
-    removeItem: (key) => {
-      store.delete(key);
-    },
-  };
-};
+import { createFakeStorage } from "./testHelpers/cartStorage";
+import { loadTimetableCart, saveTimetableCart, TIMETABLE_CART_STORAGE_KEY } from "./timetableCartStorage";
 
 const draft: BookingCartDraft = {
   date: "2026-09-14",

@@ -275,6 +275,13 @@ class FacilityService {
     }
   }
 
+  async deleteAllMyBookingDrafts(): Promise<void> {
+    const response = await httpClient.delete(API_ENDPOINTS.FACILITY.BOOKING_DRAFTS);
+    if (!response.success) {
+      throw new Error(response.message || "Failed to delete booking drafts");
+    }
+  }
+
   async listMyBookings(): Promise<unknown> {
     const response = await httpClient.get(API_ENDPOINTS.FACILITY.MY_BOOKINGS);
     if (!response.success) {
