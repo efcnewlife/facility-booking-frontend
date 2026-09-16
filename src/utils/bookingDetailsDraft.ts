@@ -1,6 +1,10 @@
-import type { PreviewQuotePayload } from "@/api/services/facilityService";
+import type {
+  BookingDraftDetail,
+  CreateBookingDraftPayload,
+  PreviewQuotePayload,
+} from "@/api/services/facilityService";
 
-import { combineDateAndClock } from "./bookingDateTime";
+import { clockFromDateTime, combineDateAndClock } from "./bookingDateTime";
 import type { BookingCartDraft, BookingLineDraft } from "./bookingCartDraft";
 import { clockToMinutes, isRoomAvailable, MAX_BOOKING_LINES, type RoomDay } from "./timetableRules";
 
@@ -15,6 +19,7 @@ export interface CreateBookingFromDraftPayload {
     endAt: string;
     sequence: number;
   }>;
+  bookingDraftId?: string | null;
 }
 
 export const lineCoversAvailability = (rooms: RoomDay[], line: BookingLineDraft): boolean => {
@@ -43,31 +48,52 @@ export const envelopeClocks = (lines: BookingLineDraft[]): { start: string; end:
   return { start: minStart, end: maxEnd };
 };
 
+const mapDraftLineToInterval = (
+  date: string,
+  line: BookingLineDraft
+): { facilityId: string; startAt: string; endAt: string; sequence: number } => ({
+  facilityId: line.facilityId,
+  startAt: combineDateAndClock(date, line.start),
+  endAt: combineDateAndClock(date, line.end),
+  sequence: line.sequence,
+});
+
 export const buildPreviewQuotePayload = (draft: BookingCartDraft): PreviewQuotePayload => ({
   ministryId: draft.ministryId || null,
   isMissionAligned: Boolean(draft.ministryId),
-  lines: draft.lines.map((line) => ({
-    facilityId: line.facilityId,
-    startAt: combineDateAndClock(draft.date, line.start),
-    endAt: combineDateAndClock(draft.date, line.end),
-  })),
+  lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
 });
 
-export const buildCreateBookingPayload = (draft: BookingCartDraft): CreateBookingFromDraftPayload => {
+export const buildCreateBookingPayload = (
+  draft: BookingCartDraft,
+  bookingDraftId?: string | null
+): CreateBookingFromDraftPayload => {
   const envelope = envelopeClocks(draft.lines);
   return {
     startAt: combineDateAndClock(draft.date, envelope.start),
     endAt: combineDateAndClock(draft.date, envelope.end),
     ministryId: draft.ministryId || null,
     isMissionAligned: Boolean(draft.ministryId),
-    rooms: draft.lines.map((line) => ({
-      facilityId: line.facilityId,
-      startAt: combineDateAndClock(draft.date, line.start),
-      endAt: combineDateAndClock(draft.date, line.end),
-      sequence: line.sequence,
-    })),
+    rooms: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
+    bookingDraftId: bookingDraftId || null,
   };
 };
+
+export const buildCreateBookingDraftPayload = (draft: BookingCartDraft): CreateBookingDraftPayload => ({
+  ministryId: draft.ministryId || null,
+  lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
+});
+
+export const bookingDraftDetailToCartDraft = (detail: BookingDraftDetail): BookingCartDraft => ({
+  date: detail.date,
+  ministryId: detail.ministryId || undefined,
+  lines: detail.lines.map((line) => ({
+    facilityId: line.facilityId,
+    start: clockFromDateTime(detail.date, line.startAt),
+    end: clockFromDateTime(detail.date, line.endAt),
+    sequence: line.sequence,
+  })),
+});
 
 export const removeLineFromDraft = (draft: BookingCartDraft, sequence: number): BookingCartDraft | null => {
   const lines = draft.lines.filter((line) => line.sequence !== sequence);

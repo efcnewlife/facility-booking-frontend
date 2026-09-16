@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   allLinesCoverAvailability,
+  bookingDraftDetailToCartDraft,
+  buildCreateBookingDraftPayload,
   buildCreateBookingPayload,
   buildPreviewQuotePayload,
   canAddRoomToDraft,
@@ -74,6 +76,52 @@ describe("buildCreateBookingPayload", () => {
     ]);
     expect(payload.rooms[0].startAt).not.toBe(payload.rooms[1].startAt);
     expect(new Date(payload.startAt).getTime()).toBeLessThan(new Date(payload.endAt).getTime());
+    expect(payload.bookingDraftId).toBeNull();
+  });
+
+  it("carries the source Booking Draft id so the backend can dispose of it on success", () => {
+    const payload = buildCreateBookingPayload(baseDraft, "draft-123");
+    expect(payload.bookingDraftId).toBe("draft-123");
+  });
+});
+
+describe("buildCreateBookingDraftPayload", () => {
+  it("maps each cart line to a Booking Draft line, keyed by ministry and sequence", () => {
+    const payload = buildCreateBookingDraftPayload(baseDraft);
+    expect(payload.ministryId).toBe("m-1");
+    expect(payload.lines).toEqual([
+      expect.objectContaining({ facilityId: "room-a", sequence: 1 }),
+      expect.objectContaining({ facilityId: "room-a", sequence: 2 }),
+    ]);
+    expect(payload.lines[0].startAt).not.toBe(payload.lines[1].startAt);
+  });
+});
+
+describe("bookingDraftDetailToCartDraft", () => {
+  it("turns a Booking Draft response back into the cart draft shape the page renders", () => {
+    const cartDraft = bookingDraftDetailToCartDraft({
+      id: "draft-123",
+      date: "2026-09-01",
+      ministryId: "m-1",
+      lines: [
+        { facilityId: "room-a", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 },
+      ],
+    });
+    expect(cartDraft).toEqual({
+      date: "2026-09-01",
+      ministryId: "m-1",
+      lines: [{ facilityId: "room-a", start: "10:00", end: "11:00", sequence: 1 }],
+    });
+  });
+
+  it("falls back to undefined ministryId when the Draft has none", () => {
+    const cartDraft = bookingDraftDetailToCartDraft({
+      id: "draft-123",
+      date: "2026-09-01",
+      ministryId: null,
+      lines: [],
+    });
+    expect(cartDraft.ministryId).toBeUndefined();
   });
 });
 

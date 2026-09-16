@@ -4,12 +4,8 @@ import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import type { MinistryItem } from "@/types/ministry";
-import {
-  cartStateToDraft,
-  draftToCartState,
-  toBookingCartDraftParams,
-  whenSeedFromSearch,
-} from "@/utils/bookingCartDraft";
+import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
+import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
 import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import { parseRoomsSearchQuery, toRoomsSearchParams, type RoomsSearchQuery } from "@/utils/startBookingFlow";
@@ -522,7 +518,7 @@ const RoomFilterPage = () => {
     handlePinCell(room, cellStart);
   };
 
-  const handleReviewBooking = () => {
+  const handleReviewBooking = async () => {
     if (cartState.lines.length === 0 || !appliedDate) {
       return;
     }
@@ -530,10 +526,15 @@ const RoomFilterPage = () => {
     if (!nextDraft) {
       return;
     }
-    navigate({
-      pathname: "/booking-details",
-      search: toBookingCartDraftParams(nextDraft).toString(),
-    });
+    try {
+      const created = await facilityService.createBookingDraft(buildCreateBookingDraftPayload(nextDraft));
+      navigate({
+        pathname: "/booking-details",
+        search: new URLSearchParams({ checkoutId: created.id }).toString(),
+      });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : t("timetable.reviewError"));
+    }
   };
 
   const formatClockForLocale = (clock: string) => formatClock(clock, i18nInstance.language);
@@ -893,7 +894,7 @@ const RoomFilterPage = () => {
               return next;
             });
           }}
-          onReview={handleReviewBooking}
+          onReview={() => void handleReviewBooking()}
           rooms={rooms}
         />
       </div>

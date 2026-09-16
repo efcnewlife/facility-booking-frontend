@@ -20,6 +20,7 @@ interface CreateBookingPayload {
     sequence?: number;
   }>;
   remark?: string;
+  bookingDraftId?: string | null;
 }
 
 export interface PreviewQuoteLinePayload {
@@ -92,6 +93,57 @@ export class BookingNotFoundError extends Error {
   }
 }
 
+export interface BookingDraftLineInput {
+  facilityId: string;
+  startAt: string;
+  endAt: string;
+  sequence: number;
+}
+
+export interface CreateBookingDraftPayload {
+  ministryId?: string | null;
+  lines: BookingDraftLineInput[];
+}
+
+interface ApiBookingDraftLine {
+  facilityId?: string;
+  facility_id?: string;
+  startAt?: string;
+  start_at?: string;
+  endAt?: string;
+  end_at?: string;
+  sequence?: number;
+}
+
+interface ApiBookingDraftDetail {
+  id?: string;
+  date?: string;
+  ministryId?: string | null;
+  ministry_id?: string | null;
+  lines?: ApiBookingDraftLine[];
+}
+
+export interface BookingDraftDetailLine {
+  facilityId: string;
+  startAt: string;
+  endAt: string;
+  sequence: number;
+}
+
+export interface BookingDraftDetail {
+  id: string;
+  date: string;
+  ministryId: string | null;
+  lines: BookingDraftDetailLine[];
+}
+
+export class BookingDraftNotFoundError extends Error {
+  constructor() {
+    super("Booking draft not found");
+    this.name = "BookingDraftNotFoundError";
+  }
+}
+
 const isApiError = (err: unknown): err is ApiError => {
   return typeof err === "object" && err !== null && "code" in err;
 };
@@ -142,6 +194,41 @@ class FacilityService {
       throw new Error(response.message || "Failed to create booking");
     }
     return { id: String(response.data.id) };
+  }
+
+  async createBookingDraft(payload: CreateBookingDraftPayload): Promise<{ id: string }> {
+    const response = await httpClient.post<{ id: string }>(API_ENDPOINTS.FACILITY.BOOKING_DRAFTS, payload);
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || "Failed to create booking draft");
+    }
+    return { id: String(response.data.id) };
+  }
+
+  async getBookingDraft(bookingDraftId: string): Promise<BookingDraftDetail> {
+    try {
+      const response = await httpClient.get<ApiBookingDraftDetail>(API_ENDPOINTS.FACILITY.bookingDraft(bookingDraftId));
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to load booking draft");
+      }
+      const data = response.data;
+      const rawLines = data.lines ?? [];
+      return {
+        id: data.id ? String(data.id) : bookingDraftId,
+        date: String(data.date ?? ""),
+        ministryId: data.ministryId ?? data.ministry_id ?? null,
+        lines: rawLines.map((line) => ({
+          facilityId: String(line.facilityId ?? line.facility_id ?? ""),
+          startAt: String(line.startAt ?? line.start_at ?? ""),
+          endAt: String(line.endAt ?? line.end_at ?? ""),
+          sequence: Number(line.sequence ?? 0),
+        })),
+      };
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingDraftNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to load booking draft");
+    }
   }
 
   async getMyBooking(bookingId: string): Promise<MemberBookingDetail> {

@@ -195,6 +195,7 @@
     "success": "预订已创建。",
     "loadError": "无法加载房间时段。",
     "createError": "无法创建预订。",
+    "reviewError": "无法开始结账。",
     "halfFilledTime": "开始与结束时间需同时空白或同时填写。",
     "whenInvalid": "日期需为今天起一年内。若填写时间，须在同一天且开始早于结束。",
     "errorTitle": "无法继续",
