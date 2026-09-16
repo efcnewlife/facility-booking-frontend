@@ -10,6 +10,7 @@ import {
   envelopeClocks,
   lineCoversAvailability,
   removeLineFromDraft,
+  replaceLineInDraft,
 } from "./bookingDetailsDraft";
 import type { BookingCartDraft } from "./bookingCartDraft";
 import type { RoomDay } from "./timetableRules";
@@ -151,6 +152,21 @@ describe("removeLineFromDraft", () => {
   it("drops one line by sequence and returns null when empty", () => {
     expect(removeLineFromDraft(baseDraft, 1)?.lines).toHaveLength(1);
     expect(removeLineFromDraft({ ...baseDraft, lines: [baseDraft.lines[0]] }, 1)).toBeNull();
+  });
+});
+
+describe("replaceLineInDraft", () => {
+  it("replaces the matching line's time in place, leaving other lines and sequence untouched", () => {
+    const next = replaceLineInDraft(baseDraft, 1, { facilityId: "room-a", start: "12:00", end: "13:00" });
+    expect(next.lines).toEqual([
+      { sequence: 1, facilityId: "room-a", start: "12:00", end: "13:00" },
+      baseDraft.lines[1],
+    ]);
+  });
+
+  it("leaves the draft unchanged when the sequence is not found", () => {
+    const next = replaceLineInDraft(baseDraft, 99, { facilityId: "room-a", start: "12:00", end: "13:00" });
+    expect(next).toEqual(baseDraft);
   });
 });
 

@@ -210,6 +210,10 @@ class HttpClient {
     return this.request<T>({ method: "PUT", url, data });
   }
 
+  async patch<T = unknown>(url: string, data?: unknown): Promise<ApiResponse<T>> {
+    return this.request<T>({ method: "PATCH", url, data });
+  }
+
   private isRefreshRequest(config: AxiosRequestConfig): boolean {
     const url = typeof config.url === "string" ? config.url : "";
     return url === API_ENDPOINTS.AUTH.REFRESH;

@@ -148,6 +148,21 @@ const isApiError = (err: unknown): err is ApiError => {
   return typeof err === "object" && err !== null && "code" in err;
 };
 
+const mapBookingDraftDetail = (data: ApiBookingDraftDetail, fallbackId: string): BookingDraftDetail => {
+  const rawLines = data.lines ?? [];
+  return {
+    id: data.id ? String(data.id) : fallbackId,
+    date: String(data.date ?? ""),
+    ministryId: data.ministryId ?? data.ministry_id ?? null,
+    lines: rawLines.map((line) => ({
+      facilityId: String(line.facilityId ?? line.facility_id ?? ""),
+      startAt: String(line.startAt ?? line.start_at ?? ""),
+      endAt: String(line.endAt ?? line.end_at ?? ""),
+      sequence: Number(line.sequence ?? 0),
+    })),
+  };
+};
+
 class FacilityService {
   async getAvailability(
     date: string,
@@ -210,24 +225,30 @@ class FacilityService {
       if (!response.success || !response.data) {
         throw new Error(response.message || "Failed to load booking draft");
       }
-      const data = response.data;
-      const rawLines = data.lines ?? [];
-      return {
-        id: data.id ? String(data.id) : bookingDraftId,
-        date: String(data.date ?? ""),
-        ministryId: data.ministryId ?? data.ministry_id ?? null,
-        lines: rawLines.map((line) => ({
-          facilityId: String(line.facilityId ?? line.facility_id ?? ""),
-          startAt: String(line.startAt ?? line.start_at ?? ""),
-          endAt: String(line.endAt ?? line.end_at ?? ""),
-          sequence: Number(line.sequence ?? 0),
-        })),
-      };
+      return mapBookingDraftDetail(response.data, bookingDraftId);
     } catch (err) {
       if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
         throw new BookingDraftNotFoundError();
       }
       throw err instanceof Error ? err : new Error("Failed to load booking draft");
+    }
+  }
+
+  async updateBookingDraft(bookingDraftId: string, payload: CreateBookingDraftPayload): Promise<BookingDraftDetail> {
+    try {
+      const response = await httpClient.patch<ApiBookingDraftDetail>(
+        API_ENDPOINTS.FACILITY.bookingDraft(bookingDraftId),
+        payload
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to update booking draft");
+      }
+      return mapBookingDraftDetail(response.data, bookingDraftId);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingDraftNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to update booking draft");
     }
   }
 
