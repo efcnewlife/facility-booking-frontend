@@ -1,9 +1,11 @@
+import facilityService from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
 import ChoicePill from "@/components/booking/ChoicePill";
 import StartBookingProgress from "@/components/booking/StartBookingProgress";
 import { useAuth } from "@/context/AuthContext";
 import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
+import { clearStartBookingState } from "@/utils/startBookingEntry";
 import {
   buildRoomsSearchQuery,
   canAdvance,
@@ -121,6 +123,10 @@ const StartBookingPage = () => {
       void loadMinistries();
     }
   }, [loadMinistries, step]);
+
+  useEffect(() => {
+    void clearStartBookingState(window.localStorage, () => facilityService.deleteAllMyBookingDrafts());
+  }, []);
 
   const handleMinistryChoice = (value: string) => {
     const isMinistry = value === "yes";

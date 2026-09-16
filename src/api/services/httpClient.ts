@@ -214,6 +214,10 @@ class HttpClient {
     return this.request<T>({ method: "PATCH", url, data });
   }
 
+  async delete<T = unknown>(url: string): Promise<ApiResponse<T>> {
+    return this.request<T>({ method: "DELETE", url });
+  }
+
   private isRefreshRequest(config: AxiosRequestConfig): boolean {
     const url = typeof config.url === "string" ? config.url : "";
     return url === API_ENDPOINTS.AUTH.REFRESH;
