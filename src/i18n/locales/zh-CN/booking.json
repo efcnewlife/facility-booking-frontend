@@ -222,6 +222,7 @@
     "remove": "移除",
     "confirm": "确认",
     "unavailable": "有一条或多条预订项目已无法预约。请返回时间表修改草稿。",
+    "updateError": "更新预订草稿失败。",
     "paymentSummary": "付款摘要",
     "rate": "费率",
     "ministryDiscount": "事工折扣",

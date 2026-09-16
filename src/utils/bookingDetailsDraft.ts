@@ -103,6 +103,17 @@ export const removeLineFromDraft = (draft: BookingCartDraft, sequence: number): 
   return { ...draft, lines };
 };
 
+export const replaceLineInDraft = (
+  draft: BookingCartDraft,
+  sequence: number,
+  line: Pick<BookingLineDraft, "facilityId" | "start" | "end">
+): BookingCartDraft => {
+  return {
+    ...draft,
+    lines: draft.lines.map((item) => (item.sequence === sequence ? { ...item, ...line } : item)),
+  };
+};
+
 export const canAddRoomToDraft = (draft: BookingCartDraft, maxLines: number = MAX_BOOKING_LINES): boolean => {
   return draft.lines.length < maxLines;
 };

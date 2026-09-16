@@ -222,6 +222,7 @@
     "remove": "Remove",
     "confirm": "Confirm",
     "unavailable": "One or more booking lines are no longer available. Return to the Timetable to change the draft.",
+    "updateError": "Failed to update your booking draft.",
     "paymentSummary": "Payment Summary",
     "rate": "Rate",
     "ministryDiscount": "Ministry discount",
