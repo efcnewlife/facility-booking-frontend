@@ -184,26 +184,39 @@ export interface CreateRecurringBookingSeriesPayload {
 interface ApiRecurringBookingOccurrence {
   id: string;
   startAt?: string;
+  start_at?: string;
   endAt?: string;
+  end_at?: string;
   status?: string;
   quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
   currency?: string | null;
   facilityIds?: string[];
+  facility_ids?: string[];
 }
 
 interface ApiRecurringBookingSeriesDetail {
   id: string;
   ministryId?: string | null;
+  ministry_id?: string | null;
   firstOccurrenceDate?: string;
+  first_occurrence_date?: string;
   lastOccurrenceDate?: string;
+  last_occurrence_date?: string;
   localStartTime?: string;
+  local_start_time?: string;
   localEndTime?: string;
+  local_end_time?: string;
   status?: string;
   paymentHoldExpiresAt?: string;
+  payment_hold_expires_at?: string;
   quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
   currency?: string | null;
   occurrenceCount?: number;
+  occurrence_count?: number;
   isPriority?: boolean;
+  is_priority?: boolean;
   occurrences?: ApiRecurringBookingOccurrence[];
 }
 
@@ -235,25 +248,25 @@ export interface RecurringBookingSeriesDetail {
 
 const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail): RecurringBookingSeriesDetail => ({
   id: String(data.id),
-  ministryId: data.ministryId ?? null,
-  firstOccurrenceDate: String(data.firstOccurrenceDate ?? ""),
-  lastOccurrenceDate: String(data.lastOccurrenceDate ?? ""),
-  localStartTime: String(data.localStartTime ?? ""),
-  localEndTime: String(data.localEndTime ?? ""),
+  ministryId: data.ministryId ?? data.ministry_id ?? null,
+  firstOccurrenceDate: String(data.firstOccurrenceDate ?? data.first_occurrence_date ?? ""),
+  lastOccurrenceDate: String(data.lastOccurrenceDate ?? data.last_occurrence_date ?? ""),
+  localStartTime: String(data.localStartTime ?? data.local_start_time ?? ""),
+  localEndTime: String(data.localEndTime ?? data.local_end_time ?? ""),
   status: String(data.status ?? ""),
-  paymentHoldExpiresAt: String(data.paymentHoldExpiresAt ?? ""),
-  quotedAmount: data.quotedAmount ?? null,
+  paymentHoldExpiresAt: String(data.paymentHoldExpiresAt ?? data.payment_hold_expires_at ?? ""),
+  quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
   currency: data.currency ?? null,
-  occurrenceCount: Number(data.occurrenceCount ?? 0),
-  isPriority: Boolean(data.isPriority),
+  occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
+  isPriority: Boolean(data.isPriority ?? data.is_priority),
   occurrences: (data.occurrences ?? []).map((occurrence) => ({
     id: String(occurrence.id),
-    startAt: String(occurrence.startAt ?? ""),
-    endAt: String(occurrence.endAt ?? ""),
+    startAt: String(occurrence.startAt ?? occurrence.start_at ?? ""),
+    endAt: String(occurrence.endAt ?? occurrence.end_at ?? ""),
     status: String(occurrence.status ?? ""),
-    quotedAmount: occurrence.quotedAmount ?? null,
+    quotedAmount: occurrence.quotedAmount ?? occurrence.quoted_amount ?? null,
     currency: occurrence.currency ?? null,
-    facilityIds: (occurrence.facilityIds ?? []).map(String),
+    facilityIds: (occurrence.facilityIds ?? occurrence.facility_ids ?? []).map(String),
   })),
 });
 
