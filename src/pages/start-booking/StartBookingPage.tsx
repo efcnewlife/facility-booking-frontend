@@ -7,6 +7,7 @@ import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
 import { buildCreateRecurringBookingSeriesPayload } from "@/utils/recurringBookingSeries";
+import { clearStartBookingState } from "@/utils/startBookingEntry";
 import {
   buildRoomsSearchQuery,
   canAdvance,
@@ -184,6 +185,10 @@ const StartBookingPage = () => {
       void loadMinistries();
     }
   }, [loadMinistries, step]);
+
+  useEffect(() => {
+    void clearStartBookingState(window.localStorage, () => facilityService.deleteAllMyBookingDrafts());
+  }, []);
 
   useEffect(() => {
     if (step !== "recurring_when" || !recurringFirstOccurrenceDate) {
