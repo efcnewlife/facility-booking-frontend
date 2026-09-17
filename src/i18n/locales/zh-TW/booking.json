@@ -167,6 +167,7 @@
     "date": "日期",
     "repetition": "重複",
     "oneTime": "單次",
+    "repeated": "重複",
     "updateSearch": "更新搜尋",
     "filterByView": "檢視篩選：",
     "availableRooms": "可預訂房間",
@@ -431,6 +432,8 @@
     },
     "recurringWhen": {
       "title": "設定你的每週重複預訂",
+      "sharedTimeTitle": "每週要使用哪個時段？",
+      "sharedTimeBody": "請選擇一組開始與結束時間。接下來再選每週日期與房間。",
       "firstOccurrence": "首次場次",
       "lastOccurrence": "最後場次",
       "start": "開始",
@@ -438,11 +441,30 @@
       "occurrenceCount": "共 {{count}} 次每週場次",
       "weekdayMismatch": "最後場次必須與首次場次為同一星期幾。",
       "usePeriodMismatch": "首次與最後場次必須在同一個 1-6 月或 7-12 月使用期間內。",
+      "dateOrder": "結束日期必須等於或晚於開始日期。",
       "rooms": "房間（最多 {{max}} 間）－所有房間共用同一時段",
       "roomsNeedDate": "請先選擇首次場次以查看可用房間。",
       "roomsLoading": "正在載入房間…",
       "roomsEmpty": "該日期沒有可用房間。",
       "create": "建立預訂系列"
+    },
+    "recurringSchedule": {
+      "title": "重複時程",
+      "cadenceEveryWeek": "每週",
+      "weekday": "星期",
+      "startsOn": "開始於",
+      "endsOn": "結束於",
+      "needStartsOn": "請先選擇開始日期，以查看首次場次的可預訂時段。",
+      "selectRoom": "選擇",
+      "weekdays": {
+        "0": "日",
+        "1": "一",
+        "2": "二",
+        "3": "三",
+        "4": "四",
+        "5": "五",
+        "6": "六"
+      }
     },
     "recurringConflicts": {
       "title": "檢視預訂衝突",

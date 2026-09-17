@@ -570,3 +570,38 @@ export const displayBlocksForCart = (
 
   return [...occupied, ...overlays];
 };
+
+export const isRepeatedRoomSelectable = (room: RoomDay, sharedInterval: BookingInterval): boolean => {
+  return isRoomAvailable(room, sharedInterval);
+};
+
+export const toggleRepeatedRoomSelection = (
+  selectedIds: string[],
+  roomId: string,
+  rooms: RoomDay[],
+  sharedInterval: BookingInterval,
+  maxRooms: number
+): string[] => {
+  if (selectedIds.includes(roomId)) {
+    return selectedIds.filter((id) => id !== roomId);
+  }
+  const room = rooms.find((item) => item.id === roomId);
+  if (!room || !isRepeatedRoomSelectable(room, sharedInterval) || selectedIds.length >= maxRooms) {
+    return selectedIds;
+  }
+  return [...selectedIds, roomId];
+};
+
+export const retainValidRepeatedRoomIds = (
+  selectedIds: string[],
+  rooms: RoomDay[],
+  sharedInterval: BookingInterval | null
+): string[] => {
+  if (!sharedInterval) {
+    return [];
+  }
+  return selectedIds.filter((id) => {
+    const room = rooms.find((item) => item.id === id);
+    return room ? isRepeatedRoomSelectable(room, sharedInterval) : false;
+  });
+};

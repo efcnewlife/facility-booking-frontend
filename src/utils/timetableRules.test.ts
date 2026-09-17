@@ -18,6 +18,7 @@ import {
   hasNoMatchingResults,
   intervalStaysOnSameDay,
   isBookableCellForCart,
+  isRepeatedRoomSelectable,
   isRoomAvailable,
   isTimetableInitialLoad,
   isWhenSeedEligible,
@@ -25,8 +26,10 @@ import {
   MAX_BOOKING_LINES,
   pinInterval,
   removeCartLine,
+  retainValidRepeatedRoomIds,
   scrollTargetClock,
   scrollTargetClockForCart,
+  toggleRepeatedRoomSelection,
   updateCartLine,
   visibleRooms,
   type BookingInterval,
@@ -678,5 +681,57 @@ describe("cartPointerAction", () => {
         cellStart: "10:00",
       })
     ).toBe("commit");
+  });
+});
+
+describe("toggleRepeatedRoomSelection", () => {
+  const shared = { start: "10:00", end: "11:00" };
+
+  it("selects a room that can cover the locked shared window", () => {
+    expect(toggleRepeatedRoomSelection([], gym().id, [gym(), chapel()], shared, 3)).toEqual(["gym-id"]);
+  });
+
+  it("deselects a room that is already selected", () => {
+    expect(toggleRepeatedRoomSelection(["gym-id"], gym().id, [gym()], shared, 3)).toEqual([]);
+  });
+
+  it("does not select a room that cannot cover the locked window", () => {
+    expect(toggleRepeatedRoomSelection([], chapel().id, [chapel()], { start: "13:00", end: "14:00" }, 3)).toEqual([]);
+  });
+
+  it("does not produce a Pinned interval or Booking cart line", () => {
+    const selected = toggleRepeatedRoomSelection([], gym().id, [gym()], shared, 3);
+    expect(selected).toEqual(["gym-id"]);
+    expect(selected).not.toHaveProperty("pinned");
+    expect(selected).not.toHaveProperty("lines");
+  });
+
+  it("stops at the Booking line cap", () => {
+    expect(toggleRepeatedRoomSelection(["gym-id"], chapel().id, [gym(), chapel()], shared, 1)).toEqual(["gym-id"]);
+  });
+});
+
+describe("retainValidRepeatedRoomIds", () => {
+  it("keeps rooms that still cover the current locked window", () => {
+    expect(
+      retainValidRepeatedRoomIds(["gym-id", "chapel-id"], [gym(), chapel()], { start: "10:00", end: "11:00" })
+    ).toEqual(["gym-id", "chapel-id"]);
+  });
+
+  it("drops rooms that are no longer valid for the current proposal", () => {
+    expect(
+      retainValidRepeatedRoomIds(["gym-id", "chapel-id"], [gym(), chapel()], { start: "13:00", end: "14:00" })
+    ).toEqual(["gym-id"]);
+  });
+
+  it("drops every selection when the shared window is missing", () => {
+    expect(retainValidRepeatedRoomIds(["gym-id"], [gym()], null)).toEqual([]);
+  });
+});
+
+describe("isRepeatedRoomSelectable", () => {
+  it("follows the same coverage rule as One-time availability for that interval", () => {
+    expect(isRepeatedRoomSelectable(gym(), { start: "10:00", end: "11:00" })).toBe(true);
+    expect(isRepeatedRoomSelectable(chapel(), { start: "13:00", end: "14:00" })).toBe(false);
   });
 });

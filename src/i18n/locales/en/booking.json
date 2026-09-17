@@ -167,6 +167,7 @@
     "date": "Date",
     "repetition": "Repetition",
     "oneTime": "One time",
+    "repeated": "Repeated",
     "updateSearch": "Update search",
     "filterByView": "Filter by view:",
     "availableRooms": "Available rooms",
@@ -431,6 +432,8 @@
     },
     "recurringWhen": {
       "title": "Set up your weekly Repeated Booking",
+      "sharedTimeTitle": "What time should every week use?",
+      "sharedTimeBody": "Choose one Start Time and End Time. You'll pick the weekly dates and rooms next.",
       "firstOccurrence": "First occurrence",
       "lastOccurrence": "Last occurrence",
       "start": "Start",
@@ -438,11 +441,30 @@
       "occurrenceCount": "{{count}} weekly occurrences",
       "weekdayMismatch": "Last occurrence must fall on the same weekday as First occurrence.",
       "usePeriodMismatch": "First and Last occurrence must be in the same Jan-Jun or Jul-Dec use period.",
+      "dateOrder": "Ends on must be on or after Starts on.",
       "rooms": "Rooms (up to {{max}}) — every room shares the same time window",
       "roomsNeedDate": "Choose First occurrence to see available rooms.",
       "roomsLoading": "Loading rooms...",
       "roomsEmpty": "No rooms are available for that date.",
       "create": "Create booking series"
+    },
+    "recurringSchedule": {
+      "title": "Recurring schedule",
+      "cadenceEveryWeek": "Every week",
+      "weekday": "Weekday",
+      "startsOn": "Starts on",
+      "endsOn": "Ends on",
+      "needStartsOn": "Choose Starts on to see First occurrence availability.",
+      "selectRoom": "Select",
+      "weekdays": {
+        "0": "Sun",
+        "1": "Mon",
+        "2": "Tue",
+        "3": "Wed",
+        "4": "Thu",
+        "5": "Fri",
+        "6": "Sat"
+      }
     },
     "recurringConflicts": {
       "title": "Review booking conflicts",
