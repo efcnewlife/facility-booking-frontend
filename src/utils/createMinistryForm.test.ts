@@ -76,6 +76,11 @@ describe("validateCreateMinistryForm", () => {
     expect(validateCreateMinistryForm(baseValues, catalog, "user-1")).toBeNull();
   });
 
+  it("does not require a ministry type", () => {
+    expect(validateCreateMinistryForm(baseValues, catalog, "user-1")).toBeNull();
+    expect("ministryTypeId" in baseValues).toBe(false);
+  });
+
   it("requires at least one secondary steward", () => {
     expect(validateCreateMinistryForm({ ...baseValues, secondaryStewardIds: [] }, catalog, "user-1")).toBe(
       "secondaryStewardRequired"
