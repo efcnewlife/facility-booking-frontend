@@ -408,7 +408,7 @@
       "kindBlackoutBody": "This room is closed (blackout) on this date and can't be overridden.",
       "kindWeeklyQuota": "Weekly limit reached",
       "kindWeeklyQuotaBody": "You already have a Personal Rental booking that week; Personal Rentals allow one booking per week.",
-      "steward": "Primary steward",
+      "stewardLabel": "Primary steward:",
       "loading": "Checking for conflicts...",
       "create": "Create booking series"
     },

@@ -218,7 +218,7 @@ export interface RecurringBookingConflict {
 
 const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): RecurringBookingConflict => ({
   occurrenceDate: String(data.occurrenceDate ?? data.occurrence_date ?? ""),
-  kind: (data.kind ?? "occupancy") as RecurringConflictKind,
+  kind: data.kind as RecurringConflictKind,
   facilityIds: (data.facilityIds ?? data.facility_ids ?? []).map(String),
   isOverridable: Boolean(data.isOverridable ?? data.is_overridable),
   ministryId: data.ministryId ?? data.ministry_id ?? null,

@@ -35,16 +35,14 @@ describe("groupRecurringConflictsByDate", () => {
       conflict({ occurrenceDate: "2026-08-20", kind: "blackout", isOverridable: false }),
     ]);
     expect(groups[0].isBlocking).toBe(true);
-    expect(groups[0].isFullyOverridable).toBe(false);
   });
 
-  it("flags a date as fully overridable when every conflict on it is overridable", () => {
+  it("does not flag a date as blocking when every conflict on it is overridable", () => {
     const groups = groupRecurringConflictsByDate([
       conflict({ occurrenceDate: "2026-08-20", kind: "occupancy", isOverridable: true, facilityIds: ["room-1"] }),
       conflict({ occurrenceDate: "2026-08-20", kind: "occupancy", isOverridable: true, facilityIds: ["room-2"] }),
     ]);
     expect(groups[0].isBlocking).toBe(false);
-    expect(groups[0].isFullyOverridable).toBe(true);
   });
 });
 

@@ -5,8 +5,6 @@ export interface RecurringConflictDateGroup {
   conflicts: RecurringBookingConflict[];
   /** At least one conflict on this date cannot be overridden: it must be excluded or the member must revise rooms/time. */
   isBlocking: boolean;
-  /** Every conflict on this date is an overridable Rental occupancy, eligible for Priority Ministry override. */
-  isFullyOverridable: boolean;
 }
 
 export const groupRecurringConflictsByDate = (conflicts: RecurringBookingConflict[]): RecurringConflictDateGroup[] => {
@@ -22,7 +20,6 @@ export const groupRecurringConflictsByDate = (conflicts: RecurringBookingConflic
       occurrenceDate,
       conflicts: dateConflicts,
       isBlocking: dateConflicts.some((conflict) => !conflict.isOverridable),
-      isFullyOverridable: dateConflicts.every((conflict) => conflict.isOverridable),
     }));
 };
 

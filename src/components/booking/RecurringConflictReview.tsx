@@ -16,50 +16,51 @@ interface RecurringConflictReviewProps {
 
 type ConflictBadgeColor = "success" | "warning" | "error" | "dark";
 
+interface ConflictPresentation {
+  badgeColor: ConflictBadgeColor;
+  badgeKey: string;
+  bodyKey: string;
+}
+
+const CONFLICT_PRESENTATION: Record<Exclude<RecurringBookingConflict["kind"], "occupancy">, ConflictPresentation> = {
+  ministry: {
+    badgeColor: "error",
+    badgeKey: "startBooking.recurringConflicts.kindMinistry",
+    bodyKey: "startBooking.recurringConflicts.kindMinistryBody",
+  },
+  blackout: {
+    badgeColor: "dark",
+    badgeKey: "startBooking.recurringConflicts.kindBlackout",
+    bodyKey: "startBooking.recurringConflicts.kindBlackoutBody",
+  },
+  weekly_quota: {
+    badgeColor: "warning",
+    badgeKey: "startBooking.recurringConflicts.kindWeeklyQuota",
+    bodyKey: "startBooking.recurringConflicts.kindWeeklyQuotaBody",
+  },
+};
+
+const OCCUPANCY_PRESENTATION: Record<"overridable" | "blocked", ConflictPresentation> = {
+  overridable: {
+    badgeColor: "success",
+    badgeKey: "startBooking.recurringConflicts.kindOccupancyOverridable",
+    bodyKey: "startBooking.recurringConflicts.kindOccupancyOverridableBody",
+  },
+  blocked: {
+    badgeColor: "warning",
+    badgeKey: "startBooking.recurringConflicts.kindOccupancyBlocked",
+    bodyKey: "startBooking.recurringConflicts.kindOccupancyBlockedBody",
+  },
+};
+
 const roomNames = (facilityIds: string[], rooms: RoomDay[]): string =>
   facilityIds.map((id) => rooms.find((room) => room.id === id)?.name ?? id).join(", ");
 
-const badgeColorForConflict = (conflict: RecurringBookingConflict): ConflictBadgeColor => {
-  if (conflict.kind === "ministry") {
-    return "error";
+const presentationForConflict = (conflict: RecurringBookingConflict): ConflictPresentation => {
+  if (conflict.kind === "occupancy") {
+    return OCCUPANCY_PRESENTATION[conflict.isOverridable ? "overridable" : "blocked"];
   }
-  if (conflict.kind === "blackout") {
-    return "dark";
-  }
-  if (conflict.kind === "weekly_quota") {
-    return "warning";
-  }
-  return conflict.isOverridable ? "success" : "warning";
-};
-
-const badgeLabelKeyForConflict = (conflict: RecurringBookingConflict): string => {
-  if (conflict.kind === "ministry") {
-    return "startBooking.recurringConflicts.kindMinistry";
-  }
-  if (conflict.kind === "blackout") {
-    return "startBooking.recurringConflicts.kindBlackout";
-  }
-  if (conflict.kind === "weekly_quota") {
-    return "startBooking.recurringConflicts.kindWeeklyQuota";
-  }
-  return conflict.isOverridable
-    ? "startBooking.recurringConflicts.kindOccupancyOverridable"
-    : "startBooking.recurringConflicts.kindOccupancyBlocked";
-};
-
-const bodyKeyForConflict = (conflict: RecurringBookingConflict): string => {
-  if (conflict.kind === "ministry") {
-    return "startBooking.recurringConflicts.kindMinistryBody";
-  }
-  if (conflict.kind === "blackout") {
-    return "startBooking.recurringConflicts.kindBlackoutBody";
-  }
-  if (conflict.kind === "weekly_quota") {
-    return "startBooking.recurringConflicts.kindWeeklyQuotaBody";
-  }
-  return conflict.isOverridable
-    ? "startBooking.recurringConflicts.kindOccupancyOverridableBody"
-    : "startBooking.recurringConflicts.kindOccupancyBlockedBody";
+  return CONFLICT_PRESENTATION[conflict.kind];
 };
 
 const RecurringConflictReview = ({
@@ -110,30 +111,33 @@ const RecurringConflictReview = ({
                 />
               </div>
               <ul className="mt-3 space-y-2">
-                {group.conflicts.map((conflict, index) => (
-                  <li className="flex flex-col gap-1" key={`${group.occurrenceDate}-${conflict.kind}-${index}`}>
-                    <div className="flex items-center gap-2">
-                      <Badge color={badgeColorForConflict(conflict)} size="sm">
-                        {t(badgeLabelKeyForConflict(conflict))}
-                      </Badge>
-                      {conflict.facilityIds.length > 0 ? (
-                        <span className="text-sm text-on-surface-variant">
-                          {roomNames(conflict.facilityIds, rooms)}
-                        </span>
+                {group.conflicts.map((conflict, index) => {
+                  const presentation = presentationForConflict(conflict);
+                  return (
+                    <li className="flex flex-col gap-1" key={`${group.occurrenceDate}-${conflict.kind}-${index}`}>
+                      <div className="flex items-center gap-2">
+                        <Badge color={presentation.badgeColor} size="sm">
+                          {t(presentation.badgeKey)}
+                        </Badge>
+                        {conflict.facilityIds.length > 0 ? (
+                          <span className="text-sm text-on-surface-variant">
+                            {roomNames(conflict.facilityIds, rooms)}
+                          </span>
+                        ) : null}
+                      </div>
+                      <p className="text-sm text-on-surface-variant">{t(presentation.bodyKey)}</p>
+                      {conflict.kind === "ministry" &&
+                      (conflict.ministryStewardDisplayName || conflict.ministryStewardEmail) ? (
+                        <p className="text-sm text-on-surface">
+                          {t("startBooking.recurringConflicts.stewardLabel")}{" "}
+                          {[conflict.ministryStewardDisplayName, conflict.ministryStewardEmail]
+                            .filter(Boolean)
+                            .join(" · ")}
+                        </p>
                       ) : null}
-                    </div>
-                    <p className="text-sm text-on-surface-variant">{t(bodyKeyForConflict(conflict))}</p>
-                    {conflict.kind === "ministry" &&
-                    (conflict.ministryStewardDisplayName || conflict.ministryStewardEmail) ? (
-                      <p className="text-sm text-on-surface">
-                        {t("startBooking.recurringConflicts.steward")}:{" "}
-                        {[conflict.ministryStewardDisplayName, conflict.ministryStewardEmail]
-                          .filter(Boolean)
-                          .join(" · ")}
-                      </p>
-                    ) : null}
-                  </li>
-                ))}
+                    </li>
+                  );
+                })}
               </ul>
               {group.isBlocking && !isExcluded ? (
                 <p className="mt-3 text-sm font-medium text-error" role="status">

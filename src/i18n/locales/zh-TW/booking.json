@@ -408,7 +408,7 @@
       "kindBlackoutBody": "此房間在此日期為關閉狀態（暫停開放），無法覆蓋。",
       "kindWeeklyQuota": "已達每週上限",
       "kindWeeklyQuotaBody": "你當週已有一筆個人租借預訂；個人租借每週僅限一筆。",
-      "steward": "主要同工",
+      "stewardLabel": "主要同工：",
       "loading": "正在檢查衝突…",
       "create": "建立預訂系列"
     },
