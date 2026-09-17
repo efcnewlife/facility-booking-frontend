@@ -209,9 +209,15 @@ const RoomFilterPage = () => {
     [appliedQuery, isRepeated, selectedRoomIds]
   );
   const recurringWeekdayMismatch = Boolean(
-    recurringWhen?.firstOccurrenceDate &&
-    recurringWhen.lastOccurrenceDate &&
-    !isSameWeekday(recurringWhen.firstOccurrenceDate, recurringWhen.lastOccurrenceDate)
+    (recurringWhen?.firstOccurrenceDate &&
+      recurringWhen.lastOccurrenceDate &&
+      !isSameWeekday(recurringWhen.firstOccurrenceDate, recurringWhen.lastOccurrenceDate)) ||
+    (recurringWhen?.weekday != null &&
+      recurringWhen.firstOccurrenceDate &&
+      weekdayForDate(recurringWhen.firstOccurrenceDate) !== recurringWhen.weekday) ||
+    (recurringWhen?.weekday != null &&
+      recurringWhen.lastOccurrenceDate &&
+      weekdayForDate(recurringWhen.lastOccurrenceDate) !== recurringWhen.weekday)
   );
   const recurringLastBeforeFirst = Boolean(
     recurringWhen?.firstOccurrenceDate &&
@@ -441,6 +447,9 @@ const RoomFilterPage = () => {
       if (weekday != null) {
         next.weekday = weekday;
         next.frequency = "repeated";
+        if (next.lastDate && weekdayForDate(next.lastDate) !== weekday) {
+          delete next.lastDate;
+        }
       }
     }
     if (draftMinistryId) {

@@ -234,14 +234,15 @@ Authenticated welcome plus a Start Booking action. No question stepper.
 Driven by `?step=` (and `ministry=1|0` after Q1). Step transitions, When validation, and Rooms query building live in `src/utils/startBookingFlow.ts`:
 
 ```ts
-type StartBookingStep = "ministry_choice" | "select_ministry" | "frequency" | "when";
+type StartBookingStep =
+  "ministry_choice" | "select_ministry" | "frequency" | "when" | "recurring_when" | "recurring_conflicts";
 ```
 
-Typical progression: ministry yes/no → (ministry name if Yes) → One-time vs Repeated → date and time → navigate to `/rooms?...`. Create ministry is a modal on ministry name. The current step is mirrored into the URL with `{ replace: true }`. When Search sends `date` with optional `start`/`end` and optional `ministryId` only.
+Typical progression: ministry yes/no → (ministry name if Yes) → One-time vs Repeated. One-time continues through When (date plus optional start/end) to `/rooms`. Repeated continues through a required shared Start Time / End Time step (`recurring_when`) to the same `/rooms` route with `frequency=repeated`. Create ministry is a modal on ministry name. The current step is mirrored into the URL with `{ replace: true }`.
 
 ### 3. Results — `src/pages/rooms/RoomFilterPage.tsx`
 
-Reads Start booking output via `parseRoomsSearchQuery`. Missing or invalid `date` redirects to Home. Query: `date`, optional `start`/`end`, optional `ministryId`. Legacy `space` / `room` URL params are ignored on entry. Loads via `facilityService.getAvailability(date, ministryId)`, then client-filters. Can create a booking (max 3 rooms). Booking datetimes are `moment(...).toISOString()`.
+Reads Start booking output via `parseRoomsSearchQuery`. One-time: missing or invalid `date` redirects to Home. Repeated: requires a valid shared `start`/`end` pair; `date` (Starts on), `lastDate` (Ends on), and `weekday` are collected on the Recurring schedule card. Legacy `space` / `room` URL params are ignored on entry. Loads via `facilityService.getAvailability(date, ministryId)` for the First occurrence date. One-time can create a booking from the cart. Repeated selects rooms under the locked shared window and does not use pin, ADD, Confirm Booking Time, or the Booking cart.
 
 ### Availability filter — `src/utils/roomAvailabilityFilter.ts`
 
