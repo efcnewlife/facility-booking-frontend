@@ -19,13 +19,15 @@ const UpcomingBookingCard = ({ booking, onChange, onCancel, className }: Upcomin
       <div className="flex gap-8">
         <div className="flex w-[207px] shrink-0 flex-col self-stretch">
           <div className="h-[121px] w-full rounded-sm bg-booking-grey" />
-          <button
-            className="mt-auto self-start pt-6 text-base font-bold text-white underline underline-offset-2"
-            onClick={() => onCancel?.(booking)}
-            type="button"
-          >
-            {t("myBookings.cancel")}
-          </button>
+          {onCancel ? (
+            <button
+              className="mt-auto self-start pt-6 text-base font-bold text-white underline underline-offset-2"
+              onClick={() => onCancel(booking)}
+              type="button"
+            >
+              {t("myBookings.cancel")}
+            </button>
+          ) : null}
         </div>
 
         <div className="min-w-0 flex-1">
@@ -47,13 +49,15 @@ const UpcomingBookingCard = ({ booking, onChange, onCancel, className }: Upcomin
               </div>
             </div>
 
-            <button
-              className="h-9 shrink-0 rounded-[21px] border border-primary bg-surface px-4 text-base font-bold text-primary transition-colors hover:bg-brand-50"
-              onClick={() => onChange?.(booking)}
-              type="button"
-            >
-              {t("myBookings.change")}
-            </button>
+            {onChange ? (
+              <button
+                className="h-9 shrink-0 rounded-[21px] border border-primary bg-surface px-4 text-base font-bold text-primary transition-colors hover:bg-brand-50"
+                onClick={() => onChange(booking)}
+                type="button"
+              >
+                {t("myBookings.change")}
+              </button>
+            ) : null}
           </div>
 
           {booking.note && (

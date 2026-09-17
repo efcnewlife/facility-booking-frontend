@@ -510,7 +510,9 @@ const StartBookingPage = () => {
           <div className="mt-8 w-full space-y-4">
             <Alert
               message={t("startBooking.recurringResult.pendingPaymentMessage", {
-                deadline: moment(seriesResult.paymentHoldExpiresAt).format("LLL"),
+                deadline: seriesResult.paymentHoldExpiresAt
+                  ? moment(seriesResult.paymentHoldExpiresAt).format("LLL")
+                  : "—",
               })}
               size="lg"
               title={t("startBooking.recurringResult.pendingPaymentTitle")}
@@ -524,7 +526,7 @@ const StartBookingPage = () => {
               </dd>
               <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.holdDeadline")}</dt>
               <dd className="text-right text-sm font-semibold text-on-surface">
-                {moment(seriesResult.paymentHoldExpiresAt).format("LLL")}
+                {seriesResult.paymentHoldExpiresAt ? moment(seriesResult.paymentHoldExpiresAt).format("LLL") : "—"}
               </dd>
               <dt className="text-sm text-on-surface-variant">{t("startBooking.recurringResult.initialOccurrence")}</dt>
               <dd className="text-right text-sm font-semibold text-on-surface">
