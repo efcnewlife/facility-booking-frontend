@@ -19,6 +19,7 @@ import {
   canConfirmCreate,
   createRecurringSeriesPreviewController,
   emptyRecurringSeriesReviewSnapshot,
+  excludedDatesForCreate,
   isPendingPaymentSuccess,
   proposalKeyForAnswers,
   type RecurringSeriesReviewSnapshot,
@@ -93,6 +94,13 @@ const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] ga
 
 const isActiveMinistry = (item: MinistryItem): boolean => {
   return item.status === "active" && item.isActive !== false;
+};
+
+const isPriorityMinistryBooking = (ministryId: string | undefined, ministries: MinistryItem[]): boolean => {
+  if (!ministryId) {
+    return false;
+  }
+  return Boolean(ministries.find((ministry) => ministry.id === ministryId)?.hasPriorityBooking);
 };
 
 const formatClock = (clock: string, locale: string): string => {
@@ -789,7 +797,11 @@ const RoomFilterPage = () => {
     if (!controller || !repeatedAnswers || !canConfirmCreate(controller.getState())) {
       return;
     }
-    const payload = buildCreateRecurringBookingSeriesPayload(repeatedAnswers, new Date(), []);
+    const payload = buildCreateRecurringBookingSeriesPayload(
+      repeatedAnswers,
+      new Date(),
+      excludedDatesForCreate(controller.getState())
+    );
     if (!payload) {
       return;
     }
@@ -800,6 +812,10 @@ const RoomFilterPage = () => {
     } catch (err) {
       controller.failCreate(resolveRecurringBookingSeriesErrorMessage(err));
     }
+  };
+
+  const handleToggleRepeatedExclusion = (occurrenceDate: string) => {
+    seriesPreviewControllerRef.current?.toggleExcludedDate(occurrenceDate);
   };
 
   const formatClockForLocale = (clock: string) => formatClock(clock, i18nInstance.language);
@@ -1233,10 +1249,16 @@ const RoomFilterPage = () => {
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
       {isRepeated && (reviewState.phase === "review" || reviewState.phase === "creating") && reviewSummary ? (
         <RecurringSeriesReviewModal
+          confirmDisabled={!canConfirmCreate(reviewState)}
           confirming={reviewState.phase === "creating"}
+          conflicts={reviewState.conflicts}
           createError={reviewState.createError}
+          excludedDates={reviewState.excludedDates}
+          isPriorityMinistry={isPriorityMinistryBooking(appliedQuery.ministryId, bookableMinistries)}
           onBack={handleCloseRepeatedReview}
           onConfirm={() => void handleConfirmRepeatedSeries()}
+          onToggleExcludeDate={handleToggleRepeatedExclusion}
+          rooms={rooms}
           summary={reviewSummary}
         />
       ) : null}
