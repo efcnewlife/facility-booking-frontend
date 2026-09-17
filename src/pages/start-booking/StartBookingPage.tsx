@@ -15,6 +15,7 @@ import {
   isStartBookingStep,
   nextStep,
   previousStep,
+  repeatedWindowNoticeKind,
   toRoomsSearchParams,
   type BookingFrequency,
   type RecurringWhenValue,
@@ -54,7 +55,7 @@ const isActiveMinistry = (item: MinistryItem): boolean => {
 };
 
 const StartBookingPage = () => {
-  const { t } = useTranslation("booking");
+  const { t, i18n } = useTranslation("booking");
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,6 +78,8 @@ const StartBookingPage = () => {
   const [recurringWeekday, setRecurringWeekday] = useState<number | null>(null);
   const [recurringStartValue, setRecurringStartValue] = useState<TimePickerValue>(null);
   const [recurringEndValue, setRecurringEndValue] = useState<TimePickerValue>(null);
+  const [repeatedWindowOpen, setRepeatedWindowOpen] = useState<boolean | null>(true);
+  const [repeatedWindowNextOpening, setRepeatedWindowNextOpening] = useState<string | null>(null);
   const now = new Date();
   const minDate = moment(now).format("YYYY-MM-DD");
   const maxDate = moment(now).add(1, "year").format("YYYY-MM-DD");
@@ -103,7 +106,7 @@ const StartBookingPage = () => {
     when,
     recurringWhen,
   };
-  const canGoForward = canAdvance(step, answers, now);
+  const canGoForward = canAdvance(step, answers, now, frequency === "repeated" ? repeatedWindowOpen : true);
   const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
   const recurringTimeIncomplete = Boolean(recurringWhen.startTime) !== Boolean(recurringWhen.endTime);
   const recurringEndTimeError = recurringTimeIncomplete
@@ -115,6 +118,26 @@ const StartBookingPage = () => {
         })
       ? undefined
       : t("startBooking.when.endAfterStart");
+
+  const repeatedWindowNextOpeningLabel = repeatedWindowNextOpening
+    ? moment(repeatedWindowNextOpening).locale(i18n.language).format("LL")
+    : null;
+  const frequencyWindowNotice = repeatedWindowNoticeKind(repeatedWindowOpen, repeatedWindowNextOpening);
+  const frequencyWindowMessage =
+    frequencyWindowNotice === "closed_with_date" && repeatedWindowNextOpeningLabel
+      ? t("startBooking.frequency.windowClosedWithDate", { date: repeatedWindowNextOpeningLabel })
+      : frequencyWindowNotice === "closed"
+        ? t("startBooking.frequency.windowClosed")
+        : t("startBooking.frequency.windowMessage");
+  const repeatedWindowMessage =
+    step === "recurring_when" && repeatedWindowOpen === false
+      ? repeatedWindowNextOpeningLabel
+        ? t("startBooking.errors.recurringAvailabilityWindowWithDate", {
+            date: repeatedWindowNextOpeningLabel,
+          })
+        : t("startBooking.errors.recurringAvailabilityWindow")
+      : null;
+  const bannerError = error ?? repeatedWindowMessage;
 
   const goToStep = useCallback(
     (next: StartBookingStep, ministryChoice: boolean | null = isMinistryBooking) => {
@@ -155,6 +178,34 @@ const StartBookingPage = () => {
     void clearStartBookingState(window.localStorage, () => facilityService.deleteAllMyBookingDrafts());
   }, []);
 
+  useEffect(() => {
+    if (step !== "frequency" && step !== "recurring_when") {
+      return;
+    }
+    const firstOccurrenceDate = step === "recurring_when" ? recurringWhen.firstOccurrenceDate : null;
+    let cancelled = false;
+    setRepeatedWindowOpen(null);
+    const loadWindow = async () => {
+      try {
+        const status = await facilityService.getRecurringBookingWindowStatus(firstOccurrenceDate);
+        if (!cancelled) {
+          setRepeatedWindowOpen(status.isOpen);
+          setRepeatedWindowNextOpening(status.nextOpeningDate);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          setRepeatedWindowOpen(false);
+          setRepeatedWindowNextOpening(null);
+          setError(err instanceof Error ? err.message : t("startBooking.errors.recurringAvailabilityWindow"));
+        }
+      }
+    };
+    void loadWindow();
+    return () => {
+      cancelled = true;
+    };
+  }, [recurringWhen.firstOccurrenceDate, step, t]);
+
   const handleMinistryChoice = (value: string) => {
     const isMinistry = value === "yes";
     if (!isMinistry) {
@@ -179,7 +230,7 @@ const StartBookingPage = () => {
   };
 
   const handleContinue = () => {
-    const next = nextStep(step, answers, now);
+    const next = nextStep(step, answers, now, frequency === "repeated" ? repeatedWindowOpen : true);
     if (next === "rooms") {
       const query = buildRoomsSearchQuery(answers);
       if (!query) {
@@ -220,9 +271,9 @@ const StartBookingPage = () => {
     <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col items-center px-6 py-8 sm:px-8">
       <StartBookingProgress step={step} />
 
-      {error ? (
+      {bannerError ? (
         <div className="mt-6 w-full">
-          <Alert message={error} title={t("startBooking.errors.title")} variant="error" width="full" />
+          <Alert message={bannerError} title={t("startBooking.errors.title")} variant="error" width="full" />
         </div>
       ) : null}
 
@@ -317,6 +368,15 @@ const StartBookingPage = () => {
               value="repeated"
             />
           </div>
+          <Alert
+            className="mt-10"
+            message={frequencyWindowMessage}
+            messageLines={6}
+            size="lg"
+            title={t("startBooking.frequency.windowTitle")}
+            variant="warning"
+            width="full"
+          />
         </section>
       ) : null}
 

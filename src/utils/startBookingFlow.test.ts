@@ -4,6 +4,7 @@ import {
   applyWeekday,
   buildRoomsSearchQuery,
   canAdvance,
+  canSubmitRepeatedConfirmBookingTime,
   isRecurringScheduleValid,
   isRecurringSharedTimeValid,
   isRecurringWhenValid,
@@ -13,6 +14,7 @@ import {
   isWhenEndAfterStart,
   isWhenValid,
   nextStep,
+  repeatedWindowNoticeKind,
   parseBookingDetailsQuery,
   parseRoomsSearchQuery,
   previousStep,
@@ -217,6 +219,27 @@ describe("canAdvance", () => {
     expect(canAdvance("frequency", answers())).toBe(false);
   });
 
+  it("blocks Repeated Continue when the availability window is closed", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    expect(canAdvance("frequency", answers({ frequency: "repeated" }), now, false)).toBe(false);
+    expect(canAdvance("frequency", answers({ frequency: "one_time" }), now, false)).toBe(true);
+    expect(nextStep("frequency", answers({ frequency: "repeated" }), now, false)).toBe(null);
+    expect(nextStep("frequency", answers({ frequency: "one_time" }), now, false)).toBe("when");
+  });
+
+  it("shows the How often Repeated window reminder before Repeated is selected", () => {
+    expect(repeatedWindowNoticeKind(null, null)).toBe("policy");
+    expect(repeatedWindowNoticeKind(true, null)).toBe("policy");
+  });
+
+  it("shows the closed How often reminder with the next opening date", () => {
+    expect(repeatedWindowNoticeKind(false, "2026-12-01")).toBe("closed_with_date");
+  });
+
+  it("shows the closed How often reminder without a date when the next opening is unknown", () => {
+    expect(repeatedWindowNoticeKind(false, null)).toBe("closed");
+  });
+
   it("allows Search on When only when the date and optional time pair are valid", () => {
     const now = new Date("2026-08-13T12:00:00");
     expect(canAdvance("when", answers(), now)).toBe(false);
@@ -268,6 +291,17 @@ describe("canAdvance", () => {
         now
       )
     ).toBe(false);
+  });
+
+  it("blocks Repeated Search when First occurrence is outside the availability window", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    const firstOccurrence = recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 });
+    expect(
+      canAdvance("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
+    ).toBe(false);
+    expect(
+      nextStep("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
+    ).toBe(null);
   });
 });
 
@@ -508,6 +542,19 @@ describe("isRecurringScheduleValid", () => {
 
   it("does not require rooms to accept the schedule", () => {
     expect(isRecurringScheduleValid({ ...valid, roomIds: [] }, now)).toBe(true);
+  });
+});
+
+describe("canSubmitRepeatedConfirmBookingTime", () => {
+  const now = new Date("2026-08-13T12:00:00");
+
+  it("requires End Date before Repeated Confirm Booking Time can submit", () => {
+    expect(canSubmitRepeatedConfirmBookingTime("2026-08-20", null, 4, now)).toBe(false);
+    expect(canSubmitRepeatedConfirmBookingTime("2026-08-20", "", 4, now)).toBe(false);
+  });
+
+  it("accepts End Date on the same weekday in the same use period", () => {
+    expect(canSubmitRepeatedConfirmBookingTime("2026-08-20", "2026-09-24", 4, now)).toBe(true);
   });
 });
 

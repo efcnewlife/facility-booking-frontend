@@ -358,6 +358,9 @@ export const createRecurringSeriesPreviewController = (deps: RecurringSeriesPrev
       latestAnswers = answers;
       if (!answers || !shouldPreviewProposal(answers, currentNow())) {
         clearTimer();
+        if (state.phase === "selecting" && state.previewStatus === "idle" && state.proposalKey === null) {
+          return;
+        }
         nextRequestId += 1;
         emit(invalidatePreview({ ...state, previewRequestId: nextRequestId }));
         return;

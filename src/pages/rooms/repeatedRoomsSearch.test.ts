@@ -1,4 +1,3 @@
-import { describe, expect, it } from "vitest";
 import { whenSeedFromSearch } from "@/utils/bookingCartDraft";
 import { proposalKeyForAnswers } from "@/utils/recurringSeriesReview";
 import { parseRoomsSearchQuery, recurringWhenFromRoomsQuery, type StartBookingAnswers } from "@/utils/startBookingFlow";
@@ -11,6 +10,7 @@ import {
   type RepeatedCartState,
   type RoomDay,
 } from "@/utils/timetableRules";
+import { describe, expect, it } from "vitest";
 
 const gymCells = (): RoomDay["cells"] => {
   const cells: RoomDay["cells"] = [];
@@ -84,6 +84,19 @@ describe("Repeated /rooms search without a preselected time", () => {
     expect(confirmed.decision).toBe("added");
     expect(confirmed.state.sharedTime).toEqual({ start: "10:00", end: "11:00" });
     expect(confirmed.state.lines).toEqual([{ facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 }]);
+  });
+
+  it("does not form a preview proposal after ADD until End Date is present", () => {
+    const query = parseRoomsSearchQuery(new URLSearchParams("frequency=repeated&date=2026-08-20&weekday=4"));
+    if (!query) {
+      throw new Error("expected Repeated search intent");
+    }
+    const confirmed = confirmRepeatedCartLine(
+      { ...emptyCartState(), sharedTime: null },
+      { facilityId: "gym-id", start: "10:00", end: "11:00" },
+      3
+    ).state;
+    expect(proposalKeyForAnswers(answersFromCart(query, confirmed))).toBeNull();
   });
 
   it("invalidates the previous proposal key when replacement clears the cart", () => {

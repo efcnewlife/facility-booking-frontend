@@ -13,6 +13,8 @@ export type StartBookingStep = (typeof START_BOOKING_STEPS)[number];
 
 export type BookingFrequency = "one_time" | "repeated";
 
+export type RepeatedWindowNoticeKind = "policy" | "closed" | "closed_with_date";
+
 export type RoomsSpace = "single" | "multiple";
 
 export type RoomShortcutCode = "gym" | "sanctuary-hall";
@@ -266,6 +268,25 @@ export const isRecurringScheduleValid = (value: RecurringWhenValue, now: Date): 
   return occurrencePeriodForDate(value.firstOccurrenceDate) === occurrencePeriodForDate(value.lastOccurrenceDate);
 };
 
+export const canSubmitRepeatedConfirmBookingTime = (
+  firstOccurrenceDate: string,
+  lastOccurrenceDate: string | null,
+  weekday: number | null,
+  now: Date = new Date()
+): boolean => {
+  return isRecurringScheduleValid(
+    {
+      weekday: weekday ?? weekdayForDate(firstOccurrenceDate),
+      firstOccurrenceDate,
+      lastOccurrenceDate,
+      startTime: null,
+      endTime: null,
+      roomIds: [],
+    },
+    now
+  );
+};
+
 export const isRecurringWhenValid = (value: RecurringWhenValue, now: Date): boolean => {
   const weekday = value.weekday ?? weekdayForDate(value.firstOccurrenceDate ?? "");
   const schedule: RecurringWhenValue = { ...value, weekday };
@@ -278,18 +299,42 @@ export const isRecurringWhenValid = (value: RecurringWhenValue, now: Date): bool
   return value.roomIds.length > 0;
 };
 
-export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers, now: Date = new Date()): boolean => {
+export const repeatedWindowNoticeKind = (
+  isOpen: boolean | null,
+  nextOpeningDate: string | null
+): RepeatedWindowNoticeKind => {
+  if (isOpen === false && nextOpeningDate) {
+    return "closed_with_date";
+  }
+  if (isOpen === false) {
+    return "closed";
+  }
+  return "policy";
+};
+
+export const canAdvance = (
+  step: StartBookingStep,
+  answers: StartBookingAnswers,
+  now: Date = new Date(),
+  repeatedWindowOpen: boolean | null = true
+): boolean => {
   switch (step) {
     case "ministry_choice":
       return answers.isMinistryBooking === true || answers.isMinistryBooking === false;
     case "select_ministry":
       return hasMinistryId(answers);
     case "frequency":
-      return answers.frequency === "one_time" || answers.frequency === "repeated";
+      if (answers.frequency === "one_time") {
+        return true;
+      }
+      if (answers.frequency === "repeated") {
+        return repeatedWindowOpen === true;
+      }
+      return false;
     case "when":
       return isWhenValid(answers.when, now);
     case "recurring_when":
-      return isRepeatedDateTimeSearchValid(answers.recurringWhen, now);
+      return isRepeatedDateTimeSearchValid(answers.recurringWhen, now) && repeatedWindowOpen === true;
     case "recurring_conflicts":
       /** Gated by conflict/exclusion state, which lives outside StartBookingAnswers; see canCreateRecurringSeriesWithExclusions. */
       return true;
@@ -299,9 +344,10 @@ export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers,
 export const nextStep = (
   step: StartBookingStep,
   answers: StartBookingAnswers,
-  now: Date = new Date()
+  now: Date = new Date(),
+  repeatedWindowOpen: boolean | null = true
 ): StartBookingStep | "rooms" | "create_series" | null => {
-  if (!canAdvance(step, answers, now)) {
+  if (!canAdvance(step, answers, now, repeatedWindowOpen)) {
     return null;
   }
   switch (step) {

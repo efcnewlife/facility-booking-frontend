@@ -338,6 +338,49 @@ describe("createRecurringSeriesPreviewController", () => {
     controller.dispose();
   });
 
+  it("does not emit again when an incomplete proposal is already idle", () => {
+    const onState = vi.fn();
+    const controller = createRecurringSeriesPreviewController({
+      preview: vi.fn().mockResolvedValue([]),
+      now: () => now,
+      onState,
+    });
+    const incomplete = answers({ recurringWhen: { ...baseRecurringWhen, roomIds: [] } });
+
+    controller.setProposal(incomplete);
+    controller.setProposal(incomplete);
+    controller.setProposal(null);
+
+    expect(onState).not.toHaveBeenCalled();
+    expect(controller.getState()).toEqual(emptyRecurringSeriesReviewSnapshot());
+    controller.dispose();
+  });
+
+  it("invalidates a ready preview once, then stays quiet while still incomplete", async () => {
+    const onState = vi.fn();
+    const controller = createRecurringSeriesPreviewController({
+      preview: vi.fn().mockResolvedValue([]),
+      now: () => now,
+      onState,
+    });
+
+    controller.setProposal(answers());
+    await vi.advanceTimersByTimeAsync(RECURRING_SERIES_PREVIEW_DEBOUNCE_MS);
+    await Promise.resolve();
+    expect(controller.getState().previewStatus).toBe("ready");
+    onState.mockClear();
+
+    const incomplete = answers({ recurringWhen: { ...baseRecurringWhen, lastOccurrenceDate: null } });
+    controller.setProposal(incomplete);
+    expect(onState).toHaveBeenCalledTimes(1);
+    expect(controller.getState().previewStatus).toBe("idle");
+    onState.mockClear();
+
+    controller.setProposal(incomplete);
+    expect(onState).not.toHaveBeenCalled();
+    controller.dispose();
+  });
+
   it("ignores an obsolete preview once the proposal has changed", async () => {
     let resolveFirst: ((value: RecurringBookingConflict[]) => void) | undefined;
     const preview = vi
