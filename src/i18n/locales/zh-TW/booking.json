@@ -389,6 +389,29 @@
       "roomsEmpty": "該日期沒有可用房間。",
       "create": "建立預訂系列"
     },
+    "recurringConflicts": {
+      "title": "檢視預訂衝突",
+      "priorityTitle": "優先事工覆蓋",
+      "rentalTitle": "衝突審查",
+      "priorityIntro": "此事工具有優先權：下方標示的租借衝突將自動被覆蓋，除非你排除該日期。",
+      "rentalIntro": "此流程與個人租借的衝突審查相同：請在下方排除有衝突的日期，或返回修改房間與共用時段。",
+      "occurrenceSummary": "將建立 {{total}} 次每週場次中的 {{remaining}} 次",
+      "exclude": "排除此日期",
+      "mustResolve": "請先排除此日期，或返回修改房間或時段，才能繼續。",
+      "kindOccupancyOverridable": "可使用優先覆蓋",
+      "kindOccupancyOverridableBody": "此日期該房間已被另一筆租借預訂。由於此為優先事工預訂，除非你排除此日期，否則將自動覆蓋該租借。",
+      "kindOccupancyBlocked": "租借衝突",
+      "kindOccupancyBlockedBody": "此日期該房間已被另一筆租借預訂佔用。",
+      "kindMinistry": "受保護事工",
+      "kindMinistryBody": "此日期該房間已被另一個事工的預訂佔用，無法覆蓋。",
+      "kindBlackout": "房間關閉",
+      "kindBlackoutBody": "此房間在此日期為關閉狀態（暫停開放），無法覆蓋。",
+      "kindWeeklyQuota": "已達每週上限",
+      "kindWeeklyQuotaBody": "你當週已有一筆個人租借預訂；個人租借每週僅限一筆。",
+      "stewardLabel": "主要同工：",
+      "loading": "正在檢查衝突…",
+      "create": "建立預訂系列"
+    },
     "recurringResult": {
       "title": "預訂系列已建立",
       "pendingPaymentTitle": "待付款",
@@ -427,7 +450,9 @@
       "recurringMinistryInactive": "此事工目前未啟用。",
       "recurringWeeklyQuota": "你當週已有一筆租借預訂，個人租借每週僅限一筆。",
       "recurringSchedulingConflict": "你選擇的其中一個房間在此系列的部分場次已被預訂。",
-      "recurringRoomBlackout": "你選擇的其中一個房間在此系列的部分場次為關閉狀態。"
+      "recurringRoomBlackout": "你選擇的其中一個房間在此系列的部分場次為關閉狀態。",
+      "recurringInvalidExclusion": "你排除的日期與此預訂目前的衝突不符，請重新檢視衝突。",
+      "recurringMinistryConflict": "此日期與受保護事工的預訂衝突，無法覆蓋。"
     }
   },
   "wizard": {

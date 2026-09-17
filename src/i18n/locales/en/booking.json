@@ -389,6 +389,29 @@
       "roomsEmpty": "No rooms are available for that date.",
       "create": "Create booking series"
     },
+    "recurringConflicts": {
+      "title": "Review booking conflicts",
+      "priorityTitle": "Priority Ministry override",
+      "rentalTitle": "Conflict review",
+      "priorityIntro": "This ministry has priority: Rental conflicts marked below will be automatically overridden unless you exclude that date.",
+      "rentalIntro": "This follows the same conflict review as a Personal Rental: exclude a conflicting date below, or go back to revise your rooms and shared time.",
+      "occurrenceSummary": "{{remaining}} of {{total}} weekly occurrences will be created",
+      "exclude": "Exclude this date",
+      "mustResolve": "Exclude this date, or go back to revise rooms or time, before you can continue.",
+      "kindOccupancyOverridable": "Priority override available",
+      "kindOccupancyOverridableBody": "Another Rental holds this room on this date. Because this is a Priority Ministry booking, it will be automatically overridden unless you exclude this date.",
+      "kindOccupancyBlocked": "Rental conflict",
+      "kindOccupancyBlockedBody": "Another Rental already holds this room on this date.",
+      "kindMinistry": "Protected Ministry",
+      "kindMinistryBody": "Another Ministry's booking holds this room on this date and can't be overridden.",
+      "kindBlackout": "Room closed",
+      "kindBlackoutBody": "This room is closed (blackout) on this date and can't be overridden.",
+      "kindWeeklyQuota": "Weekly limit reached",
+      "kindWeeklyQuotaBody": "You already have a Personal Rental booking that week; Personal Rentals allow one booking per week.",
+      "stewardLabel": "Primary steward:",
+      "loading": "Checking for conflicts...",
+      "create": "Create booking series"
+    },
     "recurringResult": {
       "title": "Booking series created",
       "pendingPaymentTitle": "Pending payment",
@@ -427,7 +450,9 @@
       "recurringMinistryInactive": "This ministry is not active.",
       "recurringWeeklyQuota": "You already have a Rental booking that week. Personal Rentals allow one booking per week.",
       "recurringSchedulingConflict": "One of your selected rooms is already booked for part of this series.",
-      "recurringRoomBlackout": "One of your selected rooms is closed for part of this series."
+      "recurringRoomBlackout": "One of your selected rooms is closed for part of this series.",
+      "recurringInvalidExclusion": "The dates you excluded no longer match this booking's conflicts. Review the conflicts again.",
+      "recurringMinistryConflict": "This date conflicts with a protected Ministry booking and can't be overridden."
     }
   },
   "wizard": {

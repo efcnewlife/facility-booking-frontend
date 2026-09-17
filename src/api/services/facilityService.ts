@@ -179,7 +179,52 @@ export interface CreateRecurringBookingSeriesPayload {
   localEndTime: string;
   isMissionAligned?: boolean;
   rooms: CreateRecurringBookingSeriesRoomInput[];
+  excludedDates?: string[];
 }
+
+export type PreviewRecurringBookingSeriesPayload = Omit<CreateRecurringBookingSeriesPayload, "excludedDates">;
+
+export type RecurringConflictKind = "occupancy" | "ministry" | "blackout" | "weekly_quota";
+
+interface ApiRecurringBookingConflict {
+  occurrenceDate?: string;
+  occurrence_date?: string;
+  kind?: string;
+  facilityIds?: string[];
+  facility_ids?: string[];
+  isOverridable?: boolean;
+  is_overridable?: boolean;
+  ministryId?: string | null;
+  ministry_id?: string | null;
+  ministryStewardDisplayName?: string | null;
+  ministry_steward_display_name?: string | null;
+  ministryStewardEmail?: string | null;
+  ministry_steward_email?: string | null;
+}
+
+interface ApiRecurringBookingPreview {
+  conflicts?: ApiRecurringBookingConflict[];
+}
+
+export interface RecurringBookingConflict {
+  occurrenceDate: string;
+  kind: RecurringConflictKind;
+  facilityIds: string[];
+  isOverridable: boolean;
+  ministryId: string | null;
+  ministryStewardDisplayName: string | null;
+  ministryStewardEmail: string | null;
+}
+
+const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): RecurringBookingConflict => ({
+  occurrenceDate: String(data.occurrenceDate ?? data.occurrence_date ?? ""),
+  kind: data.kind as RecurringConflictKind,
+  facilityIds: (data.facilityIds ?? data.facility_ids ?? []).map(String),
+  isOverridable: Boolean(data.isOverridable ?? data.is_overridable),
+  ministryId: data.ministryId ?? data.ministry_id ?? null,
+  ministryStewardDisplayName: data.ministryStewardDisplayName ?? data.ministry_steward_display_name ?? null,
+  ministryStewardEmail: data.ministryStewardEmail ?? data.ministry_steward_email ?? null,
+});
 
 interface ApiRecurringBookingOccurrence {
   id: string;
@@ -316,6 +361,17 @@ class FacilityService {
       throw new Error(response.message || "Failed to create booking");
     }
     return { id: String(response.data.id) };
+  }
+
+  async previewBookingSeries(payload: PreviewRecurringBookingSeriesPayload): Promise<RecurringBookingConflict[]> {
+    const response = await httpClient.post<ApiRecurringBookingPreview>(
+      API_ENDPOINTS.FACILITY.BOOKING_SERIES_PREVIEW,
+      payload
+    );
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to preview recurring booking series");
+    }
+    return (response.data.conflicts ?? []).map(mapRecurringBookingConflict);
   }
 
   async createBookingSeries(payload: CreateRecurringBookingSeriesPayload): Promise<RecurringBookingSeriesDetail> {

@@ -89,7 +89,7 @@ describe("nextStep", () => {
     expect(nextStep("frequency", answers({ frequency: "repeated" }))).toBe("recurring_when");
   });
 
-  it("goes from a valid recurring When to series creation", () => {
+  it("goes from a valid recurring When to conflict review", () => {
     const now = new Date("2026-08-13T12:00:00");
     const valid = recurringWhen({
       firstOccurrenceDate: "2026-08-20",
@@ -98,7 +98,11 @@ describe("nextStep", () => {
       endTime: "10:00",
       roomIds: ["room-1"],
     });
-    expect(nextStep("recurring_when", answers({ recurringWhen: valid }), now)).toBe("create_series");
+    expect(nextStep("recurring_when", answers({ recurringWhen: valid }), now)).toBe("recurring_conflicts");
+  });
+
+  it("goes from conflict review to series creation", () => {
+    expect(nextStep("recurring_conflicts", answers())).toBe("create_series");
   });
 
   it("does not continue from an incomplete recurring When", () => {
@@ -141,6 +145,10 @@ describe("previousStep", () => {
 
   it("returns frequency from the recurring occurrence form", () => {
     expect(previousStep("recurring_when", answers({ frequency: "repeated" }))).toBe("frequency");
+  });
+
+  it("returns the recurring occurrence form from conflict review, to revise rooms or time", () => {
+    expect(previousStep("recurring_conflicts", answers({ frequency: "repeated" }))).toBe("recurring_when");
   });
 });
 
