@@ -81,8 +81,8 @@ The booking create form finds secondary stewards among active auth users by emai
 _Avoid_: invite-by-email without an existing auth user, searching Member Person records
 
 **Start booking**:
-The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated, then When. Choosing One-time continues to the Timetable via Search; choosing Repeated continues to its own recurring occurrence form and creates the Recurring Booking Series directly from Start booking — it does not visit the Timetable. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
-_Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow, sending Repeated through the Timetable, leaving a stale cart or Draft behind after restarting
+The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated. Choosing One-time continues through When to the Timetable. Choosing Repeated collects its shared local start and end time, then continues to the same `/rooms` route in Repeated mode; that route collects the Recurring Booking Series schedule and rooms before review. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
+_Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow, a separate Repeated-only room picker, leaving a stale cart or Draft behind after restarting
 
 **One-time**:
 A booking on a single calendar day. The date must be today through one year ahead. Each Booking line has its own start–end on that same day; lines cannot cross midnight. A booking with multiple lines cannot span more than one calendar day. One booking may include up to the Booking line cap lines, including more than one line for the same room at different times on that day.
@@ -101,8 +101,8 @@ The post-Search screen: rooms across the top, hours down the side, for one calen
 _Avoid_: Time Table, Calendar as this screen's name, Rooms as the member-facing screen name, cropping the day to open hours only, light green under Unavailable
 
 **Search Bar**:
-The editable summary on the Timetable: Ministry (when shown), Repetition, Date, plus Update search. Controls are one size step larger than before. It does not show start time, end time, or room count. The Ministry field is hidden unless the person is a Ministry member of at least one active ministry they can book for. When the field shows and the search is Non-ministry, it shows None and they may attach such a ministry. Holding the Owner position does not by itself show this field. Update search applies date and ministry changes. Repetition stays One-time in this slice — Repeated does not reach the Timetable; it is created through its own form from Start booking.
-_Avoid_: Start Time and End Time on the bar, # of rooms, Single/Multiple, Room shortcut, a read-only recap, showing Ministry for Owner position alone, treating pending-only applicants as able to attach a ministry
+The editable summary on the Timetable: Ministry (when shown), Repetition, Date, plus Update search. Controls are one size step larger than before. It does not show start time, end time, or room count. The Ministry field is hidden unless the person is a Ministry member of at least one active ministry they can book for. When the field shows and the search is Non-ministry, it shows None and they may attach such a ministry. Holding the Owner position does not by itself show this field. Update search applies date and ministry changes. In Repeated mode, the same route shows the Recurring schedule card above room selection; it is not a One-time Booking cart.
+_Avoid_: Start Time and End Time on the bar, # of rooms, Single/Multiple, Room shortcut, a read-only recap, showing Ministry for Owner position alone, treating pending-only applicants as able to attach a ministry, treating Repeated selection as per-room time editing
 
 **Booking cart**:
 The right-hand panel on the Timetable listing confirmed Booking lines after Confirm Booking Time. Review Booking sits at the top of this panel. Each line shows a room thumbnail, name, that line's time, line subtotal, Remove, and Edit. Up to the Booking line cap lines per booking, including multiple lines for the same room at different times. Removing a line restores ADD on that Timetable block; Edit reopens Confirm Booking Time for that line. Persists in the browser's localStorage keyed to the search date and ministry, so a page refresh does not lose it; a stored cart for a different date or ministry is treated as empty rather than restored.
@@ -199,8 +199,8 @@ The allowed One-time date range: from today through one year ahead (rolling, not
 _Avoid_: calendar year, 365-day fee window as the name of this limit
 
 **Repeated**:
-A booking frequency: the same weekly interval on a repeating schedule. Member copy uses this word, not Recurring. Choosing Repeated in Start booking's One-time vs Repeated step continues to the recurring occurrence form, which creates a Recurring Booking Series.
-_Avoid_: Reoccurring, Recurring (in member copy), monthly (this slice is weekly only)
+A booking frequency: the same weekly interval on a repeating schedule. Member copy uses this word, not Recurring. Choosing Repeated in Start booking continues through shared time selection to `/rooms` in Repeated mode. Its Recurring schedule card selects one weekday, First occurrence, and Last occurrence before the member selects rooms, reviews conflicts, and creates a Recurring Booking Series.
+_Avoid_: Reoccurring, Recurring (in member copy), monthly (this slice is weekly only), multiple weekdays, Never or After recurrence endings
 
 **Recurring Booking Series**:
 The backend resource a Repeated Booking creates: one weekly First occurrence through Last occurrence within a single Use Period, one shared local start–end time window, and one or more rooms all using that same window. A successful create is Pending-payment with a quoted total, a hold deadline, and a materialized weekly occurrence for every date in range. My Bookings groups those occurrences under the Series. Cancellation is one occurrence, this and future occurrences, or the entire Series.
@@ -211,7 +211,7 @@ The member list of their Bookings. One-time Bookings stay individual rows. Recur
 _Avoid_: mock bookings as the live list, a client timer as the source of expiry, Change as an occurrence-edit action in this slice
 
 **First occurrence / Last occurrence**:
-The two dates that bound a Recurring Booking Series on Start booking's recurring occurrence form. Both must fall on the same weekday and within one Use Period; occurrences are generated every 7 days from First occurrence through Last occurrence, inclusive.
+The two dates that bound a Recurring Booking Series on the Repeated mode Recurring schedule card. Both must fall on the same weekday and within one Use Period; occurrences are generated every 7 days from First occurrence through Last occurrence, inclusive.
 _Avoid_: an end date that can land on a different weekday than First occurrence, treating the range as calendar days rather than weekly steps
 
 **Use Period**:
