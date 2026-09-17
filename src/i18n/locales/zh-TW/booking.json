@@ -466,6 +466,17 @@
         "6": "六"
       }
     },
+    "recurringReview": {
+      "title": "檢視重複預訂",
+      "open": "檢視系列",
+      "confirm": "確認預訂系列",
+      "back": "返回",
+      "sharedTime": "共用時段",
+      "previewTitle": "僅為預覽",
+      "previewDoesNotReserve": "此預覽不會保留任何房間。只有在你確認之後才會建立系列。",
+      "needCompleteProposal": "請先選擇有效的重複時程與至少一間房間，才能檢視此系列。",
+      "checking": "正在檢查完整系列…"
+    },
     "recurringConflicts": {
       "title": "檢視預訂衝突",
       "priorityTitle": "優先事工覆蓋",
@@ -514,6 +525,7 @@
       "ownerPositionRequired": "請選擇負責職位。",
       "createMinistry": "無法建立事工。",
       "createRecurringBooking": "無法建立你的預訂系列。",
+      "previewRecurringBooking": "無法預覽你的預訂系列。",
       "recurringNotEligible": "僅教會電子郵件帳戶可以建立重複預訂。",
       "recurringRoomsRequired": "請至少選擇一個房間。",
       "recurringInvalidTimeRange": "請確認場次日期與共用時段是否正確。",
