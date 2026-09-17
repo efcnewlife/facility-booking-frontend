@@ -1,5 +1,9 @@
 import type { RecurringBookingConflict } from "@/api/services/facilityService";
-import { groupRecurringConflictsByDate } from "@/utils/recurringBookingConflicts";
+import {
+  conflictPresentationKey,
+  groupRecurringConflictsByDate,
+  type RecurringConflictPresentationKey,
+} from "@/utils/recurringBookingConflicts";
 import type { RoomDay } from "@/utils/timetableRules";
 import { Alert, Badge, Checkbox } from "@efcnewlife/newlife-ui";
 import moment from "moment";
@@ -7,6 +11,7 @@ import { useTranslation } from "react-i18next";
 
 interface RecurringConflictReviewProps {
   conflicts: RecurringBookingConflict[];
+  disabled?: boolean;
   excludedDates: string[];
   isPriorityMinistry: boolean;
   onToggleExcludeDate: (occurrenceDate: string) => void;
@@ -22,7 +27,17 @@ interface ConflictPresentation {
   bodyKey: string;
 }
 
-const CONFLICT_PRESENTATION: Record<Exclude<RecurringBookingConflict["kind"], "occupancy">, ConflictPresentation> = {
+const CONFLICT_PRESENTATION: Record<RecurringConflictPresentationKey, ConflictPresentation> = {
+  occupancy_overridable: {
+    badgeColor: "success",
+    badgeKey: "startBooking.recurringConflicts.kindOccupancyOverridable",
+    bodyKey: "startBooking.recurringConflicts.kindOccupancyOverridableBody",
+  },
+  occupancy_blocked: {
+    badgeColor: "warning",
+    badgeKey: "startBooking.recurringConflicts.kindOccupancyBlocked",
+    bodyKey: "startBooking.recurringConflicts.kindOccupancyBlockedBody",
+  },
   ministry: {
     badgeColor: "error",
     badgeKey: "startBooking.recurringConflicts.kindMinistry",
@@ -40,31 +55,12 @@ const CONFLICT_PRESENTATION: Record<Exclude<RecurringBookingConflict["kind"], "o
   },
 };
 
-const OCCUPANCY_PRESENTATION: Record<"overridable" | "blocked", ConflictPresentation> = {
-  overridable: {
-    badgeColor: "success",
-    badgeKey: "startBooking.recurringConflicts.kindOccupancyOverridable",
-    bodyKey: "startBooking.recurringConflicts.kindOccupancyOverridableBody",
-  },
-  blocked: {
-    badgeColor: "warning",
-    badgeKey: "startBooking.recurringConflicts.kindOccupancyBlocked",
-    bodyKey: "startBooking.recurringConflicts.kindOccupancyBlockedBody",
-  },
-};
-
 const roomNames = (facilityIds: string[], rooms: RoomDay[]): string =>
   facilityIds.map((id) => rooms.find((room) => room.id === id)?.name ?? id).join(", ");
 
-const presentationForConflict = (conflict: RecurringBookingConflict): ConflictPresentation => {
-  if (conflict.kind === "occupancy") {
-    return OCCUPANCY_PRESENTATION[conflict.isOverridable ? "overridable" : "blocked"];
-  }
-  return CONFLICT_PRESENTATION[conflict.kind];
-};
-
 const RecurringConflictReview = ({
   conflicts,
+  disabled = false,
   excludedDates,
   isPriorityMinistry,
   onToggleExcludeDate,
@@ -105,6 +101,7 @@ const RecurringConflictReview = ({
                 <p className="font-semibold text-on-surface">{moment(group.occurrenceDate).format("LL")}</p>
                 <Checkbox
                   checked={isExcluded}
+                  disabled={disabled}
                   id={`exclude-${group.occurrenceDate}`}
                   label={t("startBooking.recurringConflicts.exclude")}
                   onChange={() => onToggleExcludeDate(group.occurrenceDate)}
@@ -112,7 +109,7 @@ const RecurringConflictReview = ({
               </div>
               <ul className="mt-3 space-y-2">
                 {group.conflicts.map((conflict, index) => {
-                  const presentation = presentationForConflict(conflict);
+                  const presentation = CONFLICT_PRESENTATION[conflictPresentationKey(conflict)];
                   return (
                     <li className="flex flex-col gap-1" key={`${group.occurrenceDate}-${conflict.kind}-${index}`}>
                       <div className="flex items-center gap-2">

@@ -3,10 +3,14 @@ import type { RecurringBookingConflict } from "@/api/services/facilityService";
 import {
   blockingOccurrenceDates,
   canCreateRecurringSeriesWithExclusions,
+  conflictPresentationKey,
   groupRecurringConflictsByDate,
   isBlackoutConflict,
   isOverridableOccupancyConflict,
   isProtectedMinistryConflict,
+  permittedExclusionDates,
+  sanitizeExcludedDates,
+  toggleExcludedDate,
 } from "./recurringBookingConflicts";
 
 const conflict = (overrides: Partial<RecurringBookingConflict> = {}): RecurringBookingConflict => ({
@@ -109,5 +113,48 @@ describe("isOverridableOccupancyConflict", () => {
     expect(isOverridableOccupancyConflict(conflict({ kind: "occupancy", isOverridable: true }))).toBe(true);
     expect(isOverridableOccupancyConflict(conflict({ kind: "occupancy", isOverridable: false }))).toBe(false);
     expect(isOverridableOccupancyConflict(conflict({ kind: "ministry", isOverridable: false }))).toBe(false);
+  });
+});
+
+describe("conflictPresentationKey", () => {
+  it("distinguishes occupancy, Blackout, Weekly Rental Booking quota, and Ministry conflicts", () => {
+    expect(conflictPresentationKey(conflict({ kind: "occupancy", isOverridable: true }))).toBe("occupancy_overridable");
+    expect(conflictPresentationKey(conflict({ kind: "occupancy", isOverridable: false }))).toBe("occupancy_blocked");
+    expect(conflictPresentationKey(conflict({ kind: "blackout", isOverridable: false }))).toBe("blackout");
+    expect(conflictPresentationKey(conflict({ kind: "weekly_quota", isOverridable: false }))).toBe("weekly_quota");
+    expect(conflictPresentationKey(conflict({ kind: "ministry", isOverridable: false }))).toBe("ministry");
+  });
+});
+
+describe("permitted exclusions", () => {
+  const previewConflicts = [
+    conflict({ occurrenceDate: "2026-08-20", kind: "occupancy", isOverridable: true }),
+    conflict({ occurrenceDate: "2026-08-27", kind: "blackout", isOverridable: false }),
+    conflict({ occurrenceDate: "2026-09-03", kind: "weekly_quota", isOverridable: false, facilityIds: [] }),
+    conflict({ occurrenceDate: "2026-09-10", kind: "ministry", isOverridable: false }),
+  ];
+
+  it("allows excluding only dates the current preview reported as conflicts", () => {
+    expect(permittedExclusionDates(previewConflicts)).toEqual(["2026-08-20", "2026-08-27", "2026-09-03", "2026-09-10"]);
+  });
+
+  it("drops free dates and unreported dates instead of using them to shorten the Series", () => {
+    expect(sanitizeExcludedDates(previewConflicts, ["2026-08-27", "2026-08-13", "2026-09-17"])).toEqual(["2026-08-27"]);
+    expect(
+      canCreateRecurringSeriesWithExclusions(previewConflicts, ["2026-08-27", "2026-09-03", "2026-09-10", "2026-08-13"])
+    ).toBe(false);
+  });
+
+  it("ignores a toggle for a date the current preview did not report", () => {
+    expect(toggleExcludedDate(previewConflicts, [], "2026-08-13")).toEqual([]);
+    expect(toggleExcludedDate(previewConflicts, [], "2026-08-27")).toEqual(["2026-08-27"]);
+    expect(toggleExcludedDate(previewConflicts, ["2026-08-27"], "2026-08-27")).toEqual([]);
+  });
+
+  it("keeps Blackout and protected Ministry dates blocking until they are excluded", () => {
+    expect(canCreateRecurringSeriesWithExclusions(previewConflicts, [])).toBe(false);
+    expect(canCreateRecurringSeriesWithExclusions(previewConflicts, ["2026-08-27", "2026-09-03", "2026-09-10"])).toBe(
+      true
+    );
   });
 });

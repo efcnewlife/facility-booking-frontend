@@ -3,6 +3,11 @@ import type {
   RecurringBookingConflict,
   RecurringBookingSeriesDetail,
 } from "@/api/services/facilityService";
+import {
+  canCreateRecurringSeriesWithExclusions,
+  sanitizeExcludedDates,
+  toggleExcludedDate,
+} from "./recurringBookingConflicts";
 import { buildPreviewRecurringBookingSeriesPayload } from "./recurringBookingSeries";
 import { isRecurringWhenValid, weeklyOccurrenceDates, type StartBookingAnswers } from "./startBookingFlow";
 
@@ -18,6 +23,7 @@ export interface RecurringSeriesReviewSnapshot {
   previewRequestId: number;
   proposalKey: string | null;
   conflicts: RecurringBookingConflict[];
+  excludedDates: string[];
   quotedAmount: string | number | null;
   currency: string | null;
   createdSeries: RecurringBookingSeriesDetail | null;
@@ -57,6 +63,7 @@ export const emptyRecurringSeriesReviewSnapshot = (): RecurringSeriesReviewSnaps
   previewRequestId: 0,
   proposalKey: null,
   conflicts: [],
+  excludedDates: [],
   quotedAmount: null,
   currency: null,
   createdSeries: null,
@@ -112,6 +119,7 @@ export const applyScheduledPreview = (
   previewRequestId: requestId,
   proposalKey,
   conflicts: [],
+  excludedDates: [],
   quotedAmount: null,
   currency: null,
   createdSeries: state.phase === "created" ? state.createdSeries : null,
@@ -144,6 +152,7 @@ export const applyPreviewSucceeded = (
     ...state,
     previewStatus: "ready",
     conflicts,
+    excludedDates: [],
     quotedAmount,
     currency,
     previewError: null,
@@ -163,6 +172,7 @@ export const applyPreviewFailed = (
     ...state,
     previewStatus: "error",
     conflicts: [],
+    excludedDates: [],
     quotedAmount: null,
     currency: null,
     previewError: error,
@@ -175,12 +185,7 @@ export const invalidatePreview = (state: RecurringSeriesReviewSnapshot): Recurri
 });
 
 export const canOpenReview = (state: RecurringSeriesReviewSnapshot): boolean => {
-  return (
-    state.previewStatus === "ready" &&
-    state.conflicts.length === 0 &&
-    state.phase !== "creating" &&
-    state.phase !== "created"
-  );
+  return state.previewStatus === "ready" && state.phase !== "creating" && state.phase !== "created";
 };
 
 export const openReview = (state: RecurringSeriesReviewSnapshot): RecurringSeriesReviewSnapshot => {
@@ -201,9 +206,27 @@ export const canConfirmCreate = (state: RecurringSeriesReviewSnapshot): boolean 
   return (
     state.phase === "review" &&
     state.previewStatus === "ready" &&
-    state.conflicts.length === 0 &&
-    state.createdSeries === null
+    state.createdSeries === null &&
+    canCreateRecurringSeriesWithExclusions(state.conflicts, state.excludedDates)
   );
+};
+
+export const toggleReviewExcludedDate = (
+  state: RecurringSeriesReviewSnapshot,
+  occurrenceDate: string
+): RecurringSeriesReviewSnapshot => {
+  if (state.phase !== "review" || state.previewStatus !== "ready") {
+    return state;
+  }
+  return {
+    ...state,
+    excludedDates: toggleExcludedDate(state.conflicts, state.excludedDates, occurrenceDate),
+    createError: null,
+  };
+};
+
+export const excludedDatesForCreate = (state: RecurringSeriesReviewSnapshot): string[] => {
+  return sanitizeExcludedDates(state.conflicts, state.excludedDates);
 };
 
 export const applyCreateStarted = (state: RecurringSeriesReviewSnapshot): RecurringSeriesReviewSnapshot => {
@@ -318,6 +341,9 @@ export const createRecurringSeriesPreviewController = (deps: RecurringSeriesPrev
     },
     closeReview: () => {
       emit(closeReview(state));
+    },
+    toggleExcludedDate: (occurrenceDate: string) => {
+      emit(toggleReviewExcludedDate(state, occurrenceDate));
     },
     beginCreate: () => {
       emit(applyCreateStarted(state));

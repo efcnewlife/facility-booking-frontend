@@ -17,6 +17,7 @@ import {
   closeReview,
   createRecurringSeriesPreviewController,
   emptyRecurringSeriesReviewSnapshot,
+  excludedDatesForCreate,
   invalidatePreview,
   isPendingPaymentSuccess,
   openReview,
@@ -24,6 +25,7 @@ import {
   proposalKeyForAnswers,
   RECURRING_SERIES_PREVIEW_DEBOUNCE_MS,
   shouldPreviewProposal,
+  toggleReviewExcludedDate,
   type RecurringSeriesReviewSnapshot,
 } from "./recurringSeriesReview";
 import type { RecurringWhenValue, StartBookingAnswers } from "./startBookingFlow";
@@ -144,6 +146,63 @@ describe("mandatory review gate", () => {
   });
 });
 
+const readyWithConflicts = (conflicts: RecurringBookingConflict[]): RecurringSeriesReviewSnapshot => {
+  const scheduled = applyScheduledPreview(emptyRecurringSeriesReviewSnapshot(), "proposal-a", 1);
+  return applyPreviewSucceeded(applyPreviewStarted(scheduled, 1), 1, "proposal-a", conflicts);
+};
+
+describe("conflict Review", () => {
+  it("opens Review when the current preview reports conflicts", () => {
+    const ready = readyWithConflicts([conflict({ kind: "blackout", isOverridable: false })]);
+    expect(canOpenReview(ready)).toBe(true);
+    expect(openReview(ready).phase).toBe("review");
+    expect(canConfirmCreate(openReview(ready))).toBe(false);
+  });
+
+  it("lets Priority occupancy proceed without exclusion and keeps Blackout dates blocking", () => {
+    const ready = readyWithConflicts([
+      conflict({ occurrenceDate: "2026-08-20", kind: "occupancy", isOverridable: true }),
+      conflict({ occurrenceDate: "2026-08-27", kind: "blackout", isOverridable: false }),
+    ]);
+    const reviewed = openReview(ready);
+    expect(canConfirmCreate(reviewed)).toBe(false);
+    const withoutBlackout = toggleReviewExcludedDate(reviewed, "2026-08-27");
+    expect(withoutBlackout.excludedDates).toEqual(["2026-08-27"]);
+    expect(canConfirmCreate(withoutBlackout)).toBe(true);
+  });
+
+  it("does not exclude a free or unreported date from Review", () => {
+    const reviewed = openReview(readyWithConflicts([conflict({ occurrenceDate: "2026-08-27", kind: "blackout" })]));
+    expect(toggleReviewExcludedDate(reviewed, "2026-08-13").excludedDates).toEqual([]);
+    expect(toggleReviewExcludedDate(reviewed, "2026-08-27").excludedDates).toEqual(["2026-08-27"]);
+  });
+});
+
+describe("revision and stale preview replacement", () => {
+  it("returns to room selection and drops stale exclusions when the proposal changes", () => {
+    const reviewed = toggleReviewExcludedDate(
+      openReview(readyWithConflicts([conflict({ occurrenceDate: "2026-08-27", kind: "blackout" })])),
+      "2026-08-27"
+    );
+    const revised = applyScheduledPreview(reviewed, "proposal-b", 2);
+    expect(revised.phase).toBe("selecting");
+    expect(revised.excludedDates).toEqual([]);
+    expect(revised.conflicts).toEqual([]);
+    expect(canConfirmCreate(revised)).toBe(false);
+    expect(canOpenReview(revised)).toBe(false);
+  });
+
+  it("ignores a stale conflicting preview after the member revises rooms or schedule", () => {
+    const reviewed = openReview(readyWithConflicts([conflict()]));
+    const revised = applyScheduledPreview(reviewed, "proposal-b", 2);
+    const stale = applyPreviewSucceeded(revised, 1, "proposal-a", [conflict({ occurrenceDate: "2026-09-03" })]);
+    expect(stale.proposalKey).toBe("proposal-b");
+    expect(stale.conflicts).toEqual([]);
+    expect(stale.excludedDates).toEqual([]);
+    expect(canConfirmCreate(stale)).toBe(false);
+  });
+});
+
 describe("buildConflictFreeReviewSummary", () => {
   it("summarizes selected rooms, shared time, occurrence bounds, count, and server total", () => {
     expect(buildConflictFreeReviewSummary(answers(), ["Gym", "Chapel"], "150.00", "CAD", now)).toEqual({
@@ -175,6 +234,17 @@ describe("create payloads from Review", () => {
       ],
       excludedDates: [],
     });
+  });
+
+  it("sends only permitted exclusions from the current preview", () => {
+    const reviewed = toggleReviewExcludedDate(
+      openReview(readyWithConflicts([conflict({ occurrenceDate: "2026-08-27", kind: "blackout" })])),
+      "2026-08-27"
+    );
+    expect(excludedDatesForCreate(reviewed)).toEqual(["2026-08-27"]);
+    expect(
+      buildCreateRecurringBookingSeriesPayload(answers(), now, excludedDatesForCreate(reviewed))?.excludedDates
+    ).toEqual(["2026-08-27"]);
   });
 });
 
@@ -316,6 +386,35 @@ describe("createRecurringSeriesPreviewController", () => {
     expect(canConfirmCreate(controller.getState())).toBe(false);
     expect(controller.getState().previewStatus).toBe("error");
     expect(controller.getState().createdSeries).toBe(null);
+    controller.dispose();
+  });
+
+  it("drops Review exclusions when the member revises the proposal", async () => {
+    const preview = vi
+      .fn()
+      .mockResolvedValueOnce([conflict({ occurrenceDate: "2026-08-27", kind: "blackout" })])
+      .mockResolvedValueOnce([]);
+    const controller = createRecurringSeriesPreviewController({
+      preview,
+      now: () => now,
+      onState: vi.fn(),
+    });
+    controller.setProposal(answers());
+    await vi.advanceTimersByTimeAsync(RECURRING_SERIES_PREVIEW_DEBOUNCE_MS);
+    await Promise.resolve();
+    controller.openReview();
+    controller.toggleExcludedDate("2026-08-27");
+    expect(controller.getState().excludedDates).toEqual(["2026-08-27"]);
+
+    controller.setProposal(answers({ recurringWhen: { ...baseRecurringWhen, roomIds: ["room-1"] } }));
+    expect(controller.getState().phase).toBe("selecting");
+    expect(controller.getState().excludedDates).toEqual([]);
+    expect(canConfirmCreate(controller.getState())).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(RECURRING_SERIES_PREVIEW_DEBOUNCE_MS);
+    await Promise.resolve();
+    expect(canOpenReview(controller.getState())).toBe(true);
+    expect(controller.getState().conflicts).toEqual([]);
     controller.dispose();
   });
 });
