@@ -8,6 +8,7 @@ import type { RecurringWhenValue, StartBookingAnswers } from "./startBookingFlow
 const blankWhen = { date: null, start: null, end: null };
 
 const baseRecurringWhen: RecurringWhenValue = {
+  weekday: 4,
   firstOccurrenceDate: "2026-08-20",
   lastOccurrenceDate: "2026-09-24",
   startTime: "09:00",
