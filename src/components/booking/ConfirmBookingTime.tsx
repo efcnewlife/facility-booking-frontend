@@ -1,6 +1,15 @@
+import { canSubmitRepeatedConfirmBookingTime, isSameWeekday, occurrencePeriodForDate } from "@/utils/startBookingFlow";
 import { canConfirmBookingTime, type BookingInterval, type RoomDay } from "@/utils/timetableRules";
-import { Button, Modal, TimePicker, type TimePickerValue } from "@efcnewlife/newlife-ui";
+import {
+  Button,
+  DatePicker,
+  Modal,
+  TimePicker,
+  type DatePickerValue,
+  type TimePickerValue,
+} from "@efcnewlife/newlife-ui";
 import dayjs from "dayjs";
+import moment from "moment";
 import { useTranslation } from "react-i18next";
 
 const TIME_OF_DAY_ANCHOR = "1970-01-01";
@@ -23,6 +32,24 @@ const fromTimePickerValue = (value: TimePickerValue): string => {
   return value.format("HH:mm");
 };
 
+const toDatePickerValue = (date: string): DatePickerValue => {
+  if (!date) {
+    return null;
+  }
+  const parsed = dayjs(date);
+  if (!parsed.isValid() || parsed.format("YYYY-MM-DD") !== date) {
+    return null;
+  }
+  return parsed;
+};
+
+const fromDatePickerValue = (value: DatePickerValue): string => {
+  if (!value || !value.isValid()) {
+    return "";
+  }
+  return value.format("YYYY-MM-DD");
+};
+
 interface ConfirmBookingTimeProps {
   date: string;
   room: RoomDay;
@@ -32,6 +59,12 @@ interface ConfirmBookingTimeProps {
   onEndChange: (end: string) => void;
   onCancel: () => void;
   onConfirm: (interval: BookingInterval) => void;
+  requireLastOccurrence?: boolean;
+  lastOccurrenceDate?: string;
+  onLastOccurrenceDateChange?: (date: string) => void;
+  weekday?: number | null;
+  minDate?: string;
+  maxDate?: string;
 }
 
 const ConfirmBookingTime = ({
@@ -43,10 +76,38 @@ const ConfirmBookingTime = ({
   onEndChange,
   onCancel,
   onConfirm,
+  requireLastOccurrence = false,
+  lastOccurrenceDate = "",
+  onLastOccurrenceDateChange,
+  weekday = null,
+  minDate,
+  maxDate,
 }: ConfirmBookingTimeProps) => {
   const { t } = useTranslation("booking");
   const interval: BookingInterval | null = start && end ? { start, end } : null;
-  const canContinue = canConfirmBookingTime(room, interval);
+  const lastOccurrenceValid =
+    !requireLastOccurrence || canSubmitRepeatedConfirmBookingTime(date, lastOccurrenceDate || null, weekday);
+  const canContinue = canConfirmBookingTime(room, interval) && lastOccurrenceValid;
+  const lastBeforeFirst = Boolean(
+    date &&
+    lastOccurrenceDate &&
+    moment(lastOccurrenceDate, "YYYY-MM-DD", true).isBefore(moment(date, "YYYY-MM-DD", true), "day")
+  );
+  const lastWeekdayMismatch = Boolean(date && lastOccurrenceDate && !isSameWeekday(date, lastOccurrenceDate));
+  const lastUsePeriodMismatch = Boolean(
+    !lastBeforeFirst &&
+    !lastWeekdayMismatch &&
+    date &&
+    lastOccurrenceDate &&
+    occurrencePeriodForDate(date) !== occurrencePeriodForDate(lastOccurrenceDate)
+  );
+  const lastOccurrenceError = lastBeforeFirst
+    ? t("startBooking.recurringWhen.dateOrder")
+    : lastWeekdayMismatch
+      ? t("startBooking.recurringWhen.weekdayMismatch")
+      : lastUsePeriodMismatch
+        ? t("startBooking.recurringWhen.usePeriodMismatch")
+        : undefined;
 
   return (
     <Modal
@@ -79,6 +140,22 @@ const ConfirmBookingTime = ({
           <span className="font-medium">{t("confirmBookingTime.date")}: </span>
           <span>{date}</span>
         </p>
+        {requireLastOccurrence ? (
+          <DatePicker
+            clearable={false}
+            error={lastOccurrenceError}
+            id="confirm-booking-end-date"
+            label={t("timetable.endDate")}
+            maxDate={maxDate}
+            minDate={minDate ?? date}
+            onChange={(value) => onLastOccurrenceDateChange?.(fromDatePickerValue(value))}
+            placeholder={t("startBooking.when.datePlaceholder")}
+            required
+            size="sm"
+            value={toDatePickerValue(lastOccurrenceDate)}
+            wrapperClassName="w-full min-w-0"
+          />
+        ) : null}
         <div className="grid grid-cols-2 gap-4">
           <TimePicker
             ampm

@@ -62,7 +62,8 @@ export const resolveRecurringBookingSeriesErrorMessage = (
   if (isApiError(error)) {
     const errorCode = error.details?.error_code;
     if (typeof errorCode === "string" && errorCode in ERROR_CODE_TO_I18N_KEY) {
-      return i18n.t(ERROR_CODE_TO_I18N_KEY[errorCode as FacilityRecurringErrorCode]);
+      const key = ERROR_CODE_TO_I18N_KEY[errorCode as FacilityRecurringErrorCode];
+      return key.includes(":") ? i18n.t(key) : i18n.t(key, { ns: "booking" });
     }
     if (error.message) {
       return error.message;
@@ -73,5 +74,5 @@ export const resolveRecurringBookingSeriesErrorMessage = (
     return error.message;
   }
 
-  return i18n.t(fallbackKey);
+  return fallbackKey.includes(":") ? i18n.t(fallbackKey) : i18n.t(fallbackKey, { ns: "booking" });
 };

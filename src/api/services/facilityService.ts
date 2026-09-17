@@ -184,6 +184,11 @@ export interface CreateRecurringBookingSeriesPayload {
   excludedDates?: string[];
 }
 
+export interface RecurringBookingWindowStatus {
+  isOpen: boolean;
+  nextOpeningDate: string | null;
+}
+
 export type PreviewRecurringBookingSeriesPayload = Omit<CreateRecurringBookingSeriesPayload, "excludedDates">;
 
 export type RecurringConflictKind = "occupancy" | "ministry" | "blackout" | "weekly_quota";
@@ -353,6 +358,27 @@ class FacilityService {
     return {
       rooms: mapAvailabilityToRoomDays(response.data),
       maxBookingLines: maxBookingLinesFromPayload(response.data),
+    };
+  }
+
+  async getRecurringBookingWindowStatus(firstOccurrenceDate?: string | null): Promise<RecurringBookingWindowStatus> {
+    const params: Record<string, unknown> = {};
+    if (firstOccurrenceDate) {
+      params.firstOccurrenceDate = firstOccurrenceDate;
+    }
+    const response = await httpClient.get<{
+      isOpen?: boolean;
+      is_open?: boolean;
+      nextOpeningDate?: string | null;
+      next_opening_date?: string | null;
+    }>(API_ENDPOINTS.FACILITY.BOOKING_SERIES_AVAILABILITY_WINDOW, params);
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to load repeated booking window");
+    }
+    const nextOpening = response.data.nextOpeningDate ?? response.data.next_opening_date ?? null;
+    return {
+      isOpen: Boolean(response.data.isOpen ?? response.data.is_open),
+      nextOpeningDate: nextOpening ? String(nextOpening) : null,
     };
   }
 

@@ -3,10 +3,10 @@ import ministryService from "@/api/services/ministryService";
 import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
-import RecurringScheduleCard from "@/components/booking/RecurringScheduleCard";
 import RecurringSeriesPendingPayment from "@/components/booking/RecurringSeriesPendingPayment";
 import RecurringSeriesReviewModal from "@/components/booking/RecurringSeriesReviewModal";
 import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
+import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
 import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
@@ -25,7 +25,9 @@ import {
   type RecurringSeriesReviewSnapshot,
 } from "@/utils/recurringSeriesReview";
 import {
-  isRecurringScheduleValid,
+  applyFirstOccurrenceDate,
+  applyWeekday,
+  canSubmitRepeatedConfirmBookingTime,
   isRepeatedRoomsSearch,
   isSameWeekday,
   occurrencePeriodForDate,
@@ -34,32 +36,33 @@ import {
   toRoomsSearchParams,
   weekdayForDate,
   weeklyOccurrenceDates,
+  type RecurringWhenValue,
   type RoomsSearchQuery,
   type StartBookingAnswers,
 } from "@/utils/startBookingFlow";
 import { loadTimetableCart, saveTimetableCart } from "@/utils/timetableCartStorage";
 import {
   addCartLine,
+  applyRepeatedTimeReplacement,
   blockActionForInterval,
   cartPointerAction,
   clockToMinutes,
   confirmBookingTimePrefillForCart,
+  confirmRepeatedCartLine,
   displayBlocksForCart,
   emptyCartState,
   emptyTimeBookInterval,
   hasNoMatchingResults,
   intervalsOverlap,
   isBookableCellForCart,
-  isRepeatedRoomSelectable,
   isTimetableInitialLoad,
   MAX_BOOKING_LINES,
   minutesToClock,
   pinInterval,
   removeCartLine,
-  retainValidRepeatedRoomIds,
+  removeRepeatedCartLine,
   scrollTargetClockForCart,
   SLOT_MINUTES,
-  toggleRepeatedRoomSelection,
   updateCartLine,
   visibleRooms,
   type AvailableOverlayKind,
@@ -74,7 +77,17 @@ import {
   type TimetableCartState,
   type TimetableView,
 } from "@/utils/timetableRules";
-import { Alert, Badge, Button, cn, DatePicker, Select, Spinner, type DatePickerValue } from "@efcnewlife/newlife-ui";
+import {
+  Alert,
+  Badge,
+  Button,
+  cn,
+  DatePicker,
+  FormField,
+  Select,
+  Spinner,
+  type DatePickerValue,
+} from "@efcnewlife/newlife-ui";
 import dayjs from "dayjs";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -85,6 +98,7 @@ import { Navigate, useNavigate, useSearchParams } from "react-router";
 const ROOMS_PER_PAGE = 4;
 const SLOT_HEIGHT_PX = 40;
 const GRID_SCROLL_PADDING_PX = 16;
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 const CAPACITY_BANDS: CapacityBand[] = ["1-10", "10-25", "25-50", "50+"];
 const SEARCH_LABEL_CLASS = "mb-[3px] text-sm font-medium leading-none text-booking-light-grey";
 const SEARCH_CONTROL_CLASS = "border-outline bg-surface";
@@ -129,6 +143,42 @@ const fromDatePickerValue = (value: DatePickerValue): string => {
   }
   return value.format("YYYY-MM-DD");
 };
+
+const toRepeatedRoomsQuery = (base: RoomsSearchQuery, when: RecurringWhenValue): RoomsSearchQuery => {
+  const next: RoomsSearchQuery = { frequency: "repeated" };
+  if (when.firstOccurrenceDate) {
+    next.date = when.firstOccurrenceDate;
+  }
+  if (when.lastOccurrenceDate) {
+    next.lastDate = when.lastOccurrenceDate;
+  }
+  if (when.weekday != null) {
+    next.weekday = when.weekday;
+  }
+  if (base.start) {
+    next.start = base.start;
+  }
+  if (base.end) {
+    next.end = base.end;
+  }
+  if (base.ministryId) {
+    next.ministryId = base.ministryId;
+  }
+  return next;
+};
+
+const draftRecurringWhen = (
+  weekday: number | null,
+  firstOccurrenceDate: string,
+  lastOccurrenceDate: string
+): RecurringWhenValue => ({
+  weekday,
+  firstOccurrenceDate: firstOccurrenceDate || null,
+  lastOccurrenceDate: lastOccurrenceDate || null,
+  startTime: null,
+  endTime: null,
+  roomIds: [],
+});
 
 const TIMETABLE_OPEN_HOUR_BG = "bg-[#eefaea]";
 const TIMETABLE_HOVER_BLOCK_BG = "bg-[#d1f2cd]";
@@ -193,11 +243,16 @@ const RoomFilterPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const initialQuery = parseRoomsSearchQuery(searchParams);
-  const isRepeated = isRepeatedRoomsSearch(initialQuery);
+  const searchKey = searchParams.toString();
+  const appliedQuery = useMemo(() => parseRoomsSearchQuery(new URLSearchParams(searchKey)), [searchKey]);
+  const isRepeated = isRepeatedRoomsSearch(appliedQuery);
 
-  const [draftDate, setDraftDate] = useState(initialQuery?.date ?? "");
-  const [draftMinistryId, setDraftMinistryId] = useState(initialQuery?.ministryId ?? "");
+  const [draftDate, setDraftDate] = useState(appliedQuery?.date ?? "");
+  const [draftLastDate, setDraftLastDate] = useState(appliedQuery?.lastDate ?? "");
+  const [draftWeekday, setDraftWeekday] = useState<number | null>(
+    appliedQuery?.weekday ?? weekdayForDate(appliedQuery?.date ?? "") ?? null
+  );
+  const [draftMinistryId, setDraftMinistryId] = useState(appliedQuery?.ministryId ?? "");
   const [view, setView] = useState<TimetableView>("available");
   const [capacityBand, setCapacityBand] = useState<CapacityBand | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
@@ -206,23 +261,26 @@ const RoomFilterPage = () => {
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
   const [cartState, setCartState] = useState<TimetableCartState>(() =>
     isRepeated
-      ? emptyCartState(whenSeedFromSearch(initialQuery?.start, initialQuery?.end))
-      : buildInitialCartState(initialQuery)
+      ? emptyCartState(whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end))
+      : buildInitialCartState(appliedQuery)
   );
-  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
-  const [loading, setLoading] = useState(() => Boolean(initialQuery?.date));
+  const [loading, setLoading] = useState(() => Boolean(appliedQuery?.date));
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
   const [confirmRoom, setConfirmRoom] = useState<RoomDay | null>(null);
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
+  const [confirmLastDate, setConfirmLastDate] = useState("");
   const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
+  const [pendingReplacement, setPendingReplacement] = useState<{ room: RoomDay; interval: BookingInterval } | null>(
+    null
+  );
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const [reviewState, setReviewState] = useState<RecurringSeriesReviewSnapshot>(emptyRecurringSeriesReviewSnapshot);
+  const [repeatedWindowOpen, setRepeatedWindowOpen] = useState<boolean | null>(isRepeated ? null : true);
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const seriesPreviewControllerRef = useRef<ReturnType<typeof createRecurringSeriesPreviewController> | null>(null);
 
-  const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
   const appliedMinistryId = appliedQuery?.ministryId;
   const whenSeed = useMemo(
@@ -230,8 +288,18 @@ const RoomFilterPage = () => {
     [appliedQuery?.end, appliedQuery?.start]
   );
   const recurringWhen = useMemo(
-    () => (isRepeated && appliedQuery ? recurringWhenFromRoomsQuery(appliedQuery, selectedRoomIds) : null),
-    [appliedQuery, isRepeated, selectedRoomIds]
+    () =>
+      isRepeated && appliedQuery
+        ? {
+            ...recurringWhenFromRoomsQuery(
+              appliedQuery,
+              cartState.lines.map((line) => line.facilityId)
+            ),
+            startTime: cartState.sharedTime?.start ?? null,
+            endTime: cartState.sharedTime?.end ?? null,
+          }
+        : null,
+    [appliedQuery, cartState.lines, cartState.sharedTime, isRepeated]
   );
   const repeatedAnswers = useMemo((): StartBookingAnswers | null => {
     if (!isRepeated || !appliedQuery || !recurringWhen) {
@@ -246,32 +314,22 @@ const RoomFilterPage = () => {
     };
   }, [appliedQuery, isRepeated, recurringWhen]);
   const repeatedProposalKey = repeatedAnswers ? proposalKeyForAnswers(repeatedAnswers) : null;
+  const scheduleFirstDate = isRepeated ? draftDate : "";
+  const scheduleLastDate = isRepeated ? draftLastDate : "";
   const recurringWeekdayMismatch = Boolean(
-    (recurringWhen?.firstOccurrenceDate &&
-      recurringWhen.lastOccurrenceDate &&
-      !isSameWeekday(recurringWhen.firstOccurrenceDate, recurringWhen.lastOccurrenceDate)) ||
-    (recurringWhen?.weekday != null &&
-      recurringWhen.firstOccurrenceDate &&
-      weekdayForDate(recurringWhen.firstOccurrenceDate) !== recurringWhen.weekday) ||
-    (recurringWhen?.weekday != null &&
-      recurringWhen.lastOccurrenceDate &&
-      weekdayForDate(recurringWhen.lastOccurrenceDate) !== recurringWhen.weekday)
+    scheduleFirstDate && scheduleLastDate && !isSameWeekday(scheduleFirstDate, scheduleLastDate)
   );
   const recurringLastBeforeFirst = Boolean(
-    recurringWhen?.firstOccurrenceDate &&
-    recurringWhen.lastOccurrenceDate &&
-    moment(recurringWhen.lastOccurrenceDate, "YYYY-MM-DD", true).isBefore(
-      moment(recurringWhen.firstOccurrenceDate, "YYYY-MM-DD", true),
-      "day"
-    )
+    scheduleFirstDate &&
+    scheduleLastDate &&
+    moment(scheduleLastDate, "YYYY-MM-DD", true).isBefore(moment(scheduleFirstDate, "YYYY-MM-DD", true), "day")
   );
   const recurringUsePeriodMismatch = Boolean(
     !recurringWeekdayMismatch &&
     !recurringLastBeforeFirst &&
-    recurringWhen?.firstOccurrenceDate &&
-    recurringWhen.lastOccurrenceDate &&
-    occurrencePeriodForDate(recurringWhen.firstOccurrenceDate) !==
-      occurrencePeriodForDate(recurringWhen.lastOccurrenceDate)
+    scheduleFirstDate &&
+    scheduleLastDate &&
+    occurrencePeriodForDate(scheduleFirstDate) !== occurrencePeriodForDate(scheduleLastDate)
   );
   const recurringLastOccurrenceError = recurringLastBeforeFirst
     ? t("startBooking.recurringWhen.dateOrder")
@@ -281,20 +339,13 @@ const RoomFilterPage = () => {
         ? t("startBooking.recurringWhen.usePeriodMismatch")
         : undefined;
   const recurringOccurrenceCount =
-    recurringWhen?.firstOccurrenceDate &&
-    recurringWhen.lastOccurrenceDate &&
+    scheduleFirstDate &&
+    scheduleLastDate &&
     !recurringWeekdayMismatch &&
     !recurringLastBeforeFirst &&
     !recurringUsePeriodMismatch
-      ? weeklyOccurrenceDates(recurringWhen.firstOccurrenceDate, recurringWhen.lastOccurrenceDate).length
+      ? weeklyOccurrenceDates(scheduleFirstDate, scheduleLastDate).length
       : 0;
-  const canSelectRepeatedRooms = Boolean(
-    recurringWhen && whenSeed && isRecurringScheduleValid(recurringWhen, new Date())
-  );
-  const repeatedCartState = useMemo(
-    () => (isRepeated ? emptyCartState(whenSeed) : cartState),
-    [cartState, isRepeated, whenSeed]
-  );
   const showMinistryField = bookableMinistries.length > 0;
   const minDate = moment().format("YYYY-MM-DD");
   const maxDate = moment().add(1, "year").format("YYYY-MM-DD");
@@ -392,16 +443,8 @@ const RoomFilterPage = () => {
     setHover(null);
     setConfirmRoom(null);
     setEditingSequence(undefined);
+    setPendingReplacement(null);
   }, [appliedKey, whenSeed]);
-
-  useEffect(() => {
-    if (!isRepeated) {
-      return;
-    }
-    setSelectedRoomIds((current) =>
-      retainValidRepeatedRoomIds(current, rooms, canSelectRepeatedRooms ? whenSeed : null)
-    );
-  }, [canSelectRepeatedRooms, isRepeated, rooms, whenSeed]);
 
   const listedRooms = useMemo(
     () => visibleRooms(rooms, view, whenSeed, capacityBand),
@@ -498,32 +541,50 @@ const RoomFilterPage = () => {
       return;
     }
     if (!moment(draftDate, "YYYY-MM-DD", true).isValid()) {
-      setError(t("timetable.date"));
+      setError(t(isRepeated ? "timetable.startDate" : "timetable.date"));
       return;
     }
     const dateChanged = draftDate !== appliedDate;
     const ministryChanged = draftMinistryId !== (appliedMinistryId ?? "");
-    if (!dateChanged && !ministryChanged) {
+    const lastDateChanged = isRepeated && draftLastDate !== (appliedQuery?.lastDate ?? "");
+    const weekdayChanged = isRepeated && draftWeekday !== (appliedQuery?.weekday ?? null);
+    if (!dateChanged && !ministryChanged && !lastDateChanged && !weekdayChanged) {
       return;
     }
-    const next: RoomsSearchQuery =
-      isRepeated && appliedQuery ? { ...appliedQuery, date: draftDate } : { date: draftDate };
-    if (isRepeated) {
-      const weekday = weekdayForDate(draftDate);
-      if (weekday != null) {
-        next.weekday = weekday;
-        next.frequency = "repeated";
-        if (next.lastDate && weekdayForDate(next.lastDate) !== weekday) {
-          delete next.lastDate;
-        }
+    if (isRepeated && appliedQuery) {
+      const current = recurringWhenFromRoomsQuery(appliedQuery, []);
+      const withDrafts = { ...current, lastOccurrenceDate: draftLastDate || null, weekday: draftWeekday };
+      const nextWhen = draftDate
+        ? applyFirstOccurrenceDate(withDrafts, draftDate)
+        : draftWeekday != null
+          ? applyWeekday(withDrafts, draftWeekday)
+          : withDrafts;
+      const next = toRepeatedRoomsQuery(appliedQuery, nextWhen);
+      if (draftLastDate && nextWhen.lastOccurrenceDate) {
+        next.lastDate = nextWhen.lastOccurrenceDate;
+      } else if (draftLastDate) {
+        next.lastDate = draftLastDate;
+      } else {
+        delete next.lastDate;
       }
+      if (draftMinistryId) {
+        next.ministryId = draftMinistryId;
+      } else {
+        delete next.ministryId;
+      }
+      setSearchParams(toRoomsSearchParams(next), { replace: true });
+      setDraftDate(next.date ?? draftDate);
+      setDraftLastDate(next.lastDate ?? "");
+      setDraftWeekday(next.weekday ?? nextWhen.weekday ?? null);
+      setHover(null);
+      setError(null);
+      return;
     }
+    const next: RoomsSearchQuery = { date: draftDate };
     if (draftMinistryId) {
       next.ministryId = draftMinistryId;
-    } else {
-      delete next.ministryId;
     }
-    if (!isRepeated && !dateChanged && appliedQuery?.start && appliedQuery?.end) {
+    if (!dateChanged && appliedQuery?.start && appliedQuery?.end) {
       next.start = appliedQuery.start;
       next.end = appliedQuery.end;
     }
@@ -535,7 +596,9 @@ const RoomFilterPage = () => {
     appliedMinistryId,
     appliedQuery,
     draftDate,
+    draftLastDate,
     draftMinistryId,
+    draftWeekday,
     isRepeated,
     loading,
     setSearchParams,
@@ -561,8 +624,35 @@ const RoomFilterPage = () => {
     return () => document.removeEventListener("pointerdown", on_pointer_down, true);
   }, [handleUpdateSearch, loading]);
 
+  useEffect(() => {
+    if (!isRepeated) {
+      return;
+    }
+    let cancelled = false;
+    const loadWindow = async () => {
+      try {
+        const status = await facilityService.getRecurringBookingWindowStatus(appliedQuery?.date ?? null);
+        if (!cancelled) {
+          setRepeatedWindowOpen(status.isOpen);
+        }
+      } catch {
+        if (!cancelled) {
+          setRepeatedWindowOpen(false);
+        }
+      }
+    };
+    void loadWindow();
+    return () => {
+      cancelled = true;
+    };
+  }, [appliedQuery?.date, isRepeated]);
+
   if (!appliedQuery || (!isRepeated && !appliedQuery.date)) {
     return <Navigate replace to="/" />;
+  }
+
+  if (isRepeated && repeatedWindowOpen === false) {
+    return <Navigate replace to="/start-booking?step=frequency" />;
   }
 
   if (isPendingPaymentSuccess(reviewState) && reviewState.createdSeries) {
@@ -581,70 +671,13 @@ const RoomFilterPage = () => {
     isRepeated && repeatedAnswers
       ? buildConflictFreeReviewSummary(
           repeatedAnswers,
-          selectedRoomIds.map((id) => rooms.find((room) => room.id === id)?.name ?? id),
+          cartState.lines.map((line) => rooms.find((room) => room.id === line.facilityId)?.name ?? line.facilityId),
           reviewState.quotedAmount,
           reviewState.currency
         )
       : null;
 
-  const replaceRepeatedQuery = (next: RoomsSearchQuery) => {
-    setSearchParams(toRoomsSearchParams(next), { replace: true });
-    setDraftDate(next.date ?? "");
-    setHover(null);
-  };
-
-  const handleWeekdayChange = (weekday: number) => {
-    const next: RoomsSearchQuery = { ...appliedQuery, weekday };
-    if (next.date && weekdayForDate(next.date) !== weekday) {
-      delete next.date;
-    }
-    if (next.lastDate && weekdayForDate(next.lastDate) !== weekday) {
-      delete next.lastDate;
-    }
-    replaceRepeatedQuery(next);
-  };
-
-  const handleStartsOnChange = (value: DatePickerValue) => {
-    const date = fromDatePickerValue(value);
-    const next: RoomsSearchQuery = { ...appliedQuery };
-    if (!date) {
-      delete next.date;
-      replaceRepeatedQuery(next);
-      return;
-    }
-    next.date = date;
-    const weekday = weekdayForDate(date);
-    if (weekday != null) {
-      next.weekday = weekday;
-      if (next.lastDate && weekdayForDate(next.lastDate) !== weekday) {
-        delete next.lastDate;
-      }
-    }
-    replaceRepeatedQuery(next);
-  };
-
-  const handleEndsOnChange = (value: DatePickerValue) => {
-    const date = fromDatePickerValue(value);
-    const next: RoomsSearchQuery = { ...appliedQuery };
-    if (!date) {
-      delete next.lastDate;
-    } else {
-      next.lastDate = date;
-    }
-    replaceRepeatedQuery(next);
-  };
-
-  const handleToggleRepeatedRoom = (room: RoomDay) => {
-    if (!canSelectRepeatedRooms || !whenSeed) {
-      return;
-    }
-    setSelectedRoomIds((current) => toggleRepeatedRoomSelection(current, room.id, rooms, whenSeed, maxBookingLines));
-  };
-
   const handlePinCell = (room: RoomDay, cellStart: string) => {
-    if (isRepeated) {
-      return;
-    }
     if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
     }
@@ -661,6 +694,7 @@ const RoomFilterPage = () => {
     setConfirmRoom(room);
     setConfirmStart(prefill.start);
     setConfirmEnd(prefill.end);
+    setConfirmLastDate(draftLastDate || appliedQuery?.lastDate || "");
     setEditingSequence(sequence);
   };
 
@@ -668,18 +702,57 @@ const RoomFilterPage = () => {
     setConfirmRoom(null);
     setConfirmStart("");
     setConfirmEnd("");
+    setConfirmLastDate("");
     setEditingSequence(undefined);
   };
 
   const persistCartState = (state: TimetableCartState) => {
-    if (!appliedDate) {
+    if (isRepeated || !appliedDate) {
       return;
     }
     saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, appliedMinistryId, state));
   };
 
+  const persistRepeatedLastDate = (lastDate: string) => {
+    if (!appliedQuery || !appliedDate || !lastDate) {
+      return;
+    }
+    const current = recurringWhenFromRoomsQuery(appliedQuery, []);
+    const nextWhen = applyFirstOccurrenceDate({ ...current, lastOccurrenceDate: lastDate }, appliedDate);
+    if (!nextWhen.lastOccurrenceDate) {
+      return;
+    }
+    const next = toRepeatedRoomsQuery(appliedQuery, nextWhen);
+    if (draftMinistryId) {
+      next.ministryId = draftMinistryId;
+    } else {
+      delete next.ministryId;
+    }
+    setDraftLastDate(next.lastDate ?? lastDate);
+    if (appliedQuery.lastDate !== next.lastDate) {
+      setSearchParams(toRoomsSearchParams(next), { replace: true });
+    }
+  };
+
   const handleConfirmBookingTime = async (interval: BookingInterval) => {
     if (!confirmRoom || !appliedDate) {
+      return;
+    }
+    if (isRepeated) {
+      if (!appliedQuery || !canSubmitRepeatedConfirmBookingTime(appliedDate, confirmLastDate || null, draftWeekday)) {
+        return;
+      }
+      persistRepeatedLastDate(confirmLastDate);
+      const candidate = { facilityId: confirmRoom.id, start: interval.start, end: interval.end };
+      const result = confirmRepeatedCartLine(cartState, candidate, maxBookingLines);
+      if (result.decision === "replace") {
+        setPendingReplacement({ room: confirmRoom, interval });
+        return;
+      }
+      handleCancelConfirmBookingTime();
+      if (result.decision === "added") {
+        setCartState(result.state);
+      }
       return;
     }
     let nextState: TimetableCartState | null = null;
@@ -727,12 +800,38 @@ const RoomFilterPage = () => {
     }
   };
 
+  const handleConfirmReplacement = () => {
+    if (!pendingReplacement) {
+      return;
+    }
+    const result = applyRepeatedTimeReplacement(
+      cartState,
+      {
+        facilityId: pendingReplacement.room.id,
+        start: pendingReplacement.interval.start,
+        end: pendingReplacement.interval.end,
+      },
+      maxBookingLines
+    );
+    setPendingReplacement(null);
+    handleCancelConfirmBookingTime();
+    if (result.decision === "added") {
+      setReviewState(emptyRecurringSeriesReviewSnapshot);
+      setCartState(result.state);
+    }
+  };
+
+  const handleCancelReplacement = () => {
+    setPendingReplacement(null);
+    handleCancelConfirmBookingTime();
+  };
+
   const pointerKindFromEvent = (event: { pointerType: string }): PointerKind => {
     return event.pointerType === "mouse" ? "mouse" : "touch";
   };
 
   const handleCellPointerEnter = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (isRepeated || event.pointerType !== "mouse") {
+    if (event.pointerType !== "mouse") {
       return;
     }
     const preview = emptyTimeBookInterval(room, cellStart);
@@ -750,7 +849,7 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerUp = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (isRepeated || !isBookableCellForCart(room, cellStart, cartState)) {
+    if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
     }
     const target = { roomId: room.id, cellStart };
@@ -818,6 +917,23 @@ const RoomFilterPage = () => {
     seriesPreviewControllerRef.current?.toggleExcludedDate(occurrenceDate);
   };
 
+  const handleDraftStartDateChange = (value: DatePickerValue) => {
+    const next = applyFirstOccurrenceDate(
+      draftRecurringWhen(draftWeekday, draftDate, draftLastDate),
+      fromDatePickerValue(value) || null
+    );
+    setDraftDate(next.firstOccurrenceDate ?? "");
+    setDraftWeekday(next.weekday);
+    setDraftLastDate(next.lastOccurrenceDate ?? "");
+  };
+
+  const handleDraftWeekdayChange = (weekday: number) => {
+    const next = applyWeekday(draftRecurringWhen(draftWeekday, draftDate, draftLastDate), weekday);
+    setDraftWeekday(next.weekday);
+    setDraftDate(next.firstOccurrenceDate ?? "");
+    setDraftLastDate(next.lastOccurrenceDate ?? "");
+  };
+
   const formatClockForLocale = (clock: string) => formatClock(clock, i18nInstance.language);
 
   return (
@@ -872,17 +988,66 @@ const RoomFilterPage = () => {
             className={SEARCH_CONTROL_CLASS}
             clearable={false}
             id="timetable-date"
-            label={t("timetable.date")}
+            label={isRepeated ? t("timetable.startDate") : t("timetable.date")}
             labelClassName={SEARCH_LABEL_CLASS}
             maxDate={maxDate}
             minDate={minDate}
-            onChange={(value) => setDraftDate(fromDatePickerValue(value))}
+            onChange={handleDraftStartDateChange}
             placeholder={t("startBooking.when.datePlaceholder")}
             required
             size="sm"
             value={toDatePickerValue(draftDate)}
             wrapperClassName="w-[148px] shrink-0"
           />
+          {isRepeated ? (
+            <>
+              <DatePicker
+                className={SEARCH_CONTROL_CLASS}
+                error={recurringLastOccurrenceError}
+                id="timetable-end-date"
+                label={t("timetable.endDate")}
+                labelClassName={SEARCH_LABEL_CLASS}
+                maxDate={maxDate}
+                minDate={minDate}
+                onChange={(value) => setDraftLastDate(fromDatePickerValue(value))}
+                placeholder={t("startBooking.when.datePlaceholder")}
+                size="sm"
+                value={toDatePickerValue(draftLastDate)}
+                wrapperClassName="w-[148px] shrink-0"
+              />
+              <FormField
+                id="timetable-repeat-on"
+                label={t("timetable.repeatOn")}
+                labelClassName={SEARCH_LABEL_CLASS}
+                wrapperClassName="shrink-0"
+              >
+                <div className="flex h-9 items-center gap-1" id="timetable-repeat-on">
+                  {WEEKDAYS.map((day) => (
+                    <button
+                      aria-label={t(`startBooking.recurringSchedule.weekdays.${day}`)}
+                      aria-pressed={draftWeekday === day}
+                      className={cn(
+                        "inline-flex size-9 shrink-0 items-center justify-center rounded-full border border-outline text-xs font-semibold",
+                        draftWeekday === day
+                          ? "bg-primary text-on-primary"
+                          : "bg-white text-booking-primary hover:bg-white/90"
+                      )}
+                      key={day}
+                      onClick={() => handleDraftWeekdayChange(day)}
+                      type="button"
+                    >
+                      {t(`timetable.weekdaysShort.${day}`)}
+                    </button>
+                  ))}
+                </div>
+              </FormField>
+              {recurringOccurrenceCount > 0 ? (
+                <p className="m-0 mb-2 text-sm text-booking-light-grey">
+                  {t("startBooking.recurringWhen.occurrenceCount", { count: recurringOccurrenceCount })}
+                </p>
+              ) : null}
+            </>
+          ) : null}
         </div>
         <span className="shrink-0" id="timetable-update-search">
           <button className={SEARCH_SECONDARY_BUTTON_CLASS} disabled={loading} type="submit">
@@ -900,23 +1065,6 @@ const RoomFilterPage = () => {
           variant="error"
           width="full"
         />
-      ) : null}
-
-      {isRepeated ? (
-        <div className="mt-4 shrink-0">
-          <RecurringScheduleCard
-            endsOn={toDatePickerValue(appliedQuery.lastDate ?? "")}
-            lastOccurrenceError={recurringLastOccurrenceError}
-            maxDate={maxDate}
-            minDate={minDate}
-            occurrenceCount={recurringOccurrenceCount}
-            onEndsOnChange={handleEndsOnChange}
-            onStartsOnChange={handleStartsOnChange}
-            onWeekdayChange={handleWeekdayChange}
-            startsOn={toDatePickerValue(appliedQuery.date ?? "")}
-            weekday={appliedQuery.weekday ?? recurringWhen?.weekday ?? null}
-          />
-        </div>
       ) : null}
 
       <div className="mt-4 flex min-h-0 w-full flex-1 gap-4 overflow-hidden">
@@ -1084,8 +1232,7 @@ const RoomFilterPage = () => {
                         {paddedRooms.map((room, roomIndex) =>
                           Array.from({ length: 48 }, (_, cellIndex) => {
                             const cell = room?.cells[cellIndex];
-                            const bookable =
-                              !isRepeated && room && cell ? isBookableCellForCart(room, cell.start, cartState) : false;
+                            const bookable = room && cell ? isBookableCellForCart(room, cell.start, cartState) : false;
                             return (
                               <button
                                 className={cn(
@@ -1124,28 +1271,17 @@ const RoomFilterPage = () => {
                           })
                         )}
                         {pagedRooms.map((room, roomIndex) =>
-                          displayBlocksForCart(
-                            room,
-                            isRepeated ? repeatedCartState : cartState,
-                            isRepeated ? null : hover
-                          ).map((block) => {
+                          displayBlocksForCart(room, cartState, hover).map((block) => {
                             const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                             const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
                             const isPinnedOverlay = block.overlayKind === "pinned";
                             const isCommittedOverlay = block.overlayKind === "committed";
-                            const isLockedSharedWindow = isRepeated && block.overlayKind === "whenSeed";
-                            const isSelectedRepeatedRoom = isLockedSharedWindow && selectedRoomIds.includes(room.id);
-                            const canToggleRepeatedRoom =
-                              isLockedSharedWindow &&
-                              canSelectRepeatedRooms &&
-                              isRepeatedRoomSelectable(room, whenSeed as BookingInterval);
                             const bookableStart =
-                              !isRepeated &&
                               isPinnedOverlay &&
                               block.state === "available" &&
                               isBookableCellForCart(room, block.start, cartState);
                             const blockAction =
-                              !isRepeated && (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
+                              (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
                                 ? blockActionForInterval(cartState.lines, room.id, block)
                                 : null;
                             return (
@@ -1162,20 +1298,6 @@ const RoomFilterPage = () => {
                                     {formatClockForLocale(block.start)} – {formatClockForLocale(block.end)}
                                   </p>
                                 </div>
-                                {canToggleRepeatedRoom ? (
-                                  <button
-                                    aria-pressed={isSelectedRepeatedRoom}
-                                    className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
-                                    onClick={() => handleToggleRepeatedRoom(room)}
-                                    type="button"
-                                  >
-                                    {isSelectedRepeatedRoom ? (
-                                      <MdCheck aria-hidden size={18} />
-                                    ) : (
-                                      t("startBooking.recurringSchedule.selectRoom")
-                                    )}
-                                  </button>
-                                ) : null}
                                 {block.state === "available" && bookableStart && blockAction === "add" ? (
                                   <button
                                     className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
@@ -1209,7 +1331,17 @@ const RoomFilterPage = () => {
         </section>
 
         {isRepeated ? (
-          <RepeatedSeriesPanel onReview={handleOpenRepeatedReview} reviewState={reviewState} />
+          <RepeatedSeriesPanel
+            formatClock={formatClockForLocale}
+            lines={cartState.lines}
+            onRemove={(sequence) => {
+              setCartState((current) => removeRepeatedCartLine(current, sequence));
+            }}
+            onReview={handleOpenRepeatedReview}
+            reviewState={reviewState}
+            rooms={rooms}
+            sharedTime={cartState.sharedTime ?? null}
+          />
         ) : (
           <BookingCartPanel
             formatClock={formatClockForLocale}
@@ -1234,17 +1366,26 @@ const RoomFilterPage = () => {
         )}
       </div>
 
-      {!isRepeated && confirmRoom && appliedDate ? (
+      {confirmRoom && appliedDate && !pendingReplacement ? (
         <ConfirmBookingTime
           date={appliedDate}
           end={confirmEnd}
+          lastOccurrenceDate={confirmLastDate}
+          maxDate={maxDate}
+          minDate={appliedDate || minDate}
           onCancel={handleCancelConfirmBookingTime}
           onConfirm={handleConfirmBookingTime}
           onEndChange={setConfirmEnd}
+          onLastOccurrenceDateChange={setConfirmLastDate}
           onStartChange={setConfirmStart}
+          requireLastOccurrence={isRepeated}
           room={confirmRoom}
           start={confirmStart}
+          weekday={draftWeekday}
         />
+      ) : null}
+      {pendingReplacement ? (
+        <ReplaceRepeatedTimeModal isOpen onCancel={handleCancelReplacement} onConfirm={handleConfirmReplacement} />
       ) : null}
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
       {isRepeated && (reviewState.phase === "review" || reviewState.phase === "creating") && reviewSummary ? (

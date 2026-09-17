@@ -51,12 +51,16 @@ export interface TimetableCartState {
   lines: BookingLine[];
   pinned: PinnedInterval | null;
   whenSeed: WhenSeedRange | null;
+  sharedTime?: TimeRange | null;
 }
+
+export type RepeatedCartState = TimetableCartState;
 
 export const emptyCartState = (whenSeed: WhenSeedRange | null = null): TimetableCartState => ({
   lines: [],
   pinned: null,
   whenSeed,
+  sharedTime: null,
 });
 
 export const clockToMinutes = (clock: string): number => {
@@ -573,6 +577,66 @@ export const displayBlocksForCart = (
 
 export const isRepeatedRoomSelectable = (room: RoomDay, sharedInterval: BookingInterval): boolean => {
   return isRoomAvailable(room, sharedInterval);
+};
+
+export type RepeatedConfirmDecision = "added" | "replace" | "rejected";
+
+export interface RepeatedConfirmResult {
+  decision: RepeatedConfirmDecision;
+  state: RepeatedCartState;
+}
+
+const asSharedTime = (line: Pick<BookingLine, "start" | "end">): TimeRange => ({
+  start: line.start,
+  end: line.end,
+});
+
+export const confirmRepeatedCartLine = (
+  state: RepeatedCartState,
+  line: Pick<BookingLine, "facilityId" | "start" | "end">,
+  maxLines: number = MAX_BOOKING_LINES
+): RepeatedConfirmResult => {
+  if (state.sharedTime && !intervalsMatch(state.sharedTime, line)) {
+    return { decision: "replace", state };
+  }
+  const next = addCartLine(state, line, maxLines);
+  if (!next) {
+    return { decision: "rejected", state };
+  }
+  return {
+    decision: "added",
+    state: {
+      ...next,
+      sharedTime: state.sharedTime ?? asSharedTime(line),
+    },
+  };
+};
+
+export const applyRepeatedTimeReplacement = (
+  state: RepeatedCartState,
+  line: Pick<BookingLine, "facilityId" | "start" | "end">,
+  maxLines: number = MAX_BOOKING_LINES
+): RepeatedConfirmResult => {
+  const cleared: RepeatedCartState = {
+    ...emptyCartState(state.whenSeed),
+    sharedTime: null,
+  };
+  return confirmRepeatedCartLine(cleared, line, maxLines);
+};
+
+export const removeRepeatedCartLine = (state: RepeatedCartState, sequence: number): RepeatedCartState => {
+  const next = removeCartLine(state, sequence);
+  return {
+    ...next,
+    sharedTime: state.sharedTime,
+  };
+};
+
+export const repeatedCartLineTime = (state: RepeatedCartState, line: BookingLine): TimeRange => {
+  if (state.sharedTime) {
+    return state.sharedTime;
+  }
+  return { start: line.start, end: line.end };
 };
 
 export const toggleRepeatedRoomSelection = (

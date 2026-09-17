@@ -1,15 +1,20 @@
 import { describe, expect, it } from "vitest";
 import {
+  applyFirstOccurrenceDate,
+  applyWeekday,
   buildRoomsSearchQuery,
   canAdvance,
+  canSubmitRepeatedConfirmBookingTime,
   isRecurringScheduleValid,
   isRecurringSharedTimeValid,
   isRecurringWhenValid,
+  isRepeatedDateTimeSearchValid,
   isSameWeekday,
   isStartBookingStep,
   isWhenEndAfterStart,
   isWhenValid,
   nextStep,
+  repeatedWindowNoticeKind,
   parseBookingDetailsQuery,
   parseRoomsSearchQuery,
   previousStep,
@@ -93,27 +98,47 @@ describe("nextStep", () => {
     expect(nextStep("frequency", answers({ frequency: "repeated" }))).toBe("recurring_when");
   });
 
-  it("goes from a valid shared time pair to Rooms in Repeated mode", () => {
+  it("goes from First occurrence with optional times to Rooms in Repeated mode", () => {
     const now = new Date("2026-08-13T12:00:00");
-    const sharedTime = recurringWhen({
-      startTime: "09:00",
-      endTime: "10:00",
+    const firstOccurrence = recurringWhen({
+      firstOccurrenceDate: "2026-08-20",
+      weekday: 4,
     });
-    expect(nextStep("recurring_when", answers({ frequency: "repeated", recurringWhen: sharedTime }), now)).toBe(
+    expect(nextStep("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now)).toBe(
       "rooms"
     );
+    expect(
+      nextStep(
+        "recurring_when",
+        answers({
+          frequency: "repeated",
+          recurringWhen: recurringWhen({
+            firstOccurrenceDate: "2026-08-20",
+            weekday: 4,
+            startTime: "09:00",
+            endTime: "10:00",
+          }),
+        }),
+        now
+      )
+    ).toBe("rooms");
   });
 
   it("goes from conflict review to series creation", () => {
     expect(nextStep("recurring_conflicts", answers())).toBe("create_series");
   });
 
-  it("does not continue from an incomplete shared time pair", () => {
-    expect(nextStep("recurring_when", answers({ frequency: "repeated" }))).toBe(null);
+  it("does not continue from Repeated Date & Time without First occurrence or with a partial time pair", () => {
+    const now = new Date("2026-08-13T12:00:00");
+    expect(nextStep("recurring_when", answers({ frequency: "repeated" }), now)).toBe(null);
     expect(
       nextStep(
         "recurring_when",
-        answers({ frequency: "repeated", recurringWhen: recurringWhen({ startTime: "09:00", endTime: null }) })
+        answers({
+          frequency: "repeated",
+          recurringWhen: recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4, startTime: "09:00" }),
+        }),
+        now
       )
     ).toBe(null);
     expect(
@@ -121,8 +146,14 @@ describe("nextStep", () => {
         "recurring_when",
         answers({
           frequency: "repeated",
-          recurringWhen: recurringWhen({ startTime: "10:00", endTime: "09:00" }),
-        })
+          recurringWhen: recurringWhen({
+            firstOccurrenceDate: "2026-08-20",
+            weekday: 4,
+            startTime: "10:00",
+            endTime: "09:00",
+          }),
+        }),
+        now
       )
     ).toBe(null);
   });
@@ -188,6 +219,27 @@ describe("canAdvance", () => {
     expect(canAdvance("frequency", answers())).toBe(false);
   });
 
+  it("blocks Repeated Continue when the availability window is closed", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    expect(canAdvance("frequency", answers({ frequency: "repeated" }), now, false)).toBe(false);
+    expect(canAdvance("frequency", answers({ frequency: "one_time" }), now, false)).toBe(true);
+    expect(nextStep("frequency", answers({ frequency: "repeated" }), now, false)).toBe(null);
+    expect(nextStep("frequency", answers({ frequency: "one_time" }), now, false)).toBe("when");
+  });
+
+  it("shows the How often Repeated window reminder before Repeated is selected", () => {
+    expect(repeatedWindowNoticeKind(null, null)).toBe("policy");
+    expect(repeatedWindowNoticeKind(true, null)).toBe("policy");
+  });
+
+  it("shows the closed How often reminder with the next opening date", () => {
+    expect(repeatedWindowNoticeKind(false, "2026-12-01")).toBe("closed_with_date");
+  });
+
+  it("shows the closed How often reminder without a date when the next opening is unknown", () => {
+    expect(repeatedWindowNoticeKind(false, null)).toBe("closed");
+  });
+
   it("allows Search on When only when the date and optional time pair are valid", () => {
     const now = new Date("2026-08-13T12:00:00");
     expect(canAdvance("when", answers(), now)).toBe(false);
@@ -196,20 +248,60 @@ describe("canAdvance", () => {
     expect(canAdvance("when", answers({ when: { date: "2026-08-20", start: "09:00", end: null } }), now)).toBe(false);
   });
 
-  it("allows Repeated shared time Continue only for a complete end-after-start pair", () => {
-    expect(canAdvance("recurring_when", answers({ frequency: "repeated" }))).toBe(false);
+  it("allows Repeated Date & Time Search with First occurrence and optional complete times", () => {
+    const now = new Date("2026-08-13T12:00:00");
+    expect(canAdvance("recurring_when", answers({ frequency: "repeated" }), now)).toBe(false);
     expect(
       canAdvance(
         "recurring_when",
-        answers({ frequency: "repeated", recurringWhen: recurringWhen({ startTime: "09:00", endTime: "10:00" }) })
+        answers({
+          frequency: "repeated",
+          recurringWhen: recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 }),
+        }),
+        now
       )
     ).toBe(true);
     expect(
       canAdvance(
         "recurring_when",
-        answers({ frequency: "repeated", recurringWhen: recurringWhen({ startTime: "10:00", endTime: "09:00" }) })
+        answers({
+          frequency: "repeated",
+          recurringWhen: recurringWhen({
+            firstOccurrenceDate: "2026-08-20",
+            weekday: 4,
+            startTime: "09:00",
+            endTime: "10:00",
+          }),
+        }),
+        now
+      )
+    ).toBe(true);
+    expect(
+      canAdvance(
+        "recurring_when",
+        answers({
+          frequency: "repeated",
+          recurringWhen: recurringWhen({
+            firstOccurrenceDate: "2026-08-20",
+            weekday: 4,
+            startTime: "10:00",
+            endTime: "09:00",
+          }),
+        }),
+        now
       )
     ).toBe(false);
+  });
+
+  it("blocks Repeated Search when First occurrence is outside the availability window", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    const firstOccurrence = recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 });
+    expect(
+      canAdvance("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
+    ).toBe(false);
+    expect(
+      nextStep("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
+    ).toBe(null);
   });
 });
 
@@ -328,6 +420,81 @@ describe("weekdayForDate", () => {
   });
 });
 
+describe("applyFirstOccurrenceDate", () => {
+  it("derives weekday from the selected First occurrence", () => {
+    expect(applyFirstOccurrenceDate(blankRecurringWhen, "2026-08-20")).toEqual({
+      ...blankRecurringWhen,
+      firstOccurrenceDate: "2026-08-20",
+      weekday: 4,
+    });
+  });
+
+  it("clears a Last occurrence that no longer matches the date's weekday", () => {
+    expect(
+      applyFirstOccurrenceDate(
+        recurringWhen({
+          weekday: 4,
+          firstOccurrenceDate: "2026-08-20",
+          lastOccurrenceDate: "2026-09-24",
+        }),
+        "2026-08-21"
+      )
+    ).toEqual({
+      ...blankRecurringWhen,
+      firstOccurrenceDate: "2026-08-21",
+      weekday: 5,
+      lastOccurrenceDate: null,
+    });
+  });
+});
+
+describe("applyWeekday", () => {
+  it("requires a matching First occurrence after choosing weekday first", () => {
+    expect(applyWeekday(recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 }), 5)).toEqual({
+      ...blankRecurringWhen,
+      weekday: 5,
+      firstOccurrenceDate: null,
+    });
+  });
+
+  it("keeps First occurrence when it already matches the weekday", () => {
+    expect(applyWeekday(recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 }), 4)).toEqual({
+      ...blankRecurringWhen,
+      firstOccurrenceDate: "2026-08-20",
+      weekday: 4,
+    });
+  });
+});
+
+describe("isRepeatedDateTimeSearchValid", () => {
+  const now = new Date("2026-08-13T12:00:00");
+
+  it("accepts First occurrence with no times or a complete time pair", () => {
+    expect(isRepeatedDateTimeSearchValid(recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 }), now)).toBe(
+      true
+    );
+    expect(
+      isRepeatedDateTimeSearchValid(
+        recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4, startTime: "09:00", endTime: "10:00" }),
+        now
+      )
+    ).toBe(true);
+  });
+
+  it("rejects a missing First occurrence, weekday mismatch, or partial times", () => {
+    expect(isRepeatedDateTimeSearchValid(blankRecurringWhen, now)).toBe(false);
+    expect(isRepeatedDateTimeSearchValid(recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 3 }), now)).toBe(
+      false
+    );
+    expect(
+      isRepeatedDateTimeSearchValid(
+        recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4, startTime: "09:00" }),
+        now
+      )
+    ).toBe(false);
+  });
+});
+
 describe("isRecurringSharedTimeValid", () => {
   it("accepts a complete end-after-start pair", () => {
     expect(isRecurringSharedTimeValid(recurringWhen({ startTime: "09:00", endTime: "10:00" }))).toBe(true);
@@ -375,6 +542,19 @@ describe("isRecurringScheduleValid", () => {
 
   it("does not require rooms to accept the schedule", () => {
     expect(isRecurringScheduleValid({ ...valid, roomIds: [] }, now)).toBe(true);
+  });
+});
+
+describe("canSubmitRepeatedConfirmBookingTime", () => {
+  const now = new Date("2026-08-13T12:00:00");
+
+  it("requires End Date before Repeated Confirm Booking Time can submit", () => {
+    expect(canSubmitRepeatedConfirmBookingTime("2026-08-20", null, 4, now)).toBe(false);
+    expect(canSubmitRepeatedConfirmBookingTime("2026-08-20", "", 4, now)).toBe(false);
+  });
+
+  it("accepts End Date on the same weekday in the same use period", () => {
+    expect(canSubmitRepeatedConfirmBookingTime("2026-08-20", "2026-09-24", 4, now)).toBe(true);
   });
 });
 
@@ -476,7 +656,7 @@ describe("buildRoomsSearchQuery", () => {
     expect(buildRoomsSearchQuery(answers({ when: { date: "2026-09-01", start: "09:00", end: null } }))).toBe(null);
   });
 
-  it("sends Repeated mode with the required shared time and preserved ministry", () => {
+  it("sends Repeated mode with First occurrence and optional time seed", () => {
     const repeated = answers({
       isMinistryBooking: true,
       ministryId: "m-1",
@@ -500,19 +680,30 @@ describe("buildRoomsSearchQuery", () => {
     });
   });
 
-  it("sends Repeated mode without dates when only shared time is known", () => {
+  it("sends Repeated mode without times when only First occurrence is known", () => {
     expect(
       buildRoomsSearchQuery(
         answers({
           frequency: "repeated",
-          recurringWhen: recurringWhen({ startTime: "09:00", endTime: "10:00" }),
+          recurringWhen: recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 }),
         })
       )
     ).toEqual({
       frequency: "repeated",
-      start: "09:00",
-      end: "10:00",
+      date: "2026-08-20",
+      weekday: 4,
     });
+  });
+
+  it("returns null for Repeated Date & Time with a partial or inverted time pair", () => {
+    expect(
+      buildRoomsSearchQuery(
+        answers({
+          frequency: "repeated",
+          recurringWhen: recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4, startTime: "09:00" }),
+        })
+      )
+    ).toBe(null);
   });
 });
 
@@ -567,10 +758,27 @@ describe("parseRoomsSearchQuery", () => {
     });
   });
 
-  it("rejects Repeated mode without a valid shared time pair", () => {
-    expect(parseRoomsSearchQuery(new URLSearchParams("frequency=repeated"))).toBe(null);
-    expect(parseRoomsSearchQuery(new URLSearchParams("frequency=repeated&start=09:00"))).toBe(null);
-    expect(parseRoomsSearchQuery(new URLSearchParams("frequency=repeated&start=10:00&end=09:00"))).toBe(null);
+  it("reads Repeated mode without a time seed", () => {
+    expect(parseRoomsSearchQuery(new URLSearchParams("frequency=repeated"))).toEqual({
+      frequency: "repeated",
+    });
+    expect(parseRoomsSearchQuery(new URLSearchParams("frequency=repeated&date=2026-08-20&weekday=4"))).toEqual({
+      frequency: "repeated",
+      date: "2026-08-20",
+      weekday: 4,
+    });
+  });
+
+  it("drops a partial or inverted Repeated time pair and keeps Repeated mode", () => {
+    expect(parseRoomsSearchQuery(new URLSearchParams("frequency=repeated&start=09:00"))).toEqual({
+      frequency: "repeated",
+    });
+    expect(
+      parseRoomsSearchQuery(new URLSearchParams("frequency=repeated&start=10:00&end=09:00&date=2026-08-20"))
+    ).toEqual({
+      frequency: "repeated",
+      date: "2026-08-20",
+    });
   });
 });
 

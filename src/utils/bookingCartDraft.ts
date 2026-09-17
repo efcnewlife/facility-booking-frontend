@@ -60,6 +60,7 @@ export const draftToCartState = (draft: BookingCartDraft, whenSeed: WhenSeedRang
     })),
     pinned: null,
     whenSeed,
+    sharedTime: null,
   };
 };
 

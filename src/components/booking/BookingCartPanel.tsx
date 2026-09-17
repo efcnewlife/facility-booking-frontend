@@ -1,21 +1,49 @@
-import { canReviewCart, type BookingLine, type RoomDay } from "@/utils/timetableRules";
+import {
+  canReviewCart,
+  repeatedCartLineTime,
+  type BookingLine,
+  type RoomDay,
+  type TimeRange,
+} from "@/utils/timetableRules";
 import { formatQuotedAmount } from "@/utils/paymentSummary";
-import { Button, cn } from "@efcnewlife/newlife-ui";
+import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import { useTranslation } from "react-i18next";
 import { MdPhoto } from "react-icons/md";
 
 interface BookingCartPanelProps {
   lines: BookingLine[];
   rooms: RoomDay[];
+  mode?: "one_time" | "repeated";
+  sharedTime?: TimeRange | null;
   onReview: () => void;
   onRemove: (sequence: number) => void;
-  onEdit: (sequence: number) => void;
+  onEdit?: (sequence: number) => void;
   formatClock: (clock: string) => string;
+  reviewDisabled?: boolean;
+  isChecking?: boolean;
+  statusMessage?: string | null;
+  statusError?: string | null;
 }
 
-const BookingCartPanel = ({ lines, rooms, onReview, onRemove, onEdit, formatClock }: BookingCartPanelProps) => {
+const BookingCartPanel = ({
+  lines,
+  rooms,
+  mode = "one_time",
+  sharedTime = null,
+  onReview,
+  onRemove,
+  onEdit,
+  formatClock,
+  reviewDisabled = false,
+  isChecking = false,
+  statusMessage,
+  statusError,
+}: BookingCartPanelProps) => {
   const { t, i18n } = useTranslation("booking");
-  const canReview = canReviewCart({ lines, pinned: null, whenSeed: null });
+  const isRepeated = mode === "repeated";
+  const canReview = isRepeated
+    ? !reviewDisabled
+    : canReviewCart({ lines, pinned: null, whenSeed: null, sharedTime: null });
 
   const roomForLine = (facilityId: string): RoomDay | undefined => {
     return rooms.find((room) => room.id === facilityId);
@@ -29,14 +57,31 @@ const BookingCartPanel = ({ lines, rooms, onReview, onRemove, onEdit, formatCloc
       <Button className="w-full" disabled={!canReview} onClick={onReview} size="sm" variant="primary">
         {lines.length > 0 ? t("timetable.reviewBookingCount", { count: lines.length }) : t("timetable.reviewBooking")}
       </Button>
+      {isChecking ? (
+        <div aria-busy="true" className="flex items-center gap-2 text-sm text-on-surface-variant">
+          <Spinner size="sm" />
+          <span>{t("startBooking.recurringReview.checking")}</span>
+        </div>
+      ) : null}
+      {statusError ? (
+        <p className="m-0 text-sm text-error" role="status">
+          {statusError}
+        </p>
+      ) : null}
+      {statusMessage ? <p className="m-0 text-sm text-on-surface-variant">{statusMessage}</p> : null}
 
       {lines.length === 0 ? (
-        <p className="m-0 text-sm text-on-surface-variant">{t("timetable.cart.empty")}</p>
+        <p className="m-0 text-sm text-on-surface-variant">
+          {isRepeated ? t("timetable.cart.emptyRepeated") : t("timetable.cart.empty")}
+        </p>
       ) : (
         <ul className="m-0 flex list-none flex-col gap-3 p-0">
           {lines.map((line) => {
             const room = roomForLine(line.facilityId);
             const photoUrl = room?.photoUrls[0];
+            const displayTime = isRepeated
+              ? repeatedCartLineTime({ lines, pinned: null, whenSeed: null, sharedTime }, line)
+              : line;
             return (
               <li
                 className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container p-3"
@@ -57,24 +102,28 @@ const BookingCartPanel = ({ lines, rooms, onReview, onRemove, onEdit, formatCloc
                       {room?.name ?? line.facilityId}
                     </p>
                     <p className="m-0 mt-1 text-xs font-medium text-on-surface-variant">
-                      {formatClock(line.start)} – {formatClock(line.end)}
+                      {formatClock(displayTime.start)} – {formatClock(displayTime.end)}
                     </p>
-                    <p className="m-0 mt-1 text-xs font-semibold text-booking-primary">
-                      {formatQuotedAmount(line.lineSubtotal, line.currency, i18n.language)}
-                    </p>
+                    {isRepeated ? null : (
+                      <p className="m-0 mt-1 text-xs font-semibold text-booking-primary">
+                        {formatQuotedAmount(line.lineSubtotal, line.currency, i18n.language)}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div className="flex gap-2">
-                  <button
-                    className={cn(
-                      "flex-1 rounded-md border border-outline px-2 py-1.5 text-xs font-semibold text-booking-primary",
-                      "hover:bg-surface-container"
-                    )}
-                    onClick={() => onEdit(line.sequence)}
-                    type="button"
-                  >
-                    {t("bookingDetails.edit")}
-                  </button>
+                  {isRepeated || !onEdit ? null : (
+                    <button
+                      className={cn(
+                        "flex-1 rounded-md border border-outline px-2 py-1.5 text-xs font-semibold text-booking-primary",
+                        "hover:bg-surface-container"
+                      )}
+                      onClick={() => onEdit(line.sequence)}
+                      type="button"
+                    >
+                      {t("bookingDetails.edit")}
+                    </button>
+                  )}
                   <button
                     className={cn(
                       "flex-1 rounded-md border border-outline px-2 py-1.5 text-xs font-semibold text-booking-primary",

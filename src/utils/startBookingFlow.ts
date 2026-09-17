@@ -13,6 +13,8 @@ export type StartBookingStep = (typeof START_BOOKING_STEPS)[number];
 
 export type BookingFrequency = "one_time" | "repeated";
 
+export type RepeatedWindowNoticeKind = "policy" | "closed" | "closed_with_date";
+
 export type RoomsSpace = "single" | "multiple";
 
 export type RoomShortcutCode = "gym" | "sanctuary-hall";
@@ -171,6 +173,72 @@ export const isRecurringSharedTimeValid = (value: RecurringWhenValue): boolean =
   return end.isAfter(start);
 };
 
+const hasHalfFilledRecurringTime = (value: RecurringWhenValue): boolean => {
+  return Boolean(value.startTime) !== Boolean(value.endTime);
+};
+
+export const applyFirstOccurrenceDate = (value: RecurringWhenValue, date: string | null): RecurringWhenValue => {
+  if (!date) {
+    return { ...value, firstOccurrenceDate: null };
+  }
+  const weekday = weekdayForDate(date);
+  const lastOccurrenceDate =
+    value.lastOccurrenceDate && weekday != null && weekdayForDate(value.lastOccurrenceDate) !== weekday
+      ? null
+      : value.lastOccurrenceDate;
+  return {
+    ...value,
+    firstOccurrenceDate: date,
+    weekday,
+    lastOccurrenceDate,
+  };
+};
+
+export const applyWeekday = (value: RecurringWhenValue, weekday: number): RecurringWhenValue => {
+  const firstOccurrenceDate =
+    value.firstOccurrenceDate && weekdayForDate(value.firstOccurrenceDate) !== weekday
+      ? null
+      : value.firstOccurrenceDate;
+  const lastOccurrenceDate =
+    value.lastOccurrenceDate && weekdayForDate(value.lastOccurrenceDate) !== weekday ? null : value.lastOccurrenceDate;
+  return {
+    ...value,
+    weekday,
+    firstOccurrenceDate,
+    lastOccurrenceDate,
+  };
+};
+
+export const isRepeatedDateTimeSearchValid = (value: RecurringWhenValue, now: Date): boolean => {
+  if (!isRepeatedDateTimeShapeValid(value)) {
+    return false;
+  }
+  const first = moment(value.firstOccurrenceDate, DATE_FORMAT, true);
+  const today = moment(now).startOf("day");
+  return !first.isBefore(today, "day");
+};
+
+const isRepeatedDateTimeShapeValid = (value: RecurringWhenValue): boolean => {
+  if (!value.firstOccurrenceDate) {
+    return false;
+  }
+  const first = moment(value.firstOccurrenceDate, DATE_FORMAT, true);
+  if (!first.isValid()) {
+    return false;
+  }
+  const weekday = value.weekday ?? weekdayForDate(value.firstOccurrenceDate);
+  if (!isWeekdayValue(weekday) || weekdayForDate(value.firstOccurrenceDate) !== weekday) {
+    return false;
+  }
+  if (hasHalfFilledRecurringTime(value)) {
+    return false;
+  }
+  if (!value.startTime && !value.endTime) {
+    return true;
+  }
+  return isRecurringSharedTimeValid(value);
+};
+
 const isWeekdayValue = (weekday: number | null | undefined): weekday is number => {
   return weekday != null && Number.isInteger(weekday) && weekday >= 0 && weekday <= 6;
 };
@@ -200,6 +268,25 @@ export const isRecurringScheduleValid = (value: RecurringWhenValue, now: Date): 
   return occurrencePeriodForDate(value.firstOccurrenceDate) === occurrencePeriodForDate(value.lastOccurrenceDate);
 };
 
+export const canSubmitRepeatedConfirmBookingTime = (
+  firstOccurrenceDate: string,
+  lastOccurrenceDate: string | null,
+  weekday: number | null,
+  now: Date = new Date()
+): boolean => {
+  return isRecurringScheduleValid(
+    {
+      weekday: weekday ?? weekdayForDate(firstOccurrenceDate),
+      firstOccurrenceDate,
+      lastOccurrenceDate,
+      startTime: null,
+      endTime: null,
+      roomIds: [],
+    },
+    now
+  );
+};
+
 export const isRecurringWhenValid = (value: RecurringWhenValue, now: Date): boolean => {
   const weekday = value.weekday ?? weekdayForDate(value.firstOccurrenceDate ?? "");
   const schedule: RecurringWhenValue = { ...value, weekday };
@@ -212,18 +299,42 @@ export const isRecurringWhenValid = (value: RecurringWhenValue, now: Date): bool
   return value.roomIds.length > 0;
 };
 
-export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers, now: Date = new Date()): boolean => {
+export const repeatedWindowNoticeKind = (
+  isOpen: boolean | null,
+  nextOpeningDate: string | null
+): RepeatedWindowNoticeKind => {
+  if (isOpen === false && nextOpeningDate) {
+    return "closed_with_date";
+  }
+  if (isOpen === false) {
+    return "closed";
+  }
+  return "policy";
+};
+
+export const canAdvance = (
+  step: StartBookingStep,
+  answers: StartBookingAnswers,
+  now: Date = new Date(),
+  repeatedWindowOpen: boolean | null = true
+): boolean => {
   switch (step) {
     case "ministry_choice":
       return answers.isMinistryBooking === true || answers.isMinistryBooking === false;
     case "select_ministry":
       return hasMinistryId(answers);
     case "frequency":
-      return answers.frequency === "one_time" || answers.frequency === "repeated";
+      if (answers.frequency === "one_time") {
+        return true;
+      }
+      if (answers.frequency === "repeated") {
+        return repeatedWindowOpen === true;
+      }
+      return false;
     case "when":
       return isWhenValid(answers.when, now);
     case "recurring_when":
-      return isRecurringSharedTimeValid(answers.recurringWhen);
+      return isRepeatedDateTimeSearchValid(answers.recurringWhen, now) && repeatedWindowOpen === true;
     case "recurring_conflicts":
       /** Gated by conflict/exclusion state, which lives outside StartBookingAnswers; see canCreateRecurringSeriesWithExclusions. */
       return true;
@@ -233,9 +344,10 @@ export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers,
 export const nextStep = (
   step: StartBookingStep,
   answers: StartBookingAnswers,
-  now: Date = new Date()
+  now: Date = new Date(),
+  repeatedWindowOpen: boolean | null = true
 ): StartBookingStep | "rooms" | "create_series" | null => {
-  if (!canAdvance(step, answers, now)) {
+  if (!canAdvance(step, answers, now, repeatedWindowOpen)) {
     return null;
   }
   switch (step) {
@@ -280,13 +392,11 @@ const ministryIdForQuery = (answers: StartBookingAnswers): string | undefined =>
 
 export const buildRoomsSearchQuery = (answers: StartBookingAnswers): RoomsSearchQuery | null => {
   if (answers.frequency === "repeated") {
-    if (!isRecurringSharedTimeValid(answers.recurringWhen)) {
+    if (!isRepeatedDateTimeShapeValid(answers.recurringWhen)) {
       return null;
     }
     const query: RoomsSearchQuery = {
       frequency: "repeated",
-      start: answers.recurringWhen.startTime as string,
-      end: answers.recurringWhen.endTime as string,
     };
     if (answers.recurringWhen.firstOccurrenceDate) {
       query.date = answers.recurringWhen.firstOccurrenceDate;
@@ -296,6 +406,10 @@ export const buildRoomsSearchQuery = (answers: StartBookingAnswers): RoomsSearch
     }
     if (isWeekdayValue(answers.recurringWhen.weekday)) {
       query.weekday = answers.recurringWhen.weekday;
+    }
+    if (isRecurringSharedTimeValid(answers.recurringWhen)) {
+      query.start = answers.recurringWhen.startTime as string;
+      query.end = answers.recurringWhen.endTime as string;
     }
     const ministryId = ministryIdForQuery(answers);
     if (ministryId) {
@@ -364,10 +478,7 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
   const frequency = params.get("frequency") === "repeated" ? "repeated" : undefined;
 
   if (frequency === "repeated") {
-    if (!start || !end || !isWhenEndAfterStart({ date: null, start, end })) {
-      return null;
-    }
-    const query: RoomsSearchQuery = { frequency, start, end };
+    const query: RoomsSearchQuery = { frequency };
     const date = parseCalendarDate(params.get("date"));
     if (date) {
       query.date = date;
@@ -379,6 +490,10 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
     const weekday = parseWeekdayParam(params.get("weekday"));
     if (weekday != null) {
       query.weekday = weekday;
+    }
+    if (start && end && isWhenEndAfterStart({ date: null, start, end })) {
+      query.start = start;
+      query.end = end;
     }
     if (ministryId) {
       query.ministryId = ministryId;
