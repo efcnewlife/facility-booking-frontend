@@ -55,7 +55,6 @@
     "applications": {
       "empty": "You do not have any ministry applications yet.",
       "unnamed": "Untitled ministry",
-      "ministryType": "Type: {{type}}",
       "rejectionReason": "Rejection reason",
       "startBooking": "Start booking",
       "status": {
@@ -92,7 +91,6 @@
       "detail": {
         "backToQueue": "Back to pending approvals",
         "summaryTitle": "Ministry summary",
-        "ministryType": "Ministry type",
         "targetAudiences": "Target audiences",
         "priorityBooking": "Priority booking",
         "priorityBookingYes": "Yes",
@@ -401,10 +399,6 @@
       "title": "Create new ministry",
       "name": "Ministry name",
       "namePlaceholder": "Enter the ministry name",
-      "ministryType": "Ministry type",
-      "ministryTypePlaceholder": "Select a ministry type",
-      "ministryTypeSearch": "Search ministry types",
-      "ministryTypeEmpty": "No ministry types available",
       "targetAudiences": "Target audiences (optional)",
       "targetAudiencesPlaceholder": "Select target audiences",
       "targetAudiencesHint": "All Ages cannot be combined with other audiences.",

@@ -17,7 +17,6 @@ const catalog: MinistryCatalogItem[] = [
 
 const baseValues = {
   ministryName: "Youth Group",
-  ministryTypeId: "type-1",
   ownerPositionId: "pos-1",
   purpose: "Weekly fellowship",
   localeId: "locale-1",
@@ -77,10 +76,9 @@ describe("validateCreateMinistryForm", () => {
     expect(validateCreateMinistryForm(baseValues, catalog, "user-1")).toBeNull();
   });
 
-  it("requires ministry type", () => {
-    expect(validateCreateMinistryForm({ ...baseValues, ministryTypeId: "" }, catalog, "user-1")).toBe(
-      "createMinistryValidation"
-    );
+  it("does not require a ministry type", () => {
+    expect(validateCreateMinistryForm(baseValues, catalog, "user-1")).toBeNull();
+    expect("ministryTypeId" in baseValues).toBe(false);
   });
 
   it("requires at least one secondary steward", () => {

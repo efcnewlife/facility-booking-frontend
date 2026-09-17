@@ -4,7 +4,7 @@
 
 Incumbent notification emails deep-link to `/my-ministry/approvals/{ministryId}` after Microsoft sign-in. Post-login return uses an allowlisted `next` query (extends issue #39) so unauthenticated incumbents land on the detail page, not Home.
 
-Create Ministry collects ministry type, optional target audiences, and at least one secondary steward via member user search; schedule is not collected on booking create.
+Create Ministry collects optional target audiences and at least one secondary steward via member user search; schedule is not collected on booking create. Ministry Type is no longer collected, shown, or sent by this experience (issue #112; core-api treats it as unclassified).
 
 ## Considered Options
 

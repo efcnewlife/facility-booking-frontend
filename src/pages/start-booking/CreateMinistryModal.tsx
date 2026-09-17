@@ -61,10 +61,8 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
   const [phase, setPhase] = useState<"form" | "confirmation">("form");
   const [positions, setPositions] = useState<AssignablePosition[]>([]);
   const [locales, setLocales] = useState<LocaleItem[]>([]);
-  const [ministryTypes, setMinistryTypes] = useState<MinistryCatalogItem[]>([]);
   const [targetAudiences, setTargetAudiences] = useState<MinistryCatalogItem[]>([]);
   const [ministryName, setMinistryName] = useState("");
-  const [ministryTypeId, setMinistryTypeId] = useState("");
   const [ownerPositionId, setOwnerPositionId] = useState("");
   const [purpose, setPurpose] = useState("");
   const [targetAudienceIds, setTargetAudienceIds] = useState<string[]>([]);
@@ -81,7 +79,6 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
   const resetForm = useCallback(() => {
     setPhase("form");
     setMinistryName("");
-    setMinistryTypeId("");
     setOwnerPositionId("");
     setPurpose("");
     setTargetAudienceIds([]);
@@ -100,15 +97,13 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
     const loadForm = async () => {
       setLoading(true);
       try {
-        const [positionResult, localeResult, ministryTypeResult, targetAudienceResult] = await Promise.all([
+        const [positionResult, localeResult, targetAudienceResult] = await Promise.all([
           ministryService.listAssignablePositions(),
           ministryService.listLocales(),
-          ministryService.listMinistryTypes(),
           ministryService.listTargetAudiences(),
         ]);
         setPositions(positionResult.items || []);
         setLocales(localeResult.items || []);
-        setMinistryTypes(ministryTypeResult.items || []);
         setTargetAudiences(targetAudienceResult.items || []);
       } catch (err) {
         setError(resolveMinistryApplicationErrorMessage(err, "startBooking.errors.loadCreateForm"));
@@ -189,7 +184,6 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
     const validationKey = validateCreateMinistryForm(
       {
         ministryName,
-        ministryTypeId,
         ownerPositionId,
         purpose,
         localeId: defaultLocaleId,
@@ -214,7 +208,6 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
     try {
       await ministryService.createApplication({
         ownerPositionId,
-        ministryTypeId,
         targetAudienceIds,
         hasPriorityBooking: true,
         translations: [
@@ -296,25 +289,6 @@ const CreateMinistryModal = ({ isOpen, userId, onClose, onSubmitted }: CreateMin
             placeholder={t("startBooking.createMinistry.namePlaceholder")}
             required
             value={ministryName}
-          />
-          <Select
-            id="create-ministry-type"
-            label={t("startBooking.createMinistry.ministryType")}
-            labels={{
-              noOptions: t("startBooking.createMinistry.ministryTypeEmpty"),
-              searchOptions: t("startBooking.createMinistry.ministryTypeSearch"),
-            }}
-            onChange={(value) => {
-              setMinistryTypeId(typeof value === "string" ? value : "");
-            }}
-            options={ministryTypes.map((item) => ({
-              value: item.id,
-              label: item.name || item.code,
-            }))}
-            placeholder={t("startBooking.createMinistry.ministryTypePlaceholder")}
-            required
-            searchable
-            value={ministryTypeId || null}
           />
           <ComboBox<string>
             filterFunction={() => true}

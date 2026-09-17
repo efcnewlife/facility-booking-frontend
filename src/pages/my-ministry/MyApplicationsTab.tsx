@@ -109,7 +109,6 @@ const MyApplicationsTab = () => {
       <ul className="space-y-4">
         {applications.map((application) => {
           const statusColor = getMinistryStatusBadgeColor(application.status);
-          const ministryTypeLabel = application.ministryType?.name || application.ministryType?.code;
 
           return (
             <li key={application.id} className="rounded-xl border border-outline-variant bg-surface p-4 sm:p-5">
@@ -118,11 +117,6 @@ const MyApplicationsTab = () => {
                   <h3 className="text-lg font-semibold text-on-surface">
                     {application.name?.trim() || t("myMinistry.applications.unnamed")}
                   </h3>
-                  {ministryTypeLabel ? (
-                    <p className="text-sm text-on-surface-variant">
-                      {t("myMinistry.applications.ministryType", { type: ministryTypeLabel })}
-                    </p>
-                  ) : null}
                 </div>
                 <Badge color={statusColor} variant="light">
                   {t(statusLabelKey(application.status))}

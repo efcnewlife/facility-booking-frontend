@@ -19,7 +19,6 @@ export const API_ENDPOINTS = {
     APPLICATION_DETAIL: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/approvals/${ministryId}`,
     APPROVE_APPLICATION: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/approvals/${ministryId}/approve`,
     REJECT_APPLICATION: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/approvals/${ministryId}/reject`,
-    MINISTRY_TYPES: `${BOOKING_API_PREFIX}/ministry/catalog/ministry-types`,
     TARGET_AUDIENCES: `${BOOKING_API_PREFIX}/ministry/catalog/target-audiences`,
   },
   ORG: {

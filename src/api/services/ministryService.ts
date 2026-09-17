@@ -66,14 +66,6 @@ class MinistryService {
     };
   }
 
-  async listMinistryTypes(): Promise<MinistryCatalogListResponse> {
-    const response = await httpClient.get<MinistryCatalogListResponse>(API_ENDPOINTS.MINISTRY.MINISTRY_TYPES);
-    if (!response.success || !response.data) {
-      throw new Error(response.message || "Failed to load ministry types");
-    }
-    return response.data;
-  }
-
   async listTargetAudiences(): Promise<MinistryCatalogListResponse> {
     const response = await httpClient.get<MinistryCatalogListResponse>(API_ENDPOINTS.MINISTRY.TARGET_AUDIENCES);
     if (!response.success || !response.data) {

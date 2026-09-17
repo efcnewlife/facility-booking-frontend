@@ -77,7 +77,6 @@ const MinistryApprovalDetailPage = () => {
 
   const showDecisionActions = canDecide && detail?.status === MINISTRY_STATUS.PENDING_APPROVAL && !loading && !error;
 
-  const ministryTypeLabel = detail?.ministryType?.name || detail?.ministryType?.code;
   const targetAudienceLabels = (detail?.targetAudiences || [])
     .map((item) => item.name || item.code)
     .filter(Boolean)
@@ -178,12 +177,6 @@ const MinistryApprovalDetailPage = () => {
       <section className="mt-6 space-y-4 rounded-xl border border-outline-variant bg-surface p-4 sm:p-5">
         <h2 className="text-lg font-semibold text-on-surface">{t("myMinistry.approvals.detail.summaryTitle")}</h2>
         <dl className="grid gap-3 text-sm sm:grid-cols-2">
-          {ministryTypeLabel ? (
-            <>
-              <dt className="text-on-surface-variant">{t("myMinistry.approvals.detail.ministryType")}</dt>
-              <dd className="text-on-surface">{ministryTypeLabel}</dd>
-            </>
-          ) : null}
           {targetAudienceLabels ? (
             <>
               <dt className="text-on-surface-variant">{t("myMinistry.approvals.detail.targetAudiences")}</dt>
