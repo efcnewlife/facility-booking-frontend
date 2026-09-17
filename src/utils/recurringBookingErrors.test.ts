@@ -80,4 +80,15 @@ describe("resolveRecurringBookingSeriesErrorMessage", () => {
     expect(resolveRecurringBookingSeriesErrorMessage(new Error("boom"))).toBe("boom");
     expect(resolveRecurringBookingSeriesErrorMessage(null)).toBe("startBooking.errors.createRecurringBooking");
   });
+
+  it("maps Recurring Booking cancellation error codes", () => {
+    const error: ApiError = {
+      code: 400,
+      message: "Historical Booking Occurrences cannot be cancelled",
+      details: { error_code: "FACILITY_RECURRING_HISTORICAL_OCCURRENCE" },
+    };
+    expect(resolveRecurringBookingSeriesErrorMessage(error, "booking:myBookings.errors.cancel")).toBe(
+      "booking:myBookings.errors.historicalOccurrence"
+    );
+  });
 });

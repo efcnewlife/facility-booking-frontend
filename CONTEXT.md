@@ -203,8 +203,12 @@ A booking frequency: the same weekly interval on a repeating schedule. Member co
 _Avoid_: Reoccurring, Recurring (in member copy), monthly (this slice is weekly only)
 
 **Recurring Booking Series**:
-The backend resource a Repeated Booking creates: one weekly First occurrence through Last occurrence within a single Use Period, one shared local start–end time window, and one or more rooms all using that same window. A successful create is Pending-payment with a quoted total, a hold deadline, and a materialized weekly occurrence for every date in range. There is no server-side preview/validate call in this slice — Start booking submits the create request directly and shows the resulting validation error or the Pending-payment result.
-_Avoid_: a single Booking with an RRULE field, a client-side dry run before create, treating the result as confirmed
+The backend resource a Repeated Booking creates: one weekly First occurrence through Last occurrence within a single Use Period, one shared local start–end time window, and one or more rooms all using that same window. A successful create is Pending-payment with a quoted total, a hold deadline, and a materialized weekly occurrence for every date in range. My Bookings groups those occurrences under the Series. Cancellation is one occurrence, this and future occurrences, or the entire Series.
+_Avoid_: a single Booking with an RRULE field, treating the result as confirmed, flattening Series occurrences into unrelated one-time rows
+
+**My Bookings**:
+The member list of their Bookings. One-time Bookings stay individual rows. Recurring occurrences are grouped under their Recurring Booking Series. Series detail shows Pending-payment, confirmed, expired, overridden, and cancelled states. Payment-hold expiry is read from the server timestamp on each load, not a client countdown.
+_Avoid_: mock bookings as the live list, a client timer as the source of expiry, Change as an occurrence-edit action in this slice
 
 **First occurrence / Last occurrence**:
 The two dates that bound a Recurring Booking Series on Start booking's recurring occurrence form. Both must fall on the same weekday and within one Use Period; occurrences are generated every 7 days from First occurrence through Last occurrence, inclusive.

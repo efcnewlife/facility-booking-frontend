@@ -1,10 +1,12 @@
 import { API_ENDPOINTS, HTTP_STATUS } from "@/api/config";
 import type { ApiError } from "@/types/api";
+import type { MemberBookingListItem } from "@/types/myBookings";
 import {
   mapAvailabilityToRoomDays,
   maxBookingLinesFromPayload,
   type ApiRoomAvailabilityList,
 } from "@/utils/availabilityMapper";
+import { mapMemberBookingList, type ApiMemberBookingList, type RecurringCancellationScope } from "@/utils/myBookings";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
 
@@ -253,8 +255,8 @@ interface ApiRecurringBookingSeriesDetail {
   localEndTime?: string;
   local_end_time?: string;
   status?: string;
-  paymentHoldExpiresAt?: string;
-  payment_hold_expires_at?: string;
+  paymentHoldExpiresAt?: string | null;
+  payment_hold_expires_at?: string | null;
   quotedAmount?: string | number | null;
   quoted_amount?: string | number | null;
   currency?: string | null;
@@ -283,13 +285,33 @@ export interface RecurringBookingSeriesDetail {
   localStartTime: string;
   localEndTime: string;
   status: string;
-  paymentHoldExpiresAt: string;
+  paymentHoldExpiresAt: string | null;
   quotedAmount: string | number | null;
   currency: string | null;
   occurrenceCount: number;
   isPriority: boolean;
   occurrences: RecurringBookingSeriesOccurrence[];
 }
+
+export class BookingSeriesNotFoundError extends Error {
+  constructor() {
+    super("Recurring Booking Series not found");
+    this.name = "BookingSeriesNotFoundError";
+  }
+}
+
+export interface CancelRecurringBookingSeriesPayload {
+  scope: RecurringCancellationScope;
+  occurrenceId?: string | null;
+  cancelReason?: string | null;
+}
+
+const optionalIsoString = (value: string | null | undefined): string | null => {
+  if (value == null || value === "") {
+    return null;
+  }
+  return String(value);
+};
 
 const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail): RecurringBookingSeriesDetail => ({
   id: String(data.id),
@@ -299,7 +321,7 @@ const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail):
   localStartTime: String(data.localStartTime ?? data.local_start_time ?? ""),
   localEndTime: String(data.localEndTime ?? data.local_end_time ?? ""),
   status: String(data.status ?? ""),
-  paymentHoldExpiresAt: String(data.paymentHoldExpiresAt ?? data.payment_hold_expires_at ?? ""),
+  paymentHoldExpiresAt: optionalIsoString(data.paymentHoldExpiresAt ?? data.payment_hold_expires_at),
   quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
   currency: data.currency ?? null,
   occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
@@ -453,12 +475,60 @@ class FacilityService {
     }
   }
 
-  async listMyBookings(): Promise<unknown> {
-    const response = await httpClient.get(API_ENDPOINTS.FACILITY.MY_BOOKINGS);
-    if (!response.success) {
+  async listMyBookings(): Promise<MemberBookingListItem[]> {
+    const response = await httpClient.get<ApiMemberBookingList>(API_ENDPOINTS.FACILITY.MY_BOOKINGS);
+    if (!response.success || !response.data) {
       throw new Error(response.message || "Failed to load bookings");
     }
-    return response.data;
+    return mapMemberBookingList(response.data);
+  }
+
+  async getBookingSeries(seriesId: string): Promise<RecurringBookingSeriesDetail> {
+    try {
+      const response = await httpClient.get<ApiRecurringBookingSeriesDetail>(
+        API_ENDPOINTS.FACILITY.bookingSeries(seriesId)
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to load recurring booking series");
+      }
+      return mapRecurringBookingSeriesDetail(response.data);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingSeriesNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to load recurring booking series");
+    }
+  }
+
+  async cancelBookingSeries(
+    seriesId: string,
+    payload: CancelRecurringBookingSeriesPayload
+  ): Promise<RecurringBookingSeriesDetail> {
+    try {
+      const response = await httpClient.post<ApiRecurringBookingSeriesDetail>(
+        API_ENDPOINTS.FACILITY.cancelBookingSeries(seriesId),
+        payload
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to cancel recurring booking series");
+      }
+      return mapRecurringBookingSeriesDetail(response.data);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingSeriesNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to cancel recurring booking series");
+    }
+  }
+
+  async cancelMyBooking(bookingId: string, cancelReason?: string | null): Promise<void> {
+    const response = await httpClient.post(API_ENDPOINTS.FACILITY.cancelBooking(bookingId), {
+      scope: "single",
+      cancelReason: cancelReason ?? null,
+    });
+    if (!response.success) {
+      throw new Error(response.message || "Failed to cancel booking");
+    }
   }
 }
 

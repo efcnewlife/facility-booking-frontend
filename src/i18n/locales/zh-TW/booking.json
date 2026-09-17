@@ -284,13 +284,68 @@
     "pastTitle": "過去的預訂",
     "seeAll": "查看全部",
     "noUpcoming": "目前沒有即將到來的預訂",
+    "noPast": "目前沒有過去的預訂",
     "change": "變更",
     "cancel": "取消",
+    "viewSeries": "查看系列",
+    "loading": "正在載入你的預訂...",
+    "loadError": "無法載入你的預訂。",
+    "retry": "再試一次",
+    "seriesTitle": "重複預訂",
+    "occurrenceCount": "{{count}} 個場次",
     "fields": {
       "room": "場地",
       "date": "日期",
       "time": "時間",
-      "note": "備註"
+      "note": "備註",
+      "status": "狀態",
+      "holdDeadline": "付款保留期限",
+      "total": "系列總額",
+      "range": "日期"
+    },
+    "status": {
+      "pending_payment": "待付款",
+      "confirmed": "已確認",
+      "expired": "付款保留已過期",
+      "cancelled": "已取消",
+      "overridden": "已被優先活動取代"
+    },
+    "detail": {
+      "title": "重複預訂",
+      "occurrencesTitle": "場次",
+      "back": "返回我的預訂",
+      "loadError": "無法載入此預訂系列。",
+      "holdExpired": "未付款保留已過期，這些日期不再被保留。",
+      "pendingPayment": "請在 {{deadline}} 前完成付款，以保留此系列。",
+      "noCancellable": "目前沒有可取消的日期。"
+    },
+    "cancelSeries": {
+      "title": "取消重複預訂",
+      "intro": "選擇要取消的範圍。",
+      "scopeOccurrence": "僅此場次",
+      "scopeThisAndFuture": "此場次及之後所有場次",
+      "scopeEntireSeries": "整個系列",
+      "chooseOccurrence": "選擇起始場次",
+      "affectedTitle": "這會取消 {{count}} 個場次",
+      "noneAffected": "沒有符合此選擇、仍可取消的場次。",
+      "confirm": "取消預訂",
+      "close": "關閉",
+      "successTitle": "已取消",
+      "successBody": "已取消 {{count}} 個場次。"
+    },
+    "cancelOneTime": {
+      "title": "取消這筆預訂？",
+      "body": "這筆預訂將被取消，場地會釋出。",
+      "confirm": "取消預訂",
+      "close": "關閉"
+    },
+    "errors": {
+      "cancel": "無法取消此預訂。",
+      "invalidScope": "請選擇單一場次、此場次及之後，或整個系列。",
+      "occurrenceRequired": "請選擇要從哪個場次開始。",
+      "occurrenceNotFound": "該場次不屬於此系列。",
+      "historicalOccurrence": "過去的場次無法取消。",
+      "seriesNotFound": "找不到此預訂系列。"
     }
   },
   "startBooking": {

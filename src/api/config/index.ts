@@ -37,6 +37,8 @@ export const API_ENDPOINTS = {
     BOOKING_SERIES_PREVIEW: `${BOOKING_API_PREFIX}/facility/booking-series/preview`,
     booking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}`,
     cancelBooking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}/cancel`,
+    bookingSeries: (seriesId: string) => `${BOOKING_API_PREFIX}/facility/booking-series/${seriesId}`,
+    cancelBookingSeries: (seriesId: string) => `${BOOKING_API_PREFIX}/facility/booking-series/${seriesId}/cancel`,
     bookingDraft: (bookingDraftId: string) => `${BOOKING_API_PREFIX}/facility/booking-drafts/${bookingDraftId}`,
   },
   CONTENT: {
