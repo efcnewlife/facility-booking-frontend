@@ -46,6 +46,28 @@ describe("resolveRecurringBookingSeriesErrorMessage", () => {
     expect(resolveRecurringBookingSeriesErrorMessage(error)).toBe("startBooking.errors.recurringSchedulingConflict");
   });
 
+  it("maps the invalid-exclusion error code", () => {
+    const error: ApiError = {
+      code: 400,
+      message: "Excluded dates are not conflicting occurrences",
+      details: { error_code: "FACILITY_RECURRING_INVALID_EXCLUSION" },
+    };
+    expect(resolveRecurringBookingSeriesErrorMessage(error)).toBe("startBooking.errors.recurringInvalidExclusion");
+  });
+
+  it("maps the protected-ministry-conflict error code", () => {
+    const error: ApiError = {
+      code: 409,
+      message: "This date conflicts with a protected Ministry booking",
+      details: {
+        error_code: "FACILITY_RECURRING_MINISTRY_CONFLICT",
+        ministry_steward_display_name: "Jane Doe",
+        ministry_steward_email: "jane@example.org",
+      },
+    };
+    expect(resolveRecurringBookingSeriesErrorMessage(error)).toBe("startBooking.errors.recurringMinistryConflict");
+  });
+
   it("falls back to the api message when the error code is unknown or absent", () => {
     const error: ApiError = {
       code: 403,

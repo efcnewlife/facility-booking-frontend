@@ -6,6 +6,7 @@ export const START_BOOKING_STEPS = [
   "frequency",
   "when",
   "recurring_when",
+  "recurring_conflicts",
 ] as const;
 
 export type StartBookingStep = (typeof START_BOOKING_STEPS)[number];
@@ -194,6 +195,9 @@ export const canAdvance = (step: StartBookingStep, answers: StartBookingAnswers,
       return isWhenValid(answers.when, now);
     case "recurring_when":
       return isRecurringWhenValid(answers.recurringWhen, now);
+    case "recurring_conflicts":
+      /** Gated by conflict/exclusion state, which lives outside StartBookingAnswers; see canCreateRecurringSeriesWithExclusions. */
+      return true;
   }
 };
 
@@ -215,6 +219,8 @@ export const nextStep = (
     case "when":
       return "rooms";
     case "recurring_when":
+      return "recurring_conflicts";
+    case "recurring_conflicts":
       return "create_series";
   }
 };
@@ -231,6 +237,8 @@ export const previousStep = (step: StartBookingStep, answers: StartBookingAnswer
       return "frequency";
     case "recurring_when":
       return "frequency";
+    case "recurring_conflicts":
+      return "recurring_when";
   }
 };
 

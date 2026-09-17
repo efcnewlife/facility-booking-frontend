@@ -389,6 +389,29 @@
       "roomsEmpty": "该日期没有可用房间。",
       "create": "创建预订系列"
     },
+    "recurringConflicts": {
+      "title": "查看预订冲突",
+      "priorityTitle": "优先事工覆盖",
+      "rentalTitle": "冲突审查",
+      "priorityIntro": "此事工具有优先权：下方标示的租借冲突将自动被覆盖，除非你排除该日期。",
+      "rentalIntro": "此流程与个人租借的冲突审查相同：请在下方排除有冲突的日期，或返回修改房间与共用时段。",
+      "occurrenceSummary": "将创建 {{total}} 次每周场次中的 {{remaining}} 次",
+      "exclude": "排除此日期",
+      "mustResolve": "请先排除此日期，或返回修改房间或时段，才能继续。",
+      "kindOccupancyOverridable": "可使用优先覆盖",
+      "kindOccupancyOverridableBody": "此日期该房间已被另一笔租借预订。由于此为优先事工预订，除非你排除此日期，否则将自动覆盖该租借。",
+      "kindOccupancyBlocked": "租借冲突",
+      "kindOccupancyBlockedBody": "此日期该房间已被另一笔租借预订占用。",
+      "kindMinistry": "受保护事工",
+      "kindMinistryBody": "此日期该房间已被另一个事工的预订占用，无法覆盖。",
+      "kindBlackout": "房间关闭",
+      "kindBlackoutBody": "此房间在此日期为关闭状态（暂停开放），无法覆盖。",
+      "kindWeeklyQuota": "已达每周上限",
+      "kindWeeklyQuotaBody": "你当周已有一笔个人租借预订；个人租借每周仅限一笔。",
+      "steward": "主要同工",
+      "loading": "正在检查冲突…",
+      "create": "创建预订系列"
+    },
     "recurringResult": {
       "title": "预订系列已创建",
       "pendingPaymentTitle": "待付款",
@@ -427,7 +450,9 @@
       "recurringMinistryInactive": "此事工目前未启用。",
       "recurringWeeklyQuota": "你当周已有一笔租借预订，个人租借每周仅限一笔。",
       "recurringSchedulingConflict": "你选择的其中一个房间在此系列的部分场次已被预订。",
-      "recurringRoomBlackout": "你选择的其中一个房间在此系列的部分场次为关闭状态。"
+      "recurringRoomBlackout": "你选择的其中一个房间在此系列的部分场次为关闭状态。",
+      "recurringInvalidExclusion": "你排除的日期与此预订目前的冲突不符，请重新查看冲突。",
+      "recurringMinistryConflict": "此日期与受保护事工的预订冲突，无法覆盖。"
     }
   },
   "wizard": {

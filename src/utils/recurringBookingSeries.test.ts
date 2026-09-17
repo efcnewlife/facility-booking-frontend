@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { buildCreateRecurringBookingSeriesPayload } from "./recurringBookingSeries";
+import {
+  buildCreateRecurringBookingSeriesPayload,
+  buildPreviewRecurringBookingSeriesPayload,
+} from "./recurringBookingSeries";
 import type { RecurringWhenValue, StartBookingAnswers } from "./startBookingFlow";
 
 const blankWhen = { date: null, start: null, end: null };
@@ -23,8 +26,31 @@ const answers = (overrides: Partial<StartBookingAnswers> = {}): StartBookingAnsw
 
 const now = new Date("2026-08-13T12:00:00");
 
+describe("buildPreviewRecurringBookingSeriesPayload", () => {
+  it("builds a preview payload with no excludedDates field", () => {
+    expect(buildPreviewRecurringBookingSeriesPayload(answers({ isMinistryBooking: false }), now)).toEqual({
+      ministryId: null,
+      firstOccurrenceDate: "2026-08-20",
+      lastOccurrenceDate: "2026-09-24",
+      localStartTime: "09:00:00",
+      localEndTime: "10:30:00",
+      isMissionAligned: false,
+      rooms: [
+        { facilityId: "room-1", sequence: 0 },
+        { facilityId: "room-2", sequence: 1 },
+      ],
+    });
+  });
+
+  it("returns null when the recurring When is incomplete", () => {
+    expect(
+      buildPreviewRecurringBookingSeriesPayload(answers({ recurringWhen: { ...baseRecurringWhen, roomIds: [] } }), now)
+    ).toBe(null);
+  });
+});
+
 describe("buildCreateRecurringBookingSeriesPayload", () => {
-  it("builds a Personal Rental payload with a null ministryId", () => {
+  it("builds a Personal Rental payload with a null ministryId and no exclusions", () => {
     expect(buildCreateRecurringBookingSeriesPayload(answers({ isMinistryBooking: false }), now)).toEqual({
       ministryId: null,
       firstOccurrenceDate: "2026-08-20",
@@ -36,6 +62,7 @@ describe("buildCreateRecurringBookingSeriesPayload", () => {
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },
       ],
+      excludedDates: [],
     });
   });
 
@@ -53,7 +80,15 @@ describe("buildCreateRecurringBookingSeriesPayload", () => {
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },
       ],
+      excludedDates: [],
     });
+  });
+
+  it("carries excludedDates through to the create payload", () => {
+    const payload = buildCreateRecurringBookingSeriesPayload(answers({ isMinistryBooking: false }), now, [
+      "2026-08-27",
+    ]);
+    expect(payload?.excludedDates).toEqual(["2026-08-27"]);
   });
 
   it("returns null when the recurring When is incomplete", () => {

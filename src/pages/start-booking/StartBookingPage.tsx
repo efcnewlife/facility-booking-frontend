@@ -1,12 +1,20 @@
-import facilityService, { type RecurringBookingSeriesDetail } from "@/api/services/facilityService";
+import facilityService, {
+  type RecurringBookingConflict,
+  type RecurringBookingSeriesDetail,
+} from "@/api/services/facilityService";
 import ministryService from "@/api/services/ministryService";
 import ChoicePill from "@/components/booking/ChoicePill";
+import RecurringConflictReview from "@/components/booking/RecurringConflictReview";
 import StartBookingProgress from "@/components/booking/StartBookingProgress";
 import { useAuth } from "@/context/AuthContext";
 import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
+import { canCreateRecurringSeriesWithExclusions } from "@/utils/recurringBookingConflicts";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
-import { buildCreateRecurringBookingSeriesPayload } from "@/utils/recurringBookingSeries";
+import {
+  buildCreateRecurringBookingSeriesPayload,
+  buildPreviewRecurringBookingSeriesPayload,
+} from "@/utils/recurringBookingSeries";
 import { clearStartBookingState } from "@/utils/startBookingEntry";
 import {
   buildRoomsSearchQuery,
@@ -89,6 +97,9 @@ const StartBookingPage = () => {
   const [maxRecurringRooms, setMaxRecurringRooms] = useState(MAX_BOOKING_LINES);
   const [submittingSeries, setSubmittingSeries] = useState(false);
   const [seriesResult, setSeriesResult] = useState<RecurringBookingSeriesDetail | null>(null);
+  const [previewingConflicts, setPreviewingConflicts] = useState(false);
+  const [recurringConflicts, setRecurringConflicts] = useState<RecurringBookingConflict[]>([]);
+  const [excludedDates, setExcludedDates] = useState<string[]>([]);
   const now = new Date();
   const minDate = moment(now).format("YYYY-MM-DD");
   const maxDate = moment(now).add(1, "year").format("YYYY-MM-DD");
@@ -116,7 +127,13 @@ const StartBookingPage = () => {
     when,
     recurringWhen,
   };
-  const canGoForward = canAdvance(step, answers, now);
+  const isPriorityMinistry = Boolean(
+    isMinistryBooking && ministries.find((ministry) => ministry.id === ministryId)?.hasPriorityBooking
+  );
+  const canGoForward =
+    step === "recurring_conflicts"
+      ? canCreateRecurringSeriesWithExclusions(recurringConflicts, excludedDates)
+      : canAdvance(step, answers, now);
   const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
 
   const recurringWeekdayMismatch =
@@ -233,8 +250,8 @@ const StartBookingPage = () => {
     });
   };
 
-  const handleCreateSeries = async () => {
-    const payload = buildCreateRecurringBookingSeriesPayload(answers, now);
+  const handleCreateSeries = async (datesToExclude: string[] = excludedDates) => {
+    const payload = buildCreateRecurringBookingSeriesPayload(answers, now, datesToExclude);
     if (!payload) {
       return;
     }
@@ -248,6 +265,39 @@ const StartBookingPage = () => {
     } finally {
       setSubmittingSeries(false);
     }
+  };
+
+  const handlePreviewSeries = async () => {
+    const payload = buildPreviewRecurringBookingSeriesPayload(answers, now);
+    if (!payload) {
+      return;
+    }
+    setPreviewingConflicts(true);
+    setError(null);
+    try {
+      const conflicts = await facilityService.previewBookingSeries(payload);
+      if (conflicts.length === 0) {
+        setRecurringConflicts([]);
+        setExcludedDates([]);
+        await handleCreateSeries([]);
+        return;
+      }
+      setRecurringConflicts(conflicts);
+      setExcludedDates([]);
+      goToStep("recurring_conflicts");
+    } catch (err) {
+      setError(resolveRecurringBookingSeriesErrorMessage(err));
+    } finally {
+      setPreviewingConflicts(false);
+    }
+  };
+
+  const toggleExcludedDate = (occurrenceDate: string) => {
+    setExcludedDates((current) =>
+      current.includes(occurrenceDate)
+        ? current.filter((date) => date !== occurrenceDate)
+        : [...current, occurrenceDate]
+    );
   };
 
   const handleMinistryChoice = (value: string) => {
@@ -289,6 +339,10 @@ const StartBookingPage = () => {
       );
       return;
     }
+    if (next === "recurring_conflicts") {
+      void handlePreviewSeries();
+      return;
+    }
     if (next === "create_series") {
       void handleCreateSeries();
       return;
@@ -303,7 +357,9 @@ const StartBookingPage = () => {
       ? t("startBooking.search")
       : step === "recurring_when"
         ? t("startBooking.recurringWhen.create")
-        : t("startBooking.continue");
+        : step === "recurring_conflicts"
+          ? t("startBooking.recurringConflicts.create")
+          : t("startBooking.continue");
 
   return (
     <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col items-center px-6 py-8 sm:px-8">
@@ -574,6 +630,24 @@ const StartBookingPage = () => {
         </section>
       ) : null}
 
+      {step === "recurring_conflicts" ? (
+        <section className="mt-10 flex w-full flex-col items-center">
+          <h1 className="text-center text-4xl font-semibold text-on-surface">
+            {t("startBooking.recurringConflicts.title")}
+          </h1>
+          <div className="mt-8 w-full">
+            <RecurringConflictReview
+              conflicts={recurringConflicts}
+              excludedDates={excludedDates}
+              isPriorityMinistry={isPriorityMinistry}
+              onToggleExcludeDate={toggleExcludedDate}
+              rooms={recurringRooms}
+              totalOccurrenceCount={recurringOccurrenceDates.length}
+            />
+          </div>
+        </section>
+      ) : null}
+
       <div className="mt-10 grid w-full grid-cols-3 items-center gap-3">
         <div className="justify-self-start">
           {step === "recurring_when" && seriesResult ? null : (
@@ -591,8 +665,17 @@ const StartBookingPage = () => {
         </div>
         <div className="justify-self-end">
           {step === "recurring_when" && seriesResult ? null : (
-            <Button disabled={!canGoForward || submittingSeries} onClick={handleContinue} size="md" variant="primary">
-              {submittingSeries ? t("startBooking.loading") : continueLabel}
+            <Button
+              disabled={!canGoForward || submittingSeries || previewingConflicts}
+              onClick={handleContinue}
+              size="md"
+              variant="primary"
+            >
+              {submittingSeries
+                ? t("startBooking.loading")
+                : previewingConflicts
+                  ? t("startBooking.recurringConflicts.loading")
+                  : continueLabel}
             </Button>
           )}
         </div>
