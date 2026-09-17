@@ -7,6 +7,8 @@ import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
 import { clearStartBookingState } from "@/utils/startBookingEntry";
 import {
+  applyFirstOccurrenceDate,
+  applyWeekday,
   buildRoomsSearchQuery,
   canAdvance,
   isWhenEndAfterStart,
@@ -71,6 +73,8 @@ const StartBookingPage = () => {
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [recurringDateValue, setRecurringDateValue] = useState<DatePickerValue>(null);
+  const [recurringWeekday, setRecurringWeekday] = useState<number | null>(null);
   const [recurringStartValue, setRecurringStartValue] = useState<TimePickerValue>(null);
   const [recurringEndValue, setRecurringEndValue] = useState<TimePickerValue>(null);
   const now = new Date();
@@ -84,8 +88,8 @@ const StartBookingPage = () => {
   };
 
   const recurringWhen: RecurringWhenValue = {
-    weekday: null,
-    firstOccurrenceDate: null,
+    weekday: recurringWeekday,
+    firstOccurrenceDate: recurringDateValue?.format("YYYY-MM-DD") ?? null,
     lastOccurrenceDate: null,
     startTime: recurringStartValue?.format("HH:mm") ?? null,
     endTime: recurringEndValue?.format("HH:mm") ?? null,
@@ -101,13 +105,16 @@ const StartBookingPage = () => {
   };
   const canGoForward = canAdvance(step, answers, now);
   const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
-  const recurringEndTimeError = isWhenEndAfterStart({
-    date: null,
-    start: recurringWhen.startTime,
-    end: recurringWhen.endTime,
-  })
-    ? undefined
-    : t("startBooking.when.endAfterStart");
+  const recurringTimeIncomplete = Boolean(recurringWhen.startTime) !== Boolean(recurringWhen.endTime);
+  const recurringEndTimeError = recurringTimeIncomplete
+    ? t("startBooking.errors.halfFilledTime")
+    : isWhenEndAfterStart({
+          date: null,
+          start: recurringWhen.startTime,
+          end: recurringWhen.endTime,
+        })
+      ? undefined
+      : t("startBooking.when.endAfterStart");
 
   const goToStep = useCallback(
     (next: StartBookingStep, ministryChoice: boolean | null = isMinistryBooking) => {
@@ -194,6 +201,20 @@ const StartBookingPage = () => {
 
   const continueLabel =
     step === "when" || step === "recurring_when" ? t("startBooking.search") : t("startBooking.continue");
+
+  const handleRecurringDateChange = (value: DatePickerValue) => {
+    setRecurringDateValue(value);
+    const next = applyFirstOccurrenceDate(recurringWhen, value?.format("YYYY-MM-DD") ?? null);
+    setRecurringWeekday(next.weekday);
+  };
+
+  const handleRecurringWeekdayChange = (weekday: number) => {
+    const next = applyWeekday(recurringWhen, weekday);
+    setRecurringWeekday(next.weekday);
+    if (!next.firstOccurrenceDate) {
+      setRecurringDateValue(null);
+    }
+  };
 
   return (
     <main className="mx-auto flex w-full max-w-[960px] flex-1 flex-col items-center px-6 py-8 sm:px-8">
@@ -342,26 +363,50 @@ const StartBookingPage = () => {
             {t("startBooking.recurringWhen.sharedTimeTitle")}
           </h1>
           <p className="mt-3 text-center text-lg text-on-surface">{t("startBooking.recurringWhen.sharedTimeBody")}</p>
-          <div className="mt-8 grid w-full grid-cols-2 gap-3">
-            <TimePicker
-              ampm
-              id="recurring-when-start"
-              label={t("startBooking.recurringWhen.start")}
-              onChange={(value) => setRecurringStartValue(value)}
-              placeholder={t("startBooking.when.startPlaceholder")}
+          <div className="mt-8 w-full space-y-4">
+            <DatePicker
+              id="recurring-when-first-occurrence"
+              label={t("startBooking.recurringWhen.firstOccurrence")}
+              maxDate={maxDate}
+              minDate={minDate}
+              onChange={handleRecurringDateChange}
+              placeholder={t("startBooking.when.datePlaceholder")}
               required
-              value={recurringStartValue}
+              value={recurringDateValue}
             />
-            <TimePicker
-              ampm
-              error={recurringEndTimeError}
-              id="recurring-when-end"
-              label={t("startBooking.recurringWhen.end")}
-              onChange={(value) => setRecurringEndValue(value)}
-              placeholder={t("startBooking.when.endPlaceholder")}
-              required
-              value={recurringEndValue}
-            />
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-sm font-medium text-on-surface">{t("startBooking.recurringSchedule.weekday")}</span>
+              {([0, 1, 2, 3, 4, 5, 6] as const).map((day) => (
+                <Button
+                  aria-pressed={recurringWeekday === day}
+                  key={day}
+                  onClick={() => handleRecurringWeekdayChange(day)}
+                  size="xs"
+                  variant={recurringWeekday === day ? "primary" : "outline"}
+                >
+                  {t(`startBooking.recurringSchedule.weekdays.${day}`)}
+                </Button>
+              ))}
+            </div>
+            <div className="grid w-full grid-cols-2 gap-3">
+              <TimePicker
+                ampm
+                id="recurring-when-start"
+                label={t("startBooking.recurringWhen.start")}
+                onChange={(value) => setRecurringStartValue(value)}
+                placeholder={t("startBooking.when.startPlaceholder")}
+                value={recurringStartValue}
+              />
+              <TimePicker
+                ampm
+                error={recurringEndTimeError}
+                id="recurring-when-end"
+                label={t("startBooking.recurringWhen.end")}
+                onChange={(value) => setRecurringEndValue(value)}
+                placeholder={t("startBooking.when.endPlaceholder")}
+                value={recurringEndValue}
+              />
+            </div>
           </div>
         </section>
       ) : null}

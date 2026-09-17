@@ -238,11 +238,11 @@ type StartBookingStep =
   "ministry_choice" | "select_ministry" | "frequency" | "when" | "recurring_when" | "recurring_conflicts";
 ```
 
-Typical progression: ministry yes/no → (ministry name if Yes) → One-time vs Repeated. One-time continues through When (date plus optional start/end) to `/rooms`. Repeated continues through a required shared Start Time / End Time step (`recurring_when`) to the same `/rooms` route with `frequency=repeated`. Create ministry is a modal on ministry name. The current step is mirrored into the URL with `{ replace: true }`.
+Typical progression: ministry yes/no → (ministry name if Yes) → One-time vs Repeated. One-time continues through When (date plus optional start/end) to `/rooms`. Repeated continues through First occurrence / weekday plus optional Start Time / End Time (`recurring_when`) to the same `/rooms` route with `frequency=repeated`. Those times seed the timetable search only; they do not lock the Series. Create ministry is a modal on ministry name. The current step is mirrored into the URL with `{ replace: true }`.
 
 ### 3. Results — `src/pages/rooms/RoomFilterPage.tsx`
 
-Reads Start booking output via `parseRoomsSearchQuery`. One-time: missing or invalid `date` redirects to Home. Repeated: requires a valid shared `start`/`end` pair; `date` (Starts on), `lastDate` (Ends on), and `weekday` are collected on the Recurring schedule card. Legacy `space` / `room` URL params are ignored on entry. Loads via `facilityService.getAvailability(date, ministryId)` for the First occurrence date. One-time can create a booking from the cart. Repeated selects rooms under the locked shared window and does not use pin, ADD, Confirm Booking Time, or the Booking cart.
+Reads Start booking output via `parseRoomsSearchQuery`. One-time: missing or invalid `date` redirects to Home. Repeated: missing `date` stays on `/rooms` until Starts on is set and does not require a time seed; a complete optional `start`/`end` pair is search highlight only. `date` (Starts on), `lastDate` (Ends on), and `weekday` are collected on the Recurring schedule card. Legacy `space` / `room` URL params are ignored on entry. Loads via `facilityService.getAvailability(date, ministryId)` for the First occurrence date. One-time can create a booking from the cart. Repeated uses the same pin, ADD, Confirm Booking Time, and Booking cart interaction; the first confirmed interval locks shared time, and a different interval asks to replace it.
 
 ### Availability filter — `src/utils/roomAvailabilityFilter.ts`
 

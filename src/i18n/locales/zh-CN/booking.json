@@ -183,7 +183,8 @@
     "addedToCart": "已加入购物车",
     "cart": {
       "title": "预订购物车",
-      "empty": "在时刻表确认时间后即可加入预订项目。"
+      "empty": "在时刻表确认时间后即可加入预订项目。",
+      "emptyRepeated": "在时刻表确认时间后，即可把房间加入这次重复预订。"
     },
     "available": "可预订",
     "unavailable": "不可预订",
@@ -209,6 +210,12 @@
     "end": "结束时间",
     "cancel": "取消",
     "confirm": "确认"
+  },
+  "replaceRepeatedTime": {
+    "title": "要更换共用时段吗？",
+    "body": "选择不同时段会清除这次重复预订中已选的所有房间。",
+    "cancel": "取消",
+    "confirm": "更换时段"
   },
   "bookingDetails": {
     "title": "预订详情",
@@ -432,8 +439,8 @@
     },
     "recurringWhen": {
       "title": "设置你的每周重复预订",
-      "sharedTimeTitle": "每周要使用哪个时段？",
-      "sharedTimeBody": "请选择一组开始与结束时间。接下来再选每周日期与房间。",
+      "sharedTimeTitle": "这次重复预订从哪一天开始？",
+      "sharedTimeBody": "请选择首次场次与星期。开始与结束时间可选，只用来预先标示时间表搜索。",
       "firstOccurrence": "首次场次",
       "lastOccurrence": "最后场次",
       "start": "开始",

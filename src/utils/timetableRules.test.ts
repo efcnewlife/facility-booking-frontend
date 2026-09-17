@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addCartLine,
+  applyRepeatedTimeReplacement,
   blockActionForInterval,
   canAddCartLine,
   canConfirmBookingTime,
@@ -9,6 +10,7 @@ import {
   cartPointerAction,
   confirmBookingTimePrefill,
   confirmBookingTimePrefillForCart,
+  confirmRepeatedCartLine,
   displayBlocks,
   displayBlocksForCart,
   emptyCartState,
@@ -25,7 +27,9 @@ import {
   matchesCapacityBand,
   MAX_BOOKING_LINES,
   pinInterval,
+  repeatedCartLineTime,
   removeCartLine,
+  removeRepeatedCartLine,
   retainValidRepeatedRoomIds,
   scrollTargetClock,
   scrollTargetClockForCart,
@@ -33,6 +37,7 @@ import {
   updateCartLine,
   visibleRooms,
   type BookingInterval,
+  type RepeatedCartState,
   type RoomDay,
   type TimetableCartState,
 } from "./timetableRules";
@@ -733,5 +738,84 @@ describe("isRepeatedRoomSelectable", () => {
   it("follows the same coverage rule as One-time availability for that interval", () => {
     expect(isRepeatedRoomSelectable(gym(), { start: "10:00", end: "11:00" })).toBe(true);
     expect(isRepeatedRoomSelectable(chapel(), { start: "13:00", end: "14:00" })).toBe(false);
+  });
+});
+
+describe("confirmRepeatedCartLine", () => {
+  const firstInterval = { facilityId: "gym-id", start: "10:00", end: "11:00" };
+  const emptyRepeated = (): RepeatedCartState => ({ ...emptyCartState(), sharedTime: null });
+
+  it("locks shared time on the first confirmed interval", () => {
+    const result = confirmRepeatedCartLine(emptyRepeated(), firstInterval, 3);
+    expect(result.decision).toBe("added");
+    expect(result.state.sharedTime).toEqual({ start: "10:00", end: "11:00" });
+    expect(result.state.lines).toEqual([{ facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 }]);
+  });
+
+  it("adds another room at the same shared time", () => {
+    const locked = confirmRepeatedCartLine(emptyRepeated(), firstInterval, 3).state;
+    const result = confirmRepeatedCartLine(locked, { facilityId: "chapel-id", start: "10:00", end: "11:00" }, 3);
+    expect(result.decision).toBe("added");
+    expect(result.state.sharedTime).toEqual({ start: "10:00", end: "11:00" });
+    expect(result.state.lines.map((line) => line.facilityId)).toEqual(["gym-id", "chapel-id"]);
+  });
+
+  it("asks to replace time; cancelling that decision leaves rooms and shared time unchanged", () => {
+    const locked = confirmRepeatedCartLine(emptyRepeated(), firstInterval, 3).state;
+    const result = confirmRepeatedCartLine(locked, { facilityId: "gym-id", start: "13:00", end: "14:00" }, 3);
+    expect(result.decision).toBe("replace");
+    expect(result.state.lines).toHaveLength(1);
+    expect(result.state.sharedTime).toEqual({ start: "10:00", end: "11:00" });
+  });
+});
+
+describe("applyRepeatedTimeReplacement", () => {
+  it("clears every room and previewable selection before locking the new time", () => {
+    const emptyRepeated = (): RepeatedCartState => ({ ...emptyCartState(), sharedTime: null });
+    const locked = confirmRepeatedCartLine(
+      emptyRepeated(),
+      { facilityId: "gym-id", start: "10:00", end: "11:00" },
+      3
+    ).state;
+    const withChapel = confirmRepeatedCartLine(
+      locked,
+      { facilityId: "chapel-id", start: "10:00", end: "11:00" },
+      3
+    ).state;
+    const replaced = applyRepeatedTimeReplacement(
+      { ...withChapel, pinned: { facilityId: "gym-id", start: "13:00", end: "14:00" } },
+      { facilityId: "gym-id", start: "13:00", end: "14:00" },
+      3
+    );
+    expect(replaced.decision).toBe("added");
+    expect(replaced.state.sharedTime).toEqual({ start: "13:00", end: "14:00" });
+    expect(replaced.state.lines).toEqual([{ facilityId: "gym-id", start: "13:00", end: "14:00", sequence: 1 }]);
+    expect(replaced.state.pinned).toBeNull();
+  });
+});
+
+describe("removeRepeatedCartLine", () => {
+  it("removes one room and keeps the shared time", () => {
+    const emptyRepeated = (): RepeatedCartState => ({ ...emptyCartState(), sharedTime: null });
+    let state = confirmRepeatedCartLine(
+      emptyRepeated(),
+      { facilityId: "gym-id", start: "10:00", end: "11:00" },
+      3
+    ).state;
+    state = confirmRepeatedCartLine(state, { facilityId: "chapel-id", start: "10:00", end: "11:00" }, 3).state;
+    const next = removeRepeatedCartLine(state, 1);
+    expect(next.lines.map((line) => line.facilityId)).toEqual(["chapel-id"]);
+    expect(next.sharedTime).toEqual({ start: "10:00", end: "11:00" });
+  });
+});
+
+describe("repeatedCartLineTime", () => {
+  it("presents every Repeated cart row with the shared time, not a per-room interval", () => {
+    const state: RepeatedCartState = {
+      ...emptyCartState(),
+      sharedTime: { start: "10:00", end: "11:00" },
+      lines: [{ facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 }],
+    };
+    expect(repeatedCartLineTime(state, state.lines[0])).toEqual({ start: "10:00", end: "11:00" });
   });
 });

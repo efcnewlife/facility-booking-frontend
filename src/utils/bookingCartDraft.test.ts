@@ -38,6 +38,7 @@ describe("draftToCartState", () => {
       lines: [{ facilityId: "room-a", start: "10:00", end: "11:00", sequence: 1 }],
       pinned: null,
       whenSeed,
+      sharedTime: null,
     });
   });
 });

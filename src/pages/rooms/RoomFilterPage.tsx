@@ -7,6 +7,7 @@ import RecurringScheduleCard from "@/components/booking/RecurringScheduleCard";
 import RecurringSeriesPendingPayment from "@/components/booking/RecurringSeriesPendingPayment";
 import RecurringSeriesReviewModal from "@/components/booking/RecurringSeriesReviewModal";
 import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
+import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
 import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
@@ -25,7 +26,8 @@ import {
   type RecurringSeriesReviewSnapshot,
 } from "@/utils/recurringSeriesReview";
 import {
-  isRecurringScheduleValid,
+  applyFirstOccurrenceDate,
+  applyWeekday,
   isRepeatedRoomsSearch,
   isSameWeekday,
   occurrencePeriodForDate,
@@ -34,32 +36,33 @@ import {
   toRoomsSearchParams,
   weekdayForDate,
   weeklyOccurrenceDates,
+  type RecurringWhenValue,
   type RoomsSearchQuery,
   type StartBookingAnswers,
 } from "@/utils/startBookingFlow";
 import { loadTimetableCart, saveTimetableCart } from "@/utils/timetableCartStorage";
 import {
   addCartLine,
+  applyRepeatedTimeReplacement,
   blockActionForInterval,
   cartPointerAction,
   clockToMinutes,
   confirmBookingTimePrefillForCart,
+  confirmRepeatedCartLine,
   displayBlocksForCart,
   emptyCartState,
   emptyTimeBookInterval,
   hasNoMatchingResults,
   intervalsOverlap,
   isBookableCellForCart,
-  isRepeatedRoomSelectable,
   isTimetableInitialLoad,
   MAX_BOOKING_LINES,
   minutesToClock,
   pinInterval,
   removeCartLine,
-  retainValidRepeatedRoomIds,
+  removeRepeatedCartLine,
   scrollTargetClockForCart,
   SLOT_MINUTES,
-  toggleRepeatedRoomSelection,
   updateCartLine,
   visibleRooms,
   type AvailableOverlayKind,
@@ -128,6 +131,29 @@ const fromDatePickerValue = (value: DatePickerValue): string => {
     return "";
   }
   return value.format("YYYY-MM-DD");
+};
+
+const toRepeatedRoomsQuery = (base: RoomsSearchQuery, when: RecurringWhenValue): RoomsSearchQuery => {
+  const next: RoomsSearchQuery = { frequency: "repeated" };
+  if (when.firstOccurrenceDate) {
+    next.date = when.firstOccurrenceDate;
+  }
+  if (when.lastOccurrenceDate) {
+    next.lastDate = when.lastOccurrenceDate;
+  }
+  if (when.weekday != null) {
+    next.weekday = when.weekday;
+  }
+  if (base.start) {
+    next.start = base.start;
+  }
+  if (base.end) {
+    next.end = base.end;
+  }
+  if (base.ministryId) {
+    next.ministryId = base.ministryId;
+  }
+  return next;
 };
 
 const TIMETABLE_OPEN_HOUR_BG = "bg-[#eefaea]";
@@ -209,7 +235,6 @@ const RoomFilterPage = () => {
       ? emptyCartState(whenSeedFromSearch(initialQuery?.start, initialQuery?.end))
       : buildInitialCartState(initialQuery)
   );
-  const [selectedRoomIds, setSelectedRoomIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(() => Boolean(initialQuery?.date));
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
@@ -217,6 +242,9 @@ const RoomFilterPage = () => {
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
   const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
+  const [pendingReplacement, setPendingReplacement] = useState<{ room: RoomDay; interval: BookingInterval } | null>(
+    null
+  );
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const [reviewState, setReviewState] = useState<RecurringSeriesReviewSnapshot>(emptyRecurringSeriesReviewSnapshot);
   const gridScrollRef = useRef<HTMLDivElement>(null);
@@ -230,8 +258,18 @@ const RoomFilterPage = () => {
     [appliedQuery?.end, appliedQuery?.start]
   );
   const recurringWhen = useMemo(
-    () => (isRepeated && appliedQuery ? recurringWhenFromRoomsQuery(appliedQuery, selectedRoomIds) : null),
-    [appliedQuery, isRepeated, selectedRoomIds]
+    () =>
+      isRepeated && appliedQuery
+        ? {
+            ...recurringWhenFromRoomsQuery(
+              appliedQuery,
+              cartState.lines.map((line) => line.facilityId)
+            ),
+            startTime: cartState.sharedTime?.start ?? null,
+            endTime: cartState.sharedTime?.end ?? null,
+          }
+        : null,
+    [appliedQuery, cartState.lines, cartState.sharedTime, isRepeated]
   );
   const repeatedAnswers = useMemo((): StartBookingAnswers | null => {
     if (!isRepeated || !appliedQuery || !recurringWhen) {
@@ -288,13 +326,6 @@ const RoomFilterPage = () => {
     !recurringUsePeriodMismatch
       ? weeklyOccurrenceDates(recurringWhen.firstOccurrenceDate, recurringWhen.lastOccurrenceDate).length
       : 0;
-  const canSelectRepeatedRooms = Boolean(
-    recurringWhen && whenSeed && isRecurringScheduleValid(recurringWhen, new Date())
-  );
-  const repeatedCartState = useMemo(
-    () => (isRepeated ? emptyCartState(whenSeed) : cartState),
-    [cartState, isRepeated, whenSeed]
-  );
   const showMinistryField = bookableMinistries.length > 0;
   const minDate = moment().format("YYYY-MM-DD");
   const maxDate = moment().add(1, "year").format("YYYY-MM-DD");
@@ -392,16 +423,8 @@ const RoomFilterPage = () => {
     setHover(null);
     setConfirmRoom(null);
     setEditingSequence(undefined);
+    setPendingReplacement(null);
   }, [appliedKey, whenSeed]);
-
-  useEffect(() => {
-    if (!isRepeated) {
-      return;
-    }
-    setSelectedRoomIds((current) =>
-      retainValidRepeatedRoomIds(current, rooms, canSelectRepeatedRooms ? whenSeed : null)
-    );
-  }, [canSelectRepeatedRooms, isRepeated, rooms, whenSeed]);
 
   const listedRooms = useMemo(
     () => visibleRooms(rooms, view, whenSeed, capacityBand),
@@ -581,7 +604,7 @@ const RoomFilterPage = () => {
     isRepeated && repeatedAnswers
       ? buildConflictFreeReviewSummary(
           repeatedAnswers,
-          selectedRoomIds.map((id) => rooms.find((room) => room.id === id)?.name ?? id),
+          cartState.lines.map((line) => rooms.find((room) => room.id === line.facilityId)?.name ?? line.facilityId),
           reviewState.quotedAmount,
           reviewState.currency
         )
@@ -594,33 +617,14 @@ const RoomFilterPage = () => {
   };
 
   const handleWeekdayChange = (weekday: number) => {
-    const next: RoomsSearchQuery = { ...appliedQuery, weekday };
-    if (next.date && weekdayForDate(next.date) !== weekday) {
-      delete next.date;
-    }
-    if (next.lastDate && weekdayForDate(next.lastDate) !== weekday) {
-      delete next.lastDate;
-    }
-    replaceRepeatedQuery(next);
+    const current = recurringWhenFromRoomsQuery(appliedQuery, []);
+    replaceRepeatedQuery(toRepeatedRoomsQuery(appliedQuery, applyWeekday(current, weekday)));
   };
 
   const handleStartsOnChange = (value: DatePickerValue) => {
     const date = fromDatePickerValue(value);
-    const next: RoomsSearchQuery = { ...appliedQuery };
-    if (!date) {
-      delete next.date;
-      replaceRepeatedQuery(next);
-      return;
-    }
-    next.date = date;
-    const weekday = weekdayForDate(date);
-    if (weekday != null) {
-      next.weekday = weekday;
-      if (next.lastDate && weekdayForDate(next.lastDate) !== weekday) {
-        delete next.lastDate;
-      }
-    }
-    replaceRepeatedQuery(next);
+    const current = recurringWhenFromRoomsQuery(appliedQuery, []);
+    replaceRepeatedQuery(toRepeatedRoomsQuery(appliedQuery, applyFirstOccurrenceDate(current, date || null)));
   };
 
   const handleEndsOnChange = (value: DatePickerValue) => {
@@ -634,17 +638,7 @@ const RoomFilterPage = () => {
     replaceRepeatedQuery(next);
   };
 
-  const handleToggleRepeatedRoom = (room: RoomDay) => {
-    if (!canSelectRepeatedRooms || !whenSeed) {
-      return;
-    }
-    setSelectedRoomIds((current) => toggleRepeatedRoomSelection(current, room.id, rooms, whenSeed, maxBookingLines));
-  };
-
   const handlePinCell = (room: RoomDay, cellStart: string) => {
-    if (isRepeated) {
-      return;
-    }
     if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
     }
@@ -672,7 +666,7 @@ const RoomFilterPage = () => {
   };
 
   const persistCartState = (state: TimetableCartState) => {
-    if (!appliedDate) {
+    if (isRepeated || !appliedDate) {
       return;
     }
     saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, appliedMinistryId, state));
@@ -680,6 +674,19 @@ const RoomFilterPage = () => {
 
   const handleConfirmBookingTime = async (interval: BookingInterval) => {
     if (!confirmRoom || !appliedDate) {
+      return;
+    }
+    if (isRepeated) {
+      const candidate = { facilityId: confirmRoom.id, start: interval.start, end: interval.end };
+      const result = confirmRepeatedCartLine(cartState, candidate, maxBookingLines);
+      if (result.decision === "replace") {
+        setPendingReplacement({ room: confirmRoom, interval });
+        return;
+      }
+      handleCancelConfirmBookingTime();
+      if (result.decision === "added") {
+        setCartState(result.state);
+      }
       return;
     }
     let nextState: TimetableCartState | null = null;
@@ -727,12 +734,38 @@ const RoomFilterPage = () => {
     }
   };
 
+  const handleConfirmReplacement = () => {
+    if (!pendingReplacement) {
+      return;
+    }
+    const result = applyRepeatedTimeReplacement(
+      cartState,
+      {
+        facilityId: pendingReplacement.room.id,
+        start: pendingReplacement.interval.start,
+        end: pendingReplacement.interval.end,
+      },
+      maxBookingLines
+    );
+    setPendingReplacement(null);
+    handleCancelConfirmBookingTime();
+    if (result.decision === "added") {
+      setReviewState(emptyRecurringSeriesReviewSnapshot);
+      setCartState(result.state);
+    }
+  };
+
+  const handleCancelReplacement = () => {
+    setPendingReplacement(null);
+    handleCancelConfirmBookingTime();
+  };
+
   const pointerKindFromEvent = (event: { pointerType: string }): PointerKind => {
     return event.pointerType === "mouse" ? "mouse" : "touch";
   };
 
   const handleCellPointerEnter = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (isRepeated || event.pointerType !== "mouse") {
+    if (event.pointerType !== "mouse") {
       return;
     }
     const preview = emptyTimeBookInterval(room, cellStart);
@@ -750,7 +783,7 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerUp = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (isRepeated || !isBookableCellForCart(room, cellStart, cartState)) {
+    if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
     }
     const target = { roomId: room.id, cellStart };
@@ -1084,8 +1117,7 @@ const RoomFilterPage = () => {
                         {paddedRooms.map((room, roomIndex) =>
                           Array.from({ length: 48 }, (_, cellIndex) => {
                             const cell = room?.cells[cellIndex];
-                            const bookable =
-                              !isRepeated && room && cell ? isBookableCellForCart(room, cell.start, cartState) : false;
+                            const bookable = room && cell ? isBookableCellForCart(room, cell.start, cartState) : false;
                             return (
                               <button
                                 className={cn(
@@ -1124,28 +1156,17 @@ const RoomFilterPage = () => {
                           })
                         )}
                         {pagedRooms.map((room, roomIndex) =>
-                          displayBlocksForCart(
-                            room,
-                            isRepeated ? repeatedCartState : cartState,
-                            isRepeated ? null : hover
-                          ).map((block) => {
+                          displayBlocksForCart(room, cartState, hover).map((block) => {
                             const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                             const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
                             const isPinnedOverlay = block.overlayKind === "pinned";
                             const isCommittedOverlay = block.overlayKind === "committed";
-                            const isLockedSharedWindow = isRepeated && block.overlayKind === "whenSeed";
-                            const isSelectedRepeatedRoom = isLockedSharedWindow && selectedRoomIds.includes(room.id);
-                            const canToggleRepeatedRoom =
-                              isLockedSharedWindow &&
-                              canSelectRepeatedRooms &&
-                              isRepeatedRoomSelectable(room, whenSeed as BookingInterval);
                             const bookableStart =
-                              !isRepeated &&
                               isPinnedOverlay &&
                               block.state === "available" &&
                               isBookableCellForCart(room, block.start, cartState);
                             const blockAction =
-                              !isRepeated && (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
+                              (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
                                 ? blockActionForInterval(cartState.lines, room.id, block)
                                 : null;
                             return (
@@ -1162,20 +1183,6 @@ const RoomFilterPage = () => {
                                     {formatClockForLocale(block.start)} – {formatClockForLocale(block.end)}
                                   </p>
                                 </div>
-                                {canToggleRepeatedRoom ? (
-                                  <button
-                                    aria-pressed={isSelectedRepeatedRoom}
-                                    className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
-                                    onClick={() => handleToggleRepeatedRoom(room)}
-                                    type="button"
-                                  >
-                                    {isSelectedRepeatedRoom ? (
-                                      <MdCheck aria-hidden size={18} />
-                                    ) : (
-                                      t("startBooking.recurringSchedule.selectRoom")
-                                    )}
-                                  </button>
-                                ) : null}
                                 {block.state === "available" && bookableStart && blockAction === "add" ? (
                                   <button
                                     className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
@@ -1209,7 +1216,17 @@ const RoomFilterPage = () => {
         </section>
 
         {isRepeated ? (
-          <RepeatedSeriesPanel onReview={handleOpenRepeatedReview} reviewState={reviewState} />
+          <RepeatedSeriesPanel
+            formatClock={formatClockForLocale}
+            lines={cartState.lines}
+            onRemove={(sequence) => {
+              setCartState((current) => removeRepeatedCartLine(current, sequence));
+            }}
+            onReview={handleOpenRepeatedReview}
+            reviewState={reviewState}
+            rooms={rooms}
+            sharedTime={cartState.sharedTime ?? null}
+          />
         ) : (
           <BookingCartPanel
             formatClock={formatClockForLocale}
@@ -1234,7 +1251,7 @@ const RoomFilterPage = () => {
         )}
       </div>
 
-      {!isRepeated && confirmRoom && appliedDate ? (
+      {confirmRoom && appliedDate && !pendingReplacement ? (
         <ConfirmBookingTime
           date={appliedDate}
           end={confirmEnd}
@@ -1245,6 +1262,9 @@ const RoomFilterPage = () => {
           room={confirmRoom}
           start={confirmStart}
         />
+      ) : null}
+      {pendingReplacement ? (
+        <ReplaceRepeatedTimeModal isOpen onCancel={handleCancelReplacement} onConfirm={handleConfirmReplacement} />
       ) : null}
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
       {isRepeated && (reviewState.phase === "review" || reviewState.phase === "creating") && reviewSummary ? (
