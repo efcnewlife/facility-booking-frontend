@@ -52,7 +52,6 @@ export function shouldSearchSecondaryStewards(query: string): boolean {
 
 export interface CreateMinistryFormValues {
   ministryName: string;
-  ministryTypeId: string;
   ownerPositionId: string;
   purpose: string;
   localeId: string;
@@ -68,13 +67,7 @@ export function validateCreateMinistryForm(
   catalog: MinistryCatalogItem[],
   currentUserId?: string
 ): CreateMinistryValidationKey | null {
-  if (
-    !values.ministryName.trim() ||
-    !values.ministryTypeId ||
-    !values.ownerPositionId ||
-    !values.purpose.trim() ||
-    !values.localeId
-  ) {
+  if (!values.ministryName.trim() || !values.ownerPositionId || !values.purpose.trim() || !values.localeId) {
     return "createMinistryValidation";
   }
 

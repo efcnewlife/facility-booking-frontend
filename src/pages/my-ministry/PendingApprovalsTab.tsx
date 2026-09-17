@@ -49,8 +49,6 @@ const PendingApprovalsTab = () => {
   return (
     <ul className="space-y-4">
       {approvals.map((approval) => {
-        const ministryTypeLabel = approval.ministryType?.name || approval.ministryType?.code;
-
         return (
           <li key={approval.id} className="rounded-xl border border-outline-variant bg-surface p-4 sm:p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -58,11 +56,6 @@ const PendingApprovalsTab = () => {
                 <h3 className="text-lg font-semibold text-on-surface">
                   {approval.name?.trim() || t("myMinistry.applications.unnamed")}
                 </h3>
-                {ministryTypeLabel ? (
-                  <p className="text-sm text-on-surface-variant">
-                    {t("myMinistry.applications.ministryType", { type: ministryTypeLabel })}
-                  </p>
-                ) : null}
               </div>
             </div>
 

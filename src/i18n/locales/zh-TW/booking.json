@@ -55,7 +55,6 @@
     "applications": {
       "empty": "您目前還沒有事工申請。",
       "unnamed": "未命名事工",
-      "ministryType": "類型：{{type}}",
       "rejectionReason": "拒絕原因",
       "startBooking": "開始預訂",
       "status": {
@@ -92,7 +91,6 @@
       "detail": {
         "backToQueue": "返回待審核列表",
         "summaryTitle": "事工摘要",
-        "ministryType": "事工類型",
         "targetAudiences": "目標對象",
         "priorityBooking": "優先預訂",
         "priorityBookingYes": "是",
@@ -401,10 +399,6 @@
       "title": "建立新事工",
       "name": "事工名稱",
       "namePlaceholder": "輸入事工名稱",
-      "ministryType": "事工類型",
-      "ministryTypePlaceholder": "選擇事工類型",
-      "ministryTypeSearch": "搜尋事工類型",
-      "ministryTypeEmpty": "沒有可選的事工類型",
       "targetAudiences": "目標對象（選填）",
       "targetAudiencesPlaceholder": "選擇目標對象",
       "targetAudiencesHint": "「全年齡」不可與其他對象同時選取。",

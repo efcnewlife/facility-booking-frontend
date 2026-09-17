@@ -10,7 +10,6 @@ export interface MinistryItem {
   status: string;
   hasPriorityBooking?: boolean;
   isActive?: boolean;
-  ministryType?: MinistryCatalogRef | null;
   targetAudiences?: MinistryCatalogRef[];
   rejectionReason?: string | null;
 }
@@ -32,7 +31,6 @@ export interface MinistryMember {
 
 export interface MinistryDetail extends MinistryItem {
   ownerPositionId?: string | null;
-  ministryTypeId?: string | null;
   submittedAt?: string | null;
   submittedById?: string | null;
   translations: MinistryTranslation[];
@@ -101,7 +99,6 @@ export interface LocaleListResponse {
 }
 
 export interface UpdateMinistryApplicationPayload {
-  ministryTypeId?: string;
   targetAudienceIds?: string[];
   hasPriorityBooking?: boolean;
   translations?: Array<{
@@ -117,7 +114,6 @@ export interface UpdateMinistryApplicationPayload {
 
 export interface CreateMinistryApplicationPayload {
   ownerPositionId: string;
-  ministryTypeId: string;
   targetAudienceIds?: string[];
   hasPriorityBooking?: boolean;
   translations: Array<{

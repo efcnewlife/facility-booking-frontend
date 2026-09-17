@@ -15,7 +15,7 @@ import {
   type CreateMinistryValidationKey,
 } from "@/utils/createMinistryForm";
 import { resolveMinistryApplicationErrorMessage } from "@/utils/ministryApplicationErrors";
-import { Alert, Button, ComboBox, Input, ModalForm, Select, type ModalFormHandle } from "@efcnewlife/newlife-ui";
+import { Alert, Button, ComboBox, Input, ModalForm, type ModalFormHandle } from "@efcnewlife/newlife-ui";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -64,10 +64,8 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
   const modalRef = useRef<ModalFormHandle>(null);
   const [positions, setPositions] = useState<AssignablePosition[]>([]);
   const [locales, setLocales] = useState<LocaleItem[]>([]);
-  const [ministryTypes, setMinistryTypes] = useState<MinistryCatalogItem[]>([]);
   const [targetAudiences, setTargetAudiences] = useState<MinistryCatalogItem[]>([]);
   const [ministryName, setMinistryName] = useState("");
-  const [ministryTypeId, setMinistryTypeId] = useState("");
   const [ownerPositionId, setOwnerPositionId] = useState("");
   const [purpose, setPurpose] = useState("");
   const [targetAudienceIds, setTargetAudienceIds] = useState<string[]>([]);
@@ -84,7 +82,6 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
 
   const resetForm = useCallback(() => {
     setMinistryName("");
-    setMinistryTypeId("");
     setOwnerPositionId("");
     setPurpose("");
     setTargetAudienceIds([]);
@@ -99,7 +96,6 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
     const translation = resolveTranslationForLocale(detail.translations, localeId);
     setMinistryName(translation.name);
     setPurpose(translation.description);
-    setMinistryTypeId(detail.ministryTypeId || detail.ministryType?.id || "");
     setOwnerPositionId(detail.ownerPositionId || "");
     setTargetAudienceIds((detail.targetAudiences || []).map((item) => item.id));
     setHasPriorityBooking(detail.hasPriorityBooking ?? true);
@@ -131,16 +127,14 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
     const loadForm = async () => {
       setLoading(true);
       try {
-        const [detail, positionResult, localeResult, ministryTypeResult, targetAudienceResult] = await Promise.all([
+        const [detail, positionResult, localeResult, targetAudienceResult] = await Promise.all([
           ministryService.getApplicationDetail(ministryId),
           ministryService.listAssignablePositions(),
           ministryService.listLocales(),
-          ministryService.listMinistryTypes(),
           ministryService.listTargetAudiences(),
         ]);
         setPositions(positionResult.items || []);
         setLocales(localeResult.items || []);
-        setMinistryTypes(ministryTypeResult.items || []);
         setTargetAudiences(targetAudienceResult.items || []);
         const localeId = resolveLocaleId(localeResult.items || []);
         applyDetailToForm(detail, localeId);
@@ -226,7 +220,6 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
     const validationKey = validateCreateMinistryForm(
       {
         ministryName,
-        ministryTypeId,
         ownerPositionId,
         purpose,
         localeId: defaultLocaleId,
@@ -250,7 +243,6 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
     setError(null);
     try {
       await ministryService.updateRejectedApplication(ministryId, {
-        ministryTypeId,
         targetAudienceIds,
         hasPriorityBooking,
         translations: [
@@ -318,25 +310,6 @@ const ResubmitMinistryModal = ({ ministryId, userId, isOpen, onClose, onResubmit
           placeholder={t("startBooking.createMinistry.namePlaceholder")}
           required
           value={ministryName}
-        />
-        <Select
-          id="resubmit-ministry-type"
-          label={t("startBooking.createMinistry.ministryType")}
-          labels={{
-            noOptions: t("startBooking.createMinistry.ministryTypeEmpty"),
-            searchOptions: t("startBooking.createMinistry.ministryTypeSearch"),
-          }}
-          onChange={(value) => {
-            setMinistryTypeId(typeof value === "string" ? value : "");
-          }}
-          options={ministryTypes.map((item) => ({
-            value: item.id,
-            label: item.name || item.code,
-          }))}
-          placeholder={t("startBooking.createMinistry.ministryTypePlaceholder")}
-          required
-          searchable
-          value={ministryTypeId || null}
         />
         <ComboBox<string>
           filterFunction={() => true}
