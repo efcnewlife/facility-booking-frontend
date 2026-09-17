@@ -4,11 +4,25 @@ import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import RecurringScheduleCard from "@/components/booking/RecurringScheduleCard";
+import RecurringSeriesPendingPayment from "@/components/booking/RecurringSeriesPendingPayment";
+import RecurringSeriesReviewModal from "@/components/booking/RecurringSeriesReviewModal";
+import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
 import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
 import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
+import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
+import { buildCreateRecurringBookingSeriesPayload } from "@/utils/recurringBookingSeries";
+import {
+  buildConflictFreeReviewSummary,
+  canConfirmCreate,
+  createRecurringSeriesPreviewController,
+  emptyRecurringSeriesReviewSnapshot,
+  isPendingPaymentSuccess,
+  proposalKeyForAnswers,
+  type RecurringSeriesReviewSnapshot,
+} from "@/utils/recurringSeriesReview";
 import {
   isRecurringScheduleValid,
   isRepeatedRoomsSearch,
@@ -20,6 +34,7 @@ import {
   weekdayForDate,
   weeklyOccurrenceDates,
   type RoomsSearchQuery,
+  type StartBookingAnswers,
 } from "@/utils/startBookingFlow";
 import { loadTimetableCart, saveTimetableCart } from "@/utils/timetableCartStorage";
 import {
@@ -195,7 +210,9 @@ const RoomFilterPage = () => {
   const [confirmEnd, setConfirmEnd] = useState("");
   const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
+  const [reviewState, setReviewState] = useState<RecurringSeriesReviewSnapshot>(emptyRecurringSeriesReviewSnapshot);
   const gridScrollRef = useRef<HTMLDivElement>(null);
+  const seriesPreviewControllerRef = useRef<ReturnType<typeof createRecurringSeriesPreviewController> | null>(null);
 
   const appliedQuery = initialQuery;
   const appliedDate = appliedQuery?.date ?? "";
@@ -208,6 +225,19 @@ const RoomFilterPage = () => {
     () => (isRepeated && appliedQuery ? recurringWhenFromRoomsQuery(appliedQuery, selectedRoomIds) : null),
     [appliedQuery, isRepeated, selectedRoomIds]
   );
+  const repeatedAnswers = useMemo((): StartBookingAnswers | null => {
+    if (!isRepeated || !appliedQuery || !recurringWhen) {
+      return null;
+    }
+    return {
+      isMinistryBooking: Boolean(appliedQuery.ministryId),
+      ministryId: appliedQuery.ministryId ?? null,
+      frequency: "repeated",
+      when: { date: null, start: null, end: null },
+      recurringWhen,
+    };
+  }, [appliedQuery, isRepeated, recurringWhen]);
+  const repeatedProposalKey = repeatedAnswers ? proposalKeyForAnswers(repeatedAnswers) : null;
   const recurringWeekdayMismatch = Boolean(
     (recurringWhen?.firstOccurrenceDate &&
       recurringWhen.lastOccurrenceDate &&
@@ -313,6 +343,34 @@ const RoomFilterPage = () => {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    const controller = createRecurringSeriesPreviewController({
+      onState: setReviewState,
+      preview: async (payload) => {
+        try {
+          return await facilityService.previewBookingSeries(payload);
+        } catch (err) {
+          throw new Error(
+            resolveRecurringBookingSeriesErrorMessage(err, "startBooking.errors.previewRecurringBooking")
+          );
+        }
+      },
+    });
+    seriesPreviewControllerRef.current = controller;
+    return () => {
+      controller.dispose();
+      seriesPreviewControllerRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!isRepeated) {
+      seriesPreviewControllerRef.current?.setProposal(null);
+      return;
+    }
+    seriesPreviewControllerRef.current?.setProposal(repeatedProposalKey && repeatedAnswers ? repeatedAnswers : null);
+  }, [isRepeated, repeatedAnswers, repeatedProposalKey]);
 
   const appliedKey = `${appliedDate}|${appliedMinistryId ?? ""}|${whenSeed?.start ?? ""}|${whenSeed?.end ?? ""}`;
   const prevAppliedKeyRef = useRef(appliedKey);
@@ -498,6 +556,28 @@ const RoomFilterPage = () => {
   if (!appliedQuery || (!isRepeated && !appliedQuery.date)) {
     return <Navigate replace to="/" />;
   }
+
+  if (isPendingPaymentSuccess(reviewState) && reviewState.createdSeries) {
+    return (
+      <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-12">
+        <RecurringSeriesPendingPayment
+          onBackToHome={() => navigate("/")}
+          rooms={rooms}
+          series={reviewState.createdSeries}
+        />
+      </main>
+    );
+  }
+
+  const reviewSummary =
+    isRepeated && repeatedAnswers
+      ? buildConflictFreeReviewSummary(
+          repeatedAnswers,
+          selectedRoomIds.map((id) => rooms.find((room) => room.id === id)?.name ?? id),
+          reviewState.quotedAmount,
+          reviewState.currency
+        )
+      : null;
 
   const replaceRepeatedQuery = (next: RoomsSearchQuery) => {
     setSearchParams(toRoomsSearchParams(next), { replace: true });
@@ -690,6 +770,35 @@ const RoomFilterPage = () => {
       });
     } catch (err) {
       setError(err instanceof Error ? err.message : t("timetable.reviewError"));
+    }
+  };
+
+  const handleOpenRepeatedReview = () => {
+    seriesPreviewControllerRef.current?.openReview();
+  };
+
+  const handleCloseRepeatedReview = () => {
+    if (reviewState.phase === "creating") {
+      return;
+    }
+    seriesPreviewControllerRef.current?.closeReview();
+  };
+
+  const handleConfirmRepeatedSeries = async () => {
+    const controller = seriesPreviewControllerRef.current;
+    if (!controller || !repeatedAnswers || !canConfirmCreate(controller.getState())) {
+      return;
+    }
+    const payload = buildCreateRecurringBookingSeriesPayload(repeatedAnswers, new Date(), []);
+    if (!payload) {
+      return;
+    }
+    controller.beginCreate();
+    try {
+      const result = await facilityService.createBookingSeries(payload);
+      controller.succeedCreate(result);
+    } catch (err) {
+      controller.failCreate(resolveRecurringBookingSeriesErrorMessage(err));
     }
   };
 
@@ -1083,7 +1192,9 @@ const RoomFilterPage = () => {
           </div>
         </section>
 
-        {isRepeated ? null : (
+        {isRepeated ? (
+          <RepeatedSeriesPanel onReview={handleOpenRepeatedReview} reviewState={reviewState} />
+        ) : (
           <BookingCartPanel
             formatClock={formatClockForLocale}
             lines={cartState.lines}
@@ -1120,6 +1231,15 @@ const RoomFilterPage = () => {
         />
       ) : null}
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
+      {isRepeated && (reviewState.phase === "review" || reviewState.phase === "creating") && reviewSummary ? (
+        <RecurringSeriesReviewModal
+          confirming={reviewState.phase === "creating"}
+          createError={reviewState.createError}
+          onBack={handleCloseRepeatedReview}
+          onConfirm={() => void handleConfirmRepeatedSeries()}
+          summary={reviewSummary}
+        />
+      ) : null}
     </main>
   );
 };

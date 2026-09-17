@@ -466,6 +466,17 @@
         "6": "Sat"
       }
     },
+    "recurringReview": {
+      "title": "Review Repeated Booking",
+      "open": "Review series",
+      "confirm": "Confirm booking series",
+      "back": "Back",
+      "sharedTime": "Shared time",
+      "previewTitle": "Preview only",
+      "previewDoesNotReserve": "This preview does not reserve any rooms. The series is created only after you confirm.",
+      "needCompleteProposal": "Choose a valid Recurring schedule and at least one room to review this series.",
+      "checking": "Checking the full series…"
+    },
     "recurringConflicts": {
       "title": "Review booking conflicts",
       "priorityTitle": "Priority Ministry override",
@@ -514,6 +525,7 @@
       "ownerPositionRequired": "An owner position is required.",
       "createMinistry": "Failed to create ministry.",
       "createRecurringBooking": "Failed to create your booking series.",
+      "previewRecurringBooking": "Failed to preview your booking series.",
       "recurringNotEligible": "Only church-email accounts can create a Repeated Booking.",
       "recurringRoomsRequired": "Select at least one room.",
       "recurringInvalidTimeRange": "Check your occurrence dates and shared time window.",
