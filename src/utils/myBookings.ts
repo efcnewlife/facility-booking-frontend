@@ -1,33 +1,12 @@
-import type { MemberBookingListItem } from "@/types/myBookings";
-
-export interface ApiMemberBookingListItem {
-  id?: string;
-  seriesId?: string | null;
-  series_id?: string | null;
-  facilityId?: string | null;
-  facility_id?: string | null;
-  facilityName?: string | null;
-  facility_name?: string | null;
-  bookingType?: string;
-  booking_type?: string;
-  startAt?: string;
-  start_at?: string;
-  endAt?: string;
-  end_at?: string;
-  status?: string;
-  quotedAmount?: string | number | null;
-  quoted_amount?: string | number | null;
-  currency?: string | null;
-}
-
-export interface ApiMemberBookingList {
-  items?: ApiMemberBookingListItem[];
-}
-
-export const BOOKING_TYPE = {
-  ONE_TIME: "one_time",
-  RECURRING: "recurring",
-} as const;
+import {
+  MY_BOOKINGS_CARD_KIND,
+  MY_BOOKINGS_SECTION,
+  type MemberBookingListItem,
+  type MyBookingsBrowseCard,
+  type MyBookingsBrowsePage,
+  type MyBookingsCardKind,
+  type MyBookingsSection,
+} from "@/types/myBookings";
 
 export const BOOKING_STATUS = {
   PENDING_PAYMENT: "pending_payment",
@@ -67,24 +46,6 @@ export interface CancellableOccurrence {
   status: string;
 }
 
-export interface MyBookingsOneTimeEntry {
-  kind: "one_time";
-  booking: MemberBookingListItem;
-}
-
-export interface MyBookingsSeriesEntry {
-  kind: "series";
-  seriesId: string;
-  occurrences: MemberBookingListItem[];
-}
-
-export type MyBookingsEntry = MyBookingsOneTimeEntry | MyBookingsSeriesEntry;
-
-export interface GroupedMyBookings {
-  upcoming: MyBookingsEntry[];
-  past: MyBookingsEntry[];
-}
-
 export interface RecurringSeriesHoldState {
   status: string;
   paymentHoldExpiresAt: string | null;
@@ -95,12 +56,6 @@ interface OccurrenceHoldState {
 }
 
 const RESOURCE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-export const uniqueFacilityNames = (occurrences: Array<{ facilityName: string | null }>): string => {
-  return Array.from(
-    new Set(occurrences.map((item) => item.facilityName).filter((name): name is string => Boolean(name)))
-  ).join(", ");
-};
 
 export const getBookingStatusBadgeColor = (status: string): "warning" | "success" | "error" | "info" | "light" => {
   switch (status) {
@@ -125,88 +80,8 @@ export const parseSeriesId = (value: string | undefined): string | null => {
   return value;
 };
 
-export const mapMemberBookingListItem = (data: ApiMemberBookingListItem): MemberBookingListItem => ({
-  id: String(data.id ?? ""),
-  seriesId: data.seriesId ?? data.series_id ?? null,
-  facilityId: data.facilityId ?? data.facility_id ?? null,
-  facilityName: data.facilityName ?? data.facility_name ?? null,
-  bookingType: String(data.bookingType ?? data.booking_type ?? ""),
-  startAt: String(data.startAt ?? data.start_at ?? ""),
-  endAt: String(data.endAt ?? data.end_at ?? ""),
-  status: String(data.status ?? ""),
-  quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
-  currency: data.currency ?? null,
-});
-
-export const mapMemberBookingList = (data: ApiMemberBookingList | null | undefined): MemberBookingListItem[] => {
-  return (data?.items ?? []).map(mapMemberBookingListItem);
-};
-
-const isUpcomingStart = (startAt: string, now: Date): boolean => new Date(startAt) > now;
-
-const upcomingSortKey = (entry: MyBookingsEntry, now: Date): string => {
-  if (entry.kind === "one_time") {
-    return entry.booking.startAt;
-  }
-  const future = entry.occurrences.find((occurrence) => isUpcomingStart(occurrence.startAt, now));
-  return future?.startAt ?? entry.occurrences[0]?.startAt ?? "";
-};
-
-const pastSortKey = (entry: MyBookingsEntry): string => {
-  if (entry.kind === "one_time") {
-    return entry.booking.startAt;
-  }
-  return entry.occurrences[entry.occurrences.length - 1]?.startAt ?? "";
-};
-
-export const groupMyBookings = (items: MemberBookingListItem[], now: Date): GroupedMyBookings => {
-  const seriesById = new Map<string, MemberBookingListItem[]>();
-  const ungrouped: MemberBookingListItem[] = [];
-
-  for (const item of items) {
-    if (item.bookingType === BOOKING_TYPE.RECURRING && item.seriesId) {
-      const grouped = seriesById.get(item.seriesId) ?? [];
-      grouped.push(item);
-      seriesById.set(item.seriesId, grouped);
-    } else {
-      ungrouped.push(item);
-    }
-  }
-
-  const seriesEntries: MyBookingsSeriesEntry[] = Array.from(seriesById.entries()).map(([seriesId, occurrences]) => ({
-    kind: "series",
-    seriesId,
-    occurrences: [...occurrences].sort((left, right) => left.startAt.localeCompare(right.startAt)),
-  }));
-
-  const upcoming: MyBookingsEntry[] = [];
-  const past: MyBookingsEntry[] = [];
-
-  for (const item of ungrouped) {
-    const entry: MyBookingsOneTimeEntry = { kind: "one_time", booking: item };
-    if (isUpcomingStart(item.startAt, now)) {
-      upcoming.push(entry);
-    } else {
-      past.push(entry);
-    }
-  }
-
-  for (const entry of seriesEntries) {
-    if (entry.occurrences.some((occurrence) => isUpcomingStart(occurrence.startAt, now))) {
-      upcoming.push(entry);
-    } else {
-      past.push(entry);
-    }
-  }
-
-  upcoming.sort((left, right) => upcomingSortKey(left, now).localeCompare(upcomingSortKey(right, now)));
-  past.sort((left, right) => pastSortKey(right).localeCompare(pastSortKey(left)));
-
-  return { upcoming, past };
-};
-
 export const isCancellableOccurrence = (occurrence: CancellableOccurrence, now: Date): boolean => {
-  return LIVE_OCCURRENCE_STATUSES.has(occurrence.status) && isUpcomingStart(occurrence.startAt, now);
+  return LIVE_OCCURRENCE_STATUSES.has(occurrence.status) && new Date(occurrence.startAt) > now;
 };
 
 export const affectedOccurrencesForScope = <T extends CancellableOccurrence>(
@@ -264,4 +139,201 @@ export const resolveOccurrenceDisplayStatus = (
     return SERIES_DISPLAY_STATUS.EXPIRED;
   }
   return occurrence.status;
+};
+
+/**
+ * The browse endpoint classifies a Booking into `cancelled_or_expired` once its Pending-payment
+ * hold has elapsed, but the row still carries the raw `pending_payment` status (no hold timestamp
+ * is returned on this contract). Re-derive the expired label from section membership instead.
+ */
+export const displayStatusForBrowseItem = (status: string, section: MyBookingsSection): string => {
+  if (section === MY_BOOKINGS_SECTION.CANCELLED_OR_EXPIRED && status === BOOKING_STATUS.PENDING_PAYMENT) {
+    return SERIES_DISPLAY_STATUS.EXPIRED;
+  }
+  return status;
+};
+
+export interface MyBookingsSectionConfig {
+  section: MyBookingsSection;
+  titleKey: string;
+  emptyKey: string;
+  defaultExpanded: boolean;
+}
+
+export const MY_BOOKINGS_SECTIONS: MyBookingsSectionConfig[] = [
+  {
+    section: MY_BOOKINGS_SECTION.UPCOMING,
+    titleKey: "myBookings.sections.upcoming",
+    emptyKey: "myBookings.sections.upcomingEmpty",
+    defaultExpanded: true,
+  },
+  {
+    section: MY_BOOKINGS_SECTION.OVERRIDDEN,
+    titleKey: "myBookings.sections.overridden",
+    emptyKey: "myBookings.sections.overriddenEmpty",
+    defaultExpanded: false,
+  },
+  {
+    section: MY_BOOKINGS_SECTION.PAST,
+    titleKey: "myBookings.sections.past",
+    emptyKey: "myBookings.sections.pastEmpty",
+    defaultExpanded: false,
+  },
+  {
+    section: MY_BOOKINGS_SECTION.CANCELLED_OR_EXPIRED,
+    titleKey: "myBookings.sections.cancelledOrExpired",
+    emptyKey: "myBookings.sections.cancelledOrExpiredEmpty",
+    defaultExpanded: false,
+  },
+];
+
+interface ApiMemberBookingBrowseItem {
+  id?: string;
+  title?: string;
+  seriesId?: string | null;
+  series_id?: string | null;
+  facilityId?: string | null;
+  facility_id?: string | null;
+  facilityName?: string | null;
+  facility_name?: string | null;
+  bookingType?: string;
+  booking_type?: string;
+  startAt?: string;
+  start_at?: string;
+  endAt?: string;
+  end_at?: string;
+  status?: string;
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  currency?: string | null;
+}
+
+interface ApiMemberBookingBrowseCard {
+  kind?: string;
+  isBooker?: boolean;
+  is_booker?: boolean;
+  isViewOnly?: boolean;
+  is_view_only?: boolean;
+  photoUrls?: string[];
+  photo_urls?: string[];
+  booking?: ApiMemberBookingBrowseItem | null;
+  seriesId?: string | null;
+  series_id?: string | null;
+  seriesTitle?: string | null;
+  series_title?: string | null;
+  occurrences?: ApiMemberBookingBrowseItem[];
+}
+
+export interface ApiMemberBookingBrowsePage {
+  page?: number;
+  pageSize?: number;
+  page_size?: number;
+  total?: number;
+  section?: string;
+  items?: ApiMemberBookingBrowseCard[];
+}
+
+const mapBrowseBookingItem = (data: ApiMemberBookingBrowseItem): MemberBookingListItem => ({
+  id: String(data.id ?? ""),
+  title: String(data.title ?? ""),
+  seriesId: data.seriesId ?? data.series_id ?? null,
+  facilityId: data.facilityId ?? data.facility_id ?? null,
+  facilityName: data.facilityName ?? data.facility_name ?? null,
+  bookingType: String(data.bookingType ?? data.booking_type ?? ""),
+  startAt: String(data.startAt ?? data.start_at ?? ""),
+  endAt: String(data.endAt ?? data.end_at ?? ""),
+  status: String(data.status ?? ""),
+  quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
+  currency: data.currency ?? null,
+});
+
+const mapBrowseCard = (data: ApiMemberBookingBrowseCard): MyBookingsBrowseCard => ({
+  kind: (data.kind as MyBookingsCardKind) ?? MY_BOOKINGS_CARD_KIND.ONE_TIME,
+  isBooker: Boolean(data.isBooker ?? data.is_booker),
+  isViewOnly: Boolean(data.isViewOnly ?? data.is_view_only),
+  photoUrls: data.photoUrls ?? data.photo_urls ?? [],
+  booking: data.booking ? mapBrowseBookingItem(data.booking) : null,
+  seriesId: data.seriesId ?? data.series_id ?? null,
+  seriesTitle: data.seriesTitle ?? data.series_title ?? null,
+  occurrences: (data.occurrences ?? []).map(mapBrowseBookingItem),
+});
+
+export const mapBrowsePage = (data: ApiMemberBookingBrowsePage | null | undefined): MyBookingsBrowsePage => ({
+  section: (data?.section as MyBookingsSection) ?? MY_BOOKINGS_SECTION.UPCOMING,
+  page: Number(data?.page ?? 0),
+  pageSize: Number(data?.pageSize ?? data?.page_size ?? 0),
+  total: Number(data?.total ?? 0),
+  items: (data?.items ?? []).map(mapBrowseCard),
+});
+
+export const browseCardKey = (card: MyBookingsBrowseCard): string => {
+  if (card.kind === MY_BOOKINGS_CARD_KIND.SERIES) {
+    return `series:${card.seriesId ?? ""}`;
+  }
+  return `one_time:${card.booking?.id ?? ""}`;
+};
+
+/** Mirrors the backend's `card_primary_facility_id`: the first occurrence's room for a Series, else the booking's room. */
+export const browseCardPrimaryFacilityName = (card: MyBookingsBrowseCard): string | null => {
+  if (card.kind === MY_BOOKINGS_CARD_KIND.SERIES) {
+    return card.occurrences[0]?.facilityName ?? null;
+  }
+  return card.booking?.facilityName ?? null;
+};
+
+/** Only the Booker may cancel a one-time card, and only while it still has a live, future booking. */
+export const canCancelOneTimeCard = (card: MyBookingsBrowseCard, now: Date): boolean => {
+  return (
+    card.kind === MY_BOOKINGS_CARD_KIND.ONE_TIME &&
+    card.isBooker &&
+    card.booking != null &&
+    isCancellableOccurrence(card.booking, now)
+  );
+};
+
+/** Only the Booker may cancel a Series card, and only while it still has a live, future occurrence. */
+export const canCancelSeriesCard = (card: MyBookingsBrowseCard, now: Date): boolean => {
+  return (
+    card.kind === MY_BOOKINGS_CARD_KIND.SERIES &&
+    card.isBooker &&
+    card.occurrences.some((occurrence) => isCancellableOccurrence(occurrence, now))
+  );
+};
+
+export interface MyBookingsSectionState {
+  status: "idle" | "loading" | "loaded" | "error";
+  page: number;
+  pageSize: number;
+  total: number;
+  items: MyBookingsBrowseCard[];
+  error: string | null;
+}
+
+export const INITIAL_MY_BOOKINGS_SECTION_STATE: MyBookingsSectionState = {
+  status: "idle",
+  page: 0,
+  pageSize: 20,
+  total: 0,
+  items: [],
+  error: null,
+};
+
+/** Page 0 replaces the section's items (a fresh load / retry); later pages append (Load more). */
+export const applyBrowsePage = (
+  state: MyBookingsSectionState,
+  pageResult: MyBookingsBrowsePage
+): MyBookingsSectionState => ({
+  status: "loaded",
+  page: pageResult.page,
+  pageSize: pageResult.pageSize || state.pageSize,
+  total: pageResult.total,
+  items: pageResult.page === 0 ? pageResult.items : [...state.items, ...pageResult.items],
+  error: null,
+});
+
+export const hasMoreBrowsePages = (state: MyBookingsSectionState): boolean => {
+  if (state.pageSize <= 0) {
+    return false;
+  }
+  return (state.page + 1) * state.pageSize < state.total;
 };
