@@ -281,6 +281,25 @@ export const browseCardPrimaryFacilityName = (card: MyBookingsBrowseCard): strin
   return card.booking?.facilityName ?? null;
 };
 
+/** Only the Booker may cancel a one-time card, and only while it still has a live, future booking. */
+export const canCancelOneTimeCard = (card: MyBookingsBrowseCard, now: Date): boolean => {
+  return (
+    card.kind === MY_BOOKINGS_CARD_KIND.ONE_TIME &&
+    card.isBooker &&
+    card.booking != null &&
+    isCancellableOccurrence(card.booking, now)
+  );
+};
+
+/** Only the Booker may cancel a Series card, and only while it still has a live, future occurrence. */
+export const canCancelSeriesCard = (card: MyBookingsBrowseCard, now: Date): boolean => {
+  return (
+    card.kind === MY_BOOKINGS_CARD_KIND.SERIES &&
+    card.isBooker &&
+    card.occurrences.some((occurrence) => isCancellableOccurrence(occurrence, now))
+  );
+};
+
 export interface MyBookingsSectionState {
   status: "idle" | "loading" | "loaded" | "error";
   page: number;

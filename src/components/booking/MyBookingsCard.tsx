@@ -10,9 +10,10 @@ import { format_booking_date, format_booking_time_range } from "@/utils/bookingF
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import {
   browseCardPrimaryFacilityName,
+  canCancelOneTimeCard,
+  canCancelSeriesCard,
   displayStatusForBrowseItem,
   getBookingStatusBadgeColor,
-  isCancellableOccurrence,
 } from "@/utils/myBookings";
 import { Badge, Button, cn } from "@efcnewlife/newlife-ui";
 import moment from "moment";
@@ -45,19 +46,11 @@ const MyBookingsCard = ({
   const [previewOpen, setPreviewOpen] = useState(false);
   const highlighted = section === MY_BOOKINGS_SECTION.UPCOMING;
   const roomName = browseCardPrimaryFacilityName(card);
+  const labelClass = cn("text-xs font-medium", highlighted ? "text-booking-grey" : "text-booking-text");
+  const valueClass = cn("mt-1 text-lg font-bold", highlighted ? "text-white" : "text-on-surface");
 
-  const canCancelOneTime =
-    card.kind === MY_BOOKINGS_CARD_KIND.ONE_TIME &&
-    card.isBooker &&
-    card.booking != null &&
-    Boolean(onCancelOneTime) &&
-    isCancellableOccurrence(card.booking, now);
-
-  const canCancelSeries =
-    card.kind === MY_BOOKINGS_CARD_KIND.SERIES &&
-    card.isBooker &&
-    Boolean(onCancelSeries) &&
-    card.occurrences.some((occurrence) => isCancellableOccurrence(occurrence, now));
+  const canCancelOneTime = Boolean(onCancelOneTime) && canCancelOneTimeCard(card, now);
+  const canCancelSeries = Boolean(onCancelSeries) && canCancelSeriesCard(card, now);
 
   return (
     <article
@@ -115,24 +108,14 @@ const MyBookingsCard = ({
 
             <div className="mt-5 grid gap-5 sm:grid-cols-2">
               <div>
-                <p className={cn("text-xs font-medium", highlighted ? "text-booking-grey" : "text-booking-text")}>
-                  {t("myBookings.fields.room")}
-                </p>
-                <p className={cn("mt-1 text-lg font-bold", highlighted ? "text-white" : "text-on-surface")}>
-                  {roomName || "—"}
-                </p>
+                <p className={labelClass}>{t("myBookings.fields.room")}</p>
+                <p className={valueClass}>{roomName || "—"}</p>
               </div>
               <div>
-                <p className={cn("text-xs font-medium", highlighted ? "text-booking-grey" : "text-booking-text")}>
-                  {t("myBookings.fields.date")}
-                </p>
-                <p className={cn("mt-1 text-lg font-bold", highlighted ? "text-white" : "text-on-surface")}>
-                  {format_booking_date(moment(card.booking.startAt).format("YYYY-MM-DD"))}
-                </p>
-                <p className={cn("mt-3 text-xs font-medium", highlighted ? "text-booking-grey" : "text-booking-text")}>
-                  {t("myBookings.fields.time")}
-                </p>
-                <p className={cn("mt-1 text-lg font-bold", highlighted ? "text-white" : "text-on-surface")}>
+                <p className={labelClass}>{t("myBookings.fields.date")}</p>
+                <p className={valueClass}>{format_booking_date(moment(card.booking.startAt).format("YYYY-MM-DD"))}</p>
+                <p className={cn(labelClass, "mt-3")}>{t("myBookings.fields.time")}</p>
+                <p className={valueClass}>
                   {format_booking_time_range(
                     occurrenceClock(card.booking.startAt),
                     occurrenceClock(card.booking.endAt)
@@ -168,12 +151,8 @@ const MyBookingsCard = ({
             </div>
 
             <div>
-              <p className={cn("text-xs font-medium", highlighted ? "text-booking-grey" : "text-booking-text")}>
-                {t("myBookings.fields.room")}
-              </p>
-              <p className={cn("mt-1 text-lg font-bold", highlighted ? "text-white" : "text-on-surface")}>
-                {roomName || "—"}
-              </p>
+              <p className={labelClass}>{t("myBookings.fields.room")}</p>
+              <p className={valueClass}>{roomName || "—"}</p>
             </div>
 
             <ul className="space-y-2">

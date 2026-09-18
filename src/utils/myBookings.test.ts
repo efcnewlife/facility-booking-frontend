@@ -1,10 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { MY_BOOKINGS_CARD_KIND, MY_BOOKINGS_SECTION, type MyBookingsBrowseCard } from "@/types/myBookings";
+import {
+  MY_BOOKINGS_CARD_KIND,
+  MY_BOOKINGS_SECTION,
+  type MemberBookingListItem,
+  type MyBookingsBrowseCard,
+} from "@/types/myBookings";
 import {
   affectedOccurrencesForScope,
   applyBrowsePage,
   browseCardKey,
   browseCardPrimaryFacilityName,
+  canCancelOneTimeCard,
+  canCancelSeriesCard,
   displayStatusForBrowseItem,
   hasMoreBrowsePages,
   INITIAL_MY_BOOKINGS_SECTION_STATE,
@@ -372,6 +379,88 @@ describe("browseCardPrimaryFacilityName", () => {
       occurrences: [],
     };
     expect(browseCardPrimaryFacilityName(card)).toBeNull();
+  });
+});
+
+describe("canCancelOneTimeCard / canCancelSeriesCard", () => {
+  const oneTimeCard = (
+    overrides: Partial<{ isBooker: boolean; status: string; startAt: string }> = {}
+  ): MyBookingsBrowseCard => ({
+    kind: MY_BOOKINGS_CARD_KIND.ONE_TIME,
+    isBooker: overrides.isBooker ?? true,
+    isViewOnly: !(overrides.isBooker ?? true),
+    photoUrls: [],
+    booking: {
+      id: "booking-1",
+      title: "",
+      seriesId: null,
+      facilityId: null,
+      facilityName: null,
+      bookingType: "one_time",
+      startAt: overrides.startAt ?? "2026-09-20T13:00:00.000Z",
+      endAt: "2026-09-20T14:30:00.000Z",
+      status: overrides.status ?? "confirmed",
+      quotedAmount: null,
+      currency: null,
+    },
+    seriesId: null,
+    seriesTitle: null,
+    occurrences: [],
+  });
+
+  it("lets the Booker cancel a live future one-time card", () => {
+    expect(canCancelOneTimeCard(oneTimeCard(), now)).toBe(true);
+  });
+
+  it("never lets a view-only Ministry participant cancel a one-time card, even though it is still live and future", () => {
+    expect(canCancelOneTimeCard(oneTimeCard({ isBooker: false }), now)).toBe(false);
+  });
+
+  it("does not let the Booker cancel a past one-time card", () => {
+    expect(canCancelOneTimeCard(oneTimeCard({ startAt: "2026-08-01T13:00:00.000Z" }), now)).toBe(false);
+  });
+
+  it("does not let the Booker cancel an already-cancelled one-time card", () => {
+    expect(canCancelOneTimeCard(oneTimeCard({ status: "cancelled" }), now)).toBe(false);
+  });
+
+  const seriesOccurrence = (startAt: string): MemberBookingListItem => ({
+    id: "occ-1",
+    title: "Week 1",
+    seriesId: "series-1",
+    facilityId: null,
+    facilityName: null,
+    bookingType: "recurring",
+    startAt,
+    endAt: "2026-09-24T14:30:00.000Z",
+    status: "confirmed",
+    quotedAmount: null,
+    currency: null,
+  });
+
+  const seriesCard = (
+    overrides: Partial<{ isBooker: boolean; occurrenceStartAt: string }> = {}
+  ): MyBookingsBrowseCard => ({
+    kind: MY_BOOKINGS_CARD_KIND.SERIES,
+    isBooker: overrides.isBooker ?? true,
+    isViewOnly: !(overrides.isBooker ?? true),
+    photoUrls: [],
+    booking: null,
+    seriesId: "series-1",
+    seriesTitle: "Weekly choir",
+    occurrences: [seriesOccurrence(overrides.occurrenceStartAt ?? "2026-09-24T13:00:00.000Z")],
+  });
+
+  it("lets the Booker cancel a Series card with at least one live future occurrence", () => {
+    expect(canCancelSeriesCard(seriesCard(), now)).toBe(true);
+  });
+
+  it("never lets a view-only Ministry participant cancel a Series card", () => {
+    expect(canCancelSeriesCard(seriesCard({ isBooker: false }), now)).toBe(false);
+  });
+
+  it("does not let the Booker cancel a Series card whose only projected occurrences are past", () => {
+    expect(canCancelSeriesCard(seriesCard({ occurrenceStartAt: "2026-08-01T13:00:00.000Z" }), now)).toBe(false);
   });
 });
 
