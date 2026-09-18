@@ -41,6 +41,10 @@ export const router = createBrowserRouter([
             element: <BookingDetailsPage />,
           },
           {
+            path: "/booking-details/repeated/:draftId",
+            element: <BookingDetailsPage />,
+          },
+          {
             path: "/payment/one-time/:bookingId",
             element: <PaymentPage />,
           },

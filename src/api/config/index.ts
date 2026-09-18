@@ -33,6 +33,7 @@ export const API_ENDPOINTS = {
     MY_BOOKINGS: `${BOOKING_API_PREFIX}/facility/bookings/mine`,
     BOOKING_DRAFTS: `${BOOKING_API_PREFIX}/facility/booking-drafts`,
     BOOKING_SERIES: `${BOOKING_API_PREFIX}/facility/booking-series`,
+    BOOKING_SERIES_DRAFTS: `${BOOKING_API_PREFIX}/facility/booking-series-drafts`,
     BOOKING_SERIES_PREVIEW: `${BOOKING_API_PREFIX}/facility/booking-series/preview`,
     BOOKING_SERIES_AVAILABILITY_WINDOW: `${BOOKING_API_PREFIX}/facility/booking-series/availability-window`,
     booking: (bookingId: string) => `${BOOKING_API_PREFIX}/facility/bookings/${bookingId}`,
@@ -42,6 +43,10 @@ export const API_ENDPOINTS = {
     bookingSeriesTitle: (seriesId: string) => `${BOOKING_API_PREFIX}/facility/booking-series/${seriesId}/title`,
     cancelBookingSeries: (seriesId: string) => `${BOOKING_API_PREFIX}/facility/booking-series/${seriesId}/cancel`,
     bookingDraft: (bookingDraftId: string) => `${BOOKING_API_PREFIX}/facility/booking-drafts/${bookingDraftId}`,
+    bookingSeriesDraft: (seriesDraftId: string) =>
+      `${BOOKING_API_PREFIX}/facility/booking-series-drafts/${seriesDraftId}`,
+    confirmBookingSeriesDraft: (seriesDraftId: string) =>
+      `${BOOKING_API_PREFIX}/facility/booking-series-drafts/${seriesDraftId}/confirm`,
   },
   CONTENT: {
     LEGAL_DOCUMENT: (product: string, kind: string) =>
@@ -53,6 +58,7 @@ export const HTTP_STATUS = {
   UNAUTHORIZED: 401,
   FORBIDDEN: 403,
   NOT_FOUND: 404,
+  CONFLICT: 409,
   UNPROCESSABLE_ENTITY: 422,
   INTERNAL_SERVER_ERROR: 500,
 } as const;

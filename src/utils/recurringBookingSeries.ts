@@ -1,5 +1,6 @@
 import type {
   CreateRecurringBookingSeriesPayload,
+  CreateRecurringSeriesDraftPayload,
   PreviewRecurringBookingSeriesPayload,
 } from "@/api/services/facilityService";
 import { normalizeBookingTitle } from "./bookingTitle";
@@ -40,4 +41,21 @@ export const buildCreateRecurringBookingSeriesPayload = (
     return null;
   }
   return { ...preview, title: normalizeBookingTitle(title), excludedDates };
+};
+
+export const buildCreateRecurringSeriesDraftPayload = (
+  answers: StartBookingAnswers,
+  now: Date = new Date(),
+  excludedDates: string[] = [],
+  title?: string | null
+): CreateRecurringSeriesDraftPayload | null => {
+  const preview = buildPreviewRecurringBookingSeriesPayload(answers, now);
+  if (!preview) {
+    return null;
+  }
+  const payload: CreateRecurringSeriesDraftPayload = { ...preview, excludedDates };
+  if (title != null && title !== "") {
+    payload.title = normalizeBookingTitle(title);
+  }
+  return payload;
 };

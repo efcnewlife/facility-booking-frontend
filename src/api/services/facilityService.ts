@@ -146,6 +146,20 @@ export class BookingDraftNotFoundError extends Error {
   }
 }
 
+export class BookingSeriesDraftNotFoundError extends Error {
+  constructor() {
+    super("Recurring Series Draft not found");
+    this.name = "BookingSeriesDraftNotFoundError";
+  }
+}
+
+export class BookingSeriesDraftNotConfirmableError extends Error {
+  constructor() {
+    super("Recurring Series Draft is not confirmable");
+    this.name = "BookingSeriesDraftNotConfirmableError";
+  }
+}
+
 const isApiError = (err: unknown): err is ApiError => {
   return typeof err === "object" && err !== null && "code" in err;
 };
@@ -189,6 +203,53 @@ export interface RecurringBookingWindowStatus {
 
 export type PreviewRecurringBookingSeriesPayload = Omit<CreateRecurringBookingSeriesPayload, "excludedDates" | "title">;
 
+export interface CreateRecurringSeriesDraftPayload {
+  title?: string | null;
+  ministryId?: string | null;
+  firstOccurrenceDate: string;
+  lastOccurrenceDate: string;
+  localStartTime: string;
+  localEndTime: string;
+  isMissionAligned?: boolean;
+  rooms: CreateRecurringBookingSeriesRoomInput[];
+  excludedDates?: string[];
+}
+
+export type UpdateRecurringSeriesDraftPayload = CreateRecurringSeriesDraftPayload;
+
+export interface RecurringSeriesDraftRoom {
+  facilityId: string;
+  sequence: number;
+}
+
+export interface RecurringSeriesDraftDetail {
+  id: string;
+  title: string | null;
+  ministryId: string | null;
+  firstOccurrenceDate: string;
+  lastOccurrenceDate: string;
+  localStartTime: string;
+  localEndTime: string;
+  isMissionAligned: boolean;
+  remark: string | null;
+  surchargeCodes: string[];
+  excludedDates: string[];
+  rooms: RecurringSeriesDraftRoom[];
+  conflicts: RecurringBookingConflict[];
+  isConfirmable: boolean;
+  invalidityCode: string | null;
+  invalidityDetail: string | null;
+  quotedAmount: string | number | null;
+  subtotalAmount: string | number | null;
+  discountPercent: string | number | null;
+  discountAmount: string | number | null;
+  surchargeAmount: string | number | null;
+  currency: string | null;
+  occurrenceCount: number;
+  pendingPaymentHoldHours: number;
+  paymentHoldExpiresAt: string | null;
+}
+
 export type RecurringConflictKind = "occupancy" | "ministry" | "blackout" | "weekly_quota";
 
 interface ApiRecurringBookingConflict {
@@ -229,6 +290,100 @@ const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): Recurri
   ministryId: data.ministryId ?? data.ministry_id ?? null,
   ministryStewardDisplayName: data.ministryStewardDisplayName ?? data.ministry_steward_display_name ?? null,
   ministryStewardEmail: data.ministryStewardEmail ?? data.ministry_steward_email ?? null,
+});
+
+interface ApiRecurringSeriesDraftRoom {
+  facilityId?: string;
+  facility_id?: string;
+  sequence?: number;
+}
+
+interface ApiRecurringSeriesDraftDetail {
+  id?: string;
+  title?: string | null;
+  ministryId?: string | null;
+  ministry_id?: string | null;
+  firstOccurrenceDate?: string;
+  first_occurrence_date?: string;
+  lastOccurrenceDate?: string;
+  last_occurrence_date?: string;
+  localStartTime?: string;
+  local_start_time?: string;
+  localEndTime?: string;
+  local_end_time?: string;
+  isMissionAligned?: boolean;
+  is_mission_aligned?: boolean;
+  remark?: string | null;
+  surchargeCodes?: string[];
+  surcharge_codes?: string[];
+  excludedDates?: string[];
+  excluded_dates?: string[];
+  rooms?: ApiRecurringSeriesDraftRoom[];
+  conflicts?: ApiRecurringBookingConflict[];
+  isConfirmable?: boolean;
+  is_confirmable?: boolean;
+  invalidityCode?: string | null;
+  invalidity_code?: string | null;
+  invalidityDetail?: string | null;
+  invalidity_detail?: string | null;
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  subtotalAmount?: string | number | null;
+  subtotal_amount?: string | number | null;
+  discountPercent?: string | number | null;
+  discount_percent?: string | number | null;
+  discountAmount?: string | number | null;
+  discount_amount?: string | number | null;
+  surchargeAmount?: string | number | null;
+  surcharge_amount?: string | number | null;
+  currency?: string | null;
+  occurrenceCount?: number;
+  occurrence_count?: number;
+  pendingPaymentHoldHours?: number;
+  pending_payment_hold_hours?: number;
+  paymentHoldExpiresAt?: string | null;
+  payment_hold_expires_at?: string | null;
+}
+
+const calendarDateString = (value: string | Date | null | undefined): string => {
+  if (value == null || value === "") {
+    return "";
+  }
+  return String(value).slice(0, 10);
+};
+
+const mapRecurringSeriesDraftDetail = (
+  data: ApiRecurringSeriesDraftDetail,
+  fallbackId: string
+): RecurringSeriesDraftDetail => ({
+  id: data.id ? String(data.id) : fallbackId,
+  title: data.title ?? null,
+  ministryId: data.ministryId ?? data.ministry_id ?? null,
+  firstOccurrenceDate: calendarDateString(data.firstOccurrenceDate ?? data.first_occurrence_date),
+  lastOccurrenceDate: calendarDateString(data.lastOccurrenceDate ?? data.last_occurrence_date),
+  localStartTime: String(data.localStartTime ?? data.local_start_time ?? ""),
+  localEndTime: String(data.localEndTime ?? data.local_end_time ?? ""),
+  isMissionAligned: Boolean(data.isMissionAligned ?? data.is_mission_aligned),
+  remark: data.remark ?? null,
+  surchargeCodes: (data.surchargeCodes ?? data.surcharge_codes ?? []).map(String),
+  excludedDates: (data.excludedDates ?? data.excluded_dates ?? []).map(calendarDateString),
+  rooms: (data.rooms ?? []).map((room, index) => ({
+    facilityId: String(room.facilityId ?? room.facility_id ?? ""),
+    sequence: Number(room.sequence ?? index),
+  })),
+  conflicts: (data.conflicts ?? []).map(mapRecurringBookingConflict),
+  isConfirmable: Boolean(data.isConfirmable ?? data.is_confirmable),
+  invalidityCode: data.invalidityCode ?? data.invalidity_code ?? null,
+  invalidityDetail: data.invalidityDetail ?? data.invalidity_detail ?? null,
+  quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
+  subtotalAmount: data.subtotalAmount ?? data.subtotal_amount ?? null,
+  discountPercent: data.discountPercent ?? data.discount_percent ?? null,
+  discountAmount: data.discountAmount ?? data.discount_amount ?? null,
+  surchargeAmount: data.surchargeAmount ?? data.surcharge_amount ?? null,
+  currency: data.currency ?? null,
+  occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
+  pendingPaymentHoldHours: Number(data.pendingPaymentHoldHours ?? data.pending_payment_hold_hours ?? 0),
+  paymentHoldExpiresAt: data.paymentHoldExpiresAt ?? data.payment_hold_expires_at ?? null,
 });
 
 interface ApiRecurringBookingSeriesDetail {
@@ -512,6 +667,83 @@ class FacilityService {
     const response = await httpClient.delete(API_ENDPOINTS.FACILITY.BOOKING_DRAFTS);
     if (!response.success) {
       throw new Error(response.message || "Failed to delete booking drafts");
+    }
+  }
+
+  async createBookingSeriesDraft(payload: CreateRecurringSeriesDraftPayload): Promise<{ id: string }> {
+    const response = await httpClient.post<{ id: string }>(API_ENDPOINTS.FACILITY.BOOKING_SERIES_DRAFTS, payload);
+    if (!response.success || !response.data?.id) {
+      throw new Error(response.message || "Failed to create recurring series draft");
+    }
+    return { id: String(response.data.id) };
+  }
+
+  async getBookingSeriesDraft(seriesDraftId: string): Promise<RecurringSeriesDraftDetail> {
+    try {
+      const response = await httpClient.get<ApiRecurringSeriesDraftDetail>(
+        API_ENDPOINTS.FACILITY.bookingSeriesDraft(seriesDraftId)
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to load recurring series draft");
+      }
+      return mapRecurringSeriesDraftDetail(response.data, seriesDraftId);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingSeriesDraftNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to load recurring series draft");
+    }
+  }
+
+  async updateBookingSeriesDraft(
+    seriesDraftId: string,
+    payload: UpdateRecurringSeriesDraftPayload
+  ): Promise<RecurringSeriesDraftDetail> {
+    try {
+      const response = await httpClient.patch<ApiRecurringSeriesDraftDetail>(
+        API_ENDPOINTS.FACILITY.bookingSeriesDraft(seriesDraftId),
+        payload
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to update recurring series draft");
+      }
+      return mapRecurringSeriesDraftDetail(response.data, seriesDraftId);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingSeriesDraftNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to update recurring series draft");
+    }
+  }
+
+  async confirmBookingSeriesDraft(seriesDraftId: string): Promise<RecurringBookingSeriesDetail> {
+    try {
+      const response = await httpClient.post<ApiRecurringBookingSeriesDetail>(
+        API_ENDPOINTS.FACILITY.confirmBookingSeriesDraft(seriesDraftId)
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to confirm recurring series draft");
+      }
+      return mapRecurringBookingSeriesDetail(response.data);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingSeriesDraftNotFoundError();
+      }
+      if (
+        isApiError(err) &&
+        (err.code === HTTP_STATUS.CONFLICT ||
+          err.details?.error_code === "FACILITY_BOOKING_SERIES_DRAFT_NOT_CONFIRMABLE")
+      ) {
+        throw new BookingSeriesDraftNotConfirmableError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to confirm recurring series draft");
+    }
+  }
+
+  async deleteAllMyBookingSeriesDrafts(): Promise<void> {
+    const response = await httpClient.delete(API_ENDPOINTS.FACILITY.BOOKING_SERIES_DRAFTS);
+    if (!response.success) {
+      throw new Error(response.message || "Failed to delete recurring series drafts");
     }
   }
 

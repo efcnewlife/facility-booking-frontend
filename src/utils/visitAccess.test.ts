@@ -83,6 +83,7 @@ describe("visitAccess", () => {
     "/rooms",
     "/my-profile",
     "/booking-details/one-time/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "/booking-details/repeated/3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "/payment/one-time/3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "/payment/repeated/3fa85f64-5717-4562-b3fc-2c963f66afa6",
   ])("allows an authenticated member to open %s", (pathname) => {

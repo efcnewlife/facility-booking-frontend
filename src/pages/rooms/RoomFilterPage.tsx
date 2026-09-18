@@ -3,27 +3,25 @@ import ministryService from "@/api/services/ministryService";
 import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
-import RecurringSeriesPendingPayment from "@/components/booking/RecurringSeriesPendingPayment";
-import RecurringSeriesReviewModal from "@/components/booking/RecurringSeriesReviewModal";
 import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
 import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
+import { repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
 import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
 import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
-import { buildCreateRecurringBookingSeriesPayload } from "@/utils/recurringBookingSeries";
+import { buildCreateRecurringSeriesDraftPayload } from "@/utils/recurringBookingSeries";
 import {
-  buildConflictFreeReviewSummary,
-  canConfirmCreate,
+  canOpenReview,
   createRecurringSeriesPreviewController,
   emptyRecurringSeriesReviewSnapshot,
   excludedDatesForCreate,
-  isPendingPaymentSuccess,
   proposalKeyForAnswers,
   type RecurringSeriesReviewSnapshot,
 } from "@/utils/recurringSeriesReview";
+import { parseRepeatedRoomIds } from "@/utils/recurringSeriesDraft";
 import {
   applyFirstOccurrenceDate,
   applyWeekday,
@@ -108,13 +106,6 @@ const TIMETABLE_TRACK = "grid w-full grid-cols-[88px_repeat(4,minmax(0,1fr))] ga
 
 const isActiveMinistry = (item: MinistryItem): boolean => {
   return item.status === "active" && item.isActive !== false;
-};
-
-const isPriorityMinistryBooking = (ministryId: string | undefined, ministries: MinistryItem[]): boolean => {
-  if (!ministryId) {
-    return false;
-  }
-  return Boolean(ministries.find((ministry) => ministry.id === ministryId)?.hasPriorityBooking);
 };
 
 const formatClock = (clock: string, locale: string): string => {
@@ -259,11 +250,26 @@ const RoomFilterPage = () => {
   const [rooms, setRooms] = useState<RoomDay[]>([]);
   const [maxBookingLines, setMaxBookingLines] = useState(MAX_BOOKING_LINES);
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
-  const [cartState, setCartState] = useState<TimetableCartState>(() =>
-    isRepeated
-      ? emptyCartState(whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end))
-      : buildInitialCartState(appliedQuery)
-  );
+  const [cartState, setCartState] = useState<TimetableCartState>(() => {
+    if (isRepeated) {
+      const whenSeed = whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end);
+      const roomIds = parseRepeatedRoomIds(searchParams);
+      if (appliedQuery?.start && appliedQuery?.end && roomIds.length > 0) {
+        return {
+          ...emptyCartState(whenSeed),
+          sharedTime: { start: appliedQuery.start, end: appliedQuery.end },
+          lines: roomIds.map((facilityId, index) => ({
+            sequence: index + 1,
+            facilityId,
+            start: appliedQuery.start as string,
+            end: appliedQuery.end as string,
+          })),
+        };
+      }
+      return emptyCartState(whenSeed);
+    }
+    return buildInitialCartState(appliedQuery);
+  });
   const [loading, setLoading] = useState(() => Boolean(appliedQuery?.date));
   const [error, setError] = useState<string | null>(null);
   const [hover, setHover] = useState<HoverPreview | null>(null);
@@ -655,28 +661,6 @@ const RoomFilterPage = () => {
     return <Navigate replace to="/start-booking?step=frequency" />;
   }
 
-  if (isPendingPaymentSuccess(reviewState) && reviewState.createdSeries) {
-    return (
-      <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-12">
-        <RecurringSeriesPendingPayment
-          onBackToHome={() => navigate("/")}
-          rooms={rooms}
-          series={reviewState.createdSeries}
-        />
-      </main>
-    );
-  }
-
-  const reviewSummary =
-    isRepeated && repeatedAnswers
-      ? buildConflictFreeReviewSummary(
-          repeatedAnswers,
-          cartState.lines.map((line) => rooms.find((room) => room.id === line.facilityId)?.name ?? line.facilityId),
-          reviewState.quotedAmount,
-          reviewState.currency
-        )
-      : null;
-
   const handlePinCell = (room: RoomDay, cellStart: string) => {
     if (!isBookableCellForCart(room, cellStart, cartState)) {
       return;
@@ -862,6 +846,26 @@ const RoomFilterPage = () => {
   };
 
   const handleReviewBooking = async () => {
+    if (isRepeated) {
+      if (!canOpenReview(reviewState) || !repeatedAnswers) {
+        return;
+      }
+      const payload = buildCreateRecurringSeriesDraftPayload(
+        repeatedAnswers,
+        new Date(),
+        excludedDatesForCreate(reviewState)
+      );
+      if (!payload) {
+        return;
+      }
+      try {
+        const created = await facilityService.createBookingSeriesDraft(payload);
+        navigate(repeatedBookingDetailsPath(created.id));
+      } catch (err) {
+        setError(resolveRecurringBookingSeriesErrorMessage(err, "timetable.reviewError"));
+      }
+      return;
+    }
     if (cartState.lines.length === 0 || !appliedDate) {
       return;
     }
@@ -875,44 +879,6 @@ const RoomFilterPage = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : t("timetable.reviewError"));
     }
-  };
-
-  const handleOpenRepeatedReview = () => {
-    seriesPreviewControllerRef.current?.openReview();
-  };
-
-  const handleCloseRepeatedReview = () => {
-    if (reviewState.phase === "creating") {
-      return;
-    }
-    seriesPreviewControllerRef.current?.closeReview();
-  };
-
-  const handleConfirmRepeatedSeries = async () => {
-    const controller = seriesPreviewControllerRef.current;
-    if (!controller || !repeatedAnswers || !canConfirmCreate(controller.getState())) {
-      return;
-    }
-    const payload = buildCreateRecurringBookingSeriesPayload(
-      repeatedAnswers,
-      controller.getState().title,
-      new Date(),
-      excludedDatesForCreate(controller.getState())
-    );
-    if (!payload) {
-      return;
-    }
-    controller.beginCreate();
-    try {
-      const result = await facilityService.createBookingSeries(payload);
-      controller.succeedCreate(result);
-    } catch (err) {
-      controller.failCreate(resolveRecurringBookingSeriesErrorMessage(err));
-    }
-  };
-
-  const handleToggleRepeatedExclusion = (occurrenceDate: string) => {
-    seriesPreviewControllerRef.current?.toggleExcludedDate(occurrenceDate);
   };
 
   const handleDraftStartDateChange = (value: DatePickerValue) => {
@@ -1335,7 +1301,7 @@ const RoomFilterPage = () => {
             onRemove={(sequence) => {
               setCartState((current) => removeRepeatedCartLine(current, sequence));
             }}
-            onReview={handleOpenRepeatedReview}
+            onReview={() => void handleReviewBooking()}
             reviewState={reviewState}
             rooms={rooms}
             sharedTime={cartState.sharedTime ?? null}
@@ -1386,23 +1352,6 @@ const RoomFilterPage = () => {
         <ReplaceRepeatedTimeModal isOpen onCancel={handleCancelReplacement} onConfirm={handleConfirmReplacement} />
       ) : null}
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
-      {isRepeated && (reviewState.phase === "review" || reviewState.phase === "creating") && reviewSummary ? (
-        <RecurringSeriesReviewModal
-          confirmDisabled={!canConfirmCreate(reviewState)}
-          confirming={reviewState.phase === "creating"}
-          conflicts={reviewState.conflicts}
-          createError={reviewState.createError}
-          excludedDates={reviewState.excludedDates}
-          isPriorityMinistry={isPriorityMinistryBooking(appliedQuery.ministryId, bookableMinistries)}
-          onBack={handleCloseRepeatedReview}
-          onConfirm={() => void handleConfirmRepeatedSeries()}
-          onTitleChange={(title) => seriesPreviewControllerRef.current?.setTitle(title)}
-          onToggleExcludeDate={handleToggleRepeatedExclusion}
-          rooms={rooms}
-          summary={reviewSummary}
-          title={reviewState.title}
-        />
-      ) : null}
     </main>
   );
 };

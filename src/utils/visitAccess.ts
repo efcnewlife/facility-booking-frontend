@@ -1,4 +1,4 @@
-import { isOneTimeBookingDetailsPath } from "./bookingDetailsPath";
+import { isBookingDetailsPath } from "./bookingDetailsPath";
 import { isMinistryApprovalDetailPath } from "./ministryApprovalPath";
 import { isPaymentPath } from "./paymentPage";
 
@@ -46,7 +46,7 @@ export const visitAccess = ({ isAuthenticated, canAccessMyMinistry, pathname }: 
     !KNOWN_MEMBER_PATHS.has(path) &&
     !isPaymentPath(path) &&
     !isMinistryApprovalDetailPath(path) &&
-    !isOneTimeBookingDetailsPath(path)
+    !isBookingDetailsPath(path)
   ) {
     return "not-found";
   }
