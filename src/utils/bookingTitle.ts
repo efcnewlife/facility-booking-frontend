@@ -30,3 +30,21 @@ export const BOOKING_TITLE_ERROR_KEYS: Record<BookingTitleError, string> = {
 };
 
 export const normalizeBookingTitle = (value: string): string => value.trim();
+
+export interface BookingTitleFieldFeedback {
+  error: string | undefined;
+  hint: string | undefined;
+}
+
+/** Shared touched-gating: show the localized validation error once touched, otherwise the length hint. */
+export const bookingTitleFieldFeedback = (
+  title: string,
+  touched: boolean,
+  translate: (key: string) => string
+): BookingTitleFieldFeedback => {
+  const error = touched ? validateBookingTitle(title) : null;
+  if (error) {
+    return { error: translate(BOOKING_TITLE_ERROR_KEYS[error]), hint: undefined };
+  }
+  return { error: undefined, hint: translate("bookingTitle.hint") };
+};

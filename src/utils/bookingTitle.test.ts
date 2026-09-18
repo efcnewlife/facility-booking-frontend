@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  bookingTitleFieldFeedback,
   BOOKING_TITLE_ERROR_KEYS,
   BOOKING_TITLE_MAX_LENGTH,
   BOOKING_TITLE_MIN_LENGTH,
@@ -7,6 +8,8 @@ import {
   normalizeBookingTitle,
   validateBookingTitle,
 } from "./bookingTitle";
+
+const identityTranslate = (key: string): string => key;
 
 describe("validateBookingTitle", () => {
   it("accepts a normal plain-text title", () => {
@@ -63,5 +66,32 @@ describe("BOOKING_TITLE_ERROR_KEYS", () => {
     expect(BOOKING_TITLE_ERROR_KEYS.required).toBe("bookingTitle.errors.required");
     expect(BOOKING_TITLE_ERROR_KEYS.tooLong).toBe("bookingTitle.errors.tooLong");
     expect(BOOKING_TITLE_ERROR_KEYS.invalidCharacters).toBe("bookingTitle.errors.invalidCharacters");
+  });
+});
+
+describe("bookingTitleFieldFeedback", () => {
+  it("shows the hint, not an error, before the field is touched even when the title is invalid", () => {
+    expect(bookingTitleFieldFeedback("", false, identityTranslate)).toEqual({
+      error: undefined,
+      hint: "bookingTitle.hint",
+    });
+  });
+
+  it("shows the hint once touched when the title is valid", () => {
+    expect(bookingTitleFieldFeedback("Choir practice", true, identityTranslate)).toEqual({
+      error: undefined,
+      hint: "bookingTitle.hint",
+    });
+  });
+
+  it("shows the localized error, not the hint, once touched with an invalid title", () => {
+    expect(bookingTitleFieldFeedback("", true, identityTranslate)).toEqual({
+      error: "bookingTitle.errors.required",
+      hint: undefined,
+    });
+    expect(bookingTitleFieldFeedback("a".repeat(31), true, identityTranslate)).toEqual({
+      error: "bookingTitle.errors.tooLong",
+      hint: undefined,
+    });
   });
 });

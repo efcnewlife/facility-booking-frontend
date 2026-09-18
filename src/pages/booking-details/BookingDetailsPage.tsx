@@ -1,7 +1,7 @@
 import facilityService, { BookingDraftNotFoundError } from "@/api/services/facilityService";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
-import { BOOKING_TITLE_ERROR_KEYS, validateBookingTitle } from "@/utils/bookingTitle";
+import { bookingTitleFieldFeedback, validateBookingTitle } from "@/utils/bookingTitle";
 import type { BookingCartDraft } from "@/utils/bookingCartDraft";
 import {
   allLinesCoverAvailability,
@@ -131,6 +131,7 @@ const BookingDetailsPage = () => {
   }, [draft, rooms]);
 
   const titleError = validateBookingTitle(title);
+  const titleFeedback = bookingTitleFieldFeedback(title, titleTouched, t);
 
   const canConfirm = useMemo(() => {
     if (!draft || loading || confirming || updating || titleError) {
@@ -283,8 +284,8 @@ const BookingDetailsPage = () => {
             ) : null}
             {loading ? <Spinner className="mb-4" showText size="sm" text={t("startBooking.loading")} /> : null}
             <Input
-              error={titleTouched && titleError ? t(BOOKING_TITLE_ERROR_KEYS[titleError]) : undefined}
-              hint={titleTouched && titleError ? undefined : t("bookingTitle.hint")}
+              error={titleFeedback.error}
+              hint={titleFeedback.hint}
               id="booking-title"
               label={t("bookingTitle.label")}
               onChange={(event) => {

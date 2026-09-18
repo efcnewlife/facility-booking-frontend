@@ -1,6 +1,6 @@
 import type { RecurringBookingConflict } from "@/api/services/facilityService";
 import RecurringConflictReview from "@/components/booking/RecurringConflictReview";
-import { BOOKING_TITLE_ERROR_KEYS, validateBookingTitle } from "@/utils/bookingTitle";
+import { bookingTitleFieldFeedback } from "@/utils/bookingTitle";
 import { formatQuotedAmount } from "@/utils/paymentSummary";
 import type { ConflictFreeReviewSummary } from "@/utils/recurringSeriesReview";
 import type { RoomDay } from "@/utils/timetableRules";
@@ -49,8 +49,7 @@ const RecurringSeriesReviewModal = ({
   const hasConflicts = conflicts.length > 0;
   const remainingOccurrenceCount = summary.weeklyOccurrenceCount - excludedDates.length;
   const [titleTouched, setTitleTouched] = useState(false);
-  const titleError = validateBookingTitle(title);
-  const titleErrorMessage = titleTouched && titleError ? t(BOOKING_TITLE_ERROR_KEYS[titleError]) : undefined;
+  const titleFeedback = bookingTitleFieldFeedback(title, titleTouched, t);
 
   return (
     <Modal
@@ -81,8 +80,8 @@ const RecurringSeriesReviewModal = ({
           <Alert message={createError} size="sm" title={t("startBooking.errors.title")} variant="error" width="full" />
         ) : null}
         <Input
-          error={titleErrorMessage}
-          hint={titleErrorMessage ? undefined : t("bookingTitle.hint")}
+          error={titleFeedback.error}
+          hint={titleFeedback.hint}
           id="recurring-series-title"
           label={t("bookingTitle.label")}
           onChange={(event) => {
