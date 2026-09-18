@@ -1,6 +1,7 @@
 import ChoicePill from "@/components/booking/ChoicePill";
-import type { RecurringBookingSeriesOccurrence } from "@/api/services/facilityService";
+import type { MemberBookingDetail } from "@/api/services/facilityService";
 import { format_booking_date } from "@/utils/bookingFormat";
+import { cancellationReasonFieldFeedback, validateCancellationReason } from "@/utils/cancellationReason";
 import {
   affectedOccurrencesForScope,
   APPROVED_CANCELLATION_SCOPES,
@@ -8,21 +9,21 @@ import {
   RECURRING_CANCELLATION_SCOPE,
   type RecurringCancellationScope,
 } from "@/utils/myBookings";
-import { Alert, Button, Modal, Radio } from "@efcnewlife/newlife-ui";
+import { Alert, Button, Modal, Radio, TextArea } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
 interface RecurringSeriesCancelModalProps {
   isOpen: boolean;
-  occurrences: RecurringBookingSeriesOccurrence[];
+  occurrences: MemberBookingDetail[];
   submitting: boolean;
   error: string | null;
   successCount: number | null;
   successStarts: string[];
   now?: Date;
   onClose: () => void;
-  onConfirm: (scope: RecurringCancellationScope, occurrenceId: string | null) => void;
+  onConfirm: (scope: RecurringCancellationScope, occurrenceId: string | null, cancelReason: string) => void;
 }
 
 const SCOPE_LABEL_KEY: Record<RecurringCancellationScope, string> = {
@@ -49,6 +50,8 @@ const RecurringSeriesCancelModal = ({
   );
   const [scope, setScope] = useState<RecurringCancellationScope>(RECURRING_CANCELLATION_SCOPE.OCCURRENCE);
   const [occurrenceId, setOccurrenceId] = useState<string | null>(cancellable[0]?.id ?? null);
+  const [reason, setReason] = useState("");
+  const [reasonTouched, setReasonTouched] = useState(false);
 
   useEffect(() => {
     if (!isOpen) {
@@ -56,11 +59,15 @@ const RecurringSeriesCancelModal = ({
     }
     setScope(RECURRING_CANCELLATION_SCOPE.OCCURRENCE);
     setOccurrenceId(cancellable[0]?.id ?? null);
+    setReason("");
+    setReasonTouched(false);
   }, [cancellable, isOpen]);
 
   const needsOccurrence =
     scope === RECURRING_CANCELLATION_SCOPE.OCCURRENCE || scope === RECURRING_CANCELLATION_SCOPE.THIS_AND_FUTURE;
   const affected = affectedOccurrencesForScope(occurrences, scope, needsOccurrence ? occurrenceId : null, now);
+  const reasonError = validateCancellationReason(reason);
+  const reasonFeedback = cancellationReasonFieldFeedback(reason, reasonTouched, t);
 
   return (
     <Modal
@@ -72,8 +79,16 @@ const RecurringSeriesCancelModal = ({
               {t("myBookings.cancelSeries.close")}
             </Button>
             <Button
-              disabled={submitting || affected.length === 0 || (needsOccurrence && !occurrenceId)}
-              onClick={() => onConfirm(scope, needsOccurrence ? occurrenceId : null)}
+              disabled={
+                submitting || affected.length === 0 || (needsOccurrence && !occurrenceId) || Boolean(reasonError)
+              }
+              onClick={() => {
+                setReasonTouched(true);
+                if (reasonError) {
+                  return;
+                }
+                onConfirm(scope, needsOccurrence ? occurrenceId : null, reason.trim());
+              }}
               size="sm"
               variant="primary"
             >
@@ -160,6 +175,17 @@ const RecurringSeriesCancelModal = ({
             ) : (
               <p className="m-0 text-sm text-on-surface-variant">{t("myBookings.cancelSeries.noneAffected")}</p>
             )}
+            <TextArea
+              error={reasonFeedback.error}
+              id="recurring-cancel-reason"
+              label={t("myBookings.cancelSeries.reason")}
+              onChange={(value) => {
+                setReasonTouched(true);
+                setReason(value);
+              }}
+              required
+              value={reason}
+            />
             {error ? (
               <p className="m-0 text-sm font-medium text-error" role="alert">
                 {error}

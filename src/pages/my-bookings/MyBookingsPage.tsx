@@ -1,8 +1,8 @@
 import facilityService from "@/api/services/facilityService";
 import BookingHero from "@/components/booking/BookingHero";
 import MyBookingsCard from "@/components/booking/MyBookingsCard";
+import OneTimeCancelModal from "@/components/booking/OneTimeCancelModal";
 import { MY_BOOKINGS_SECTION, type MemberBookingListItem, type MyBookingsSection } from "@/types/myBookings";
-import { format_booking_date } from "@/utils/bookingFormat";
 import {
   applyBrowsePage,
   browseCardKey,
@@ -11,7 +11,7 @@ import {
   MY_BOOKINGS_SECTIONS,
   type MyBookingsSectionState,
 } from "@/utils/myBookings";
-import { Alert, Button, Modal, Spinner } from "@efcnewlife/newlife-ui";
+import { Alert, Button, Spinner } from "@efcnewlife/newlife-ui";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdExpandLess, MdExpandMore } from "react-icons/md";
@@ -83,14 +83,14 @@ const MyBookingsPage = () => {
     setExpanded((prev) => ({ ...prev, [section]: !prev[section] }));
   };
 
-  const handleConfirmCancelOneTime = async () => {
+  const handleConfirmCancelOneTime = async (cancelReason: string) => {
     if (!cancelBooking) {
       return;
     }
     setCancelSubmitting(true);
     setCancelError(null);
     try {
-      await facilityService.cancelMyBooking(cancelBooking.id);
+      await facilityService.cancelMyBooking(cancelBooking.id, cancelReason);
       setCancelBooking(null);
       reloadAllSections();
     } catch {
@@ -168,6 +168,7 @@ const MyBookingsPage = () => {
                             ? (seriesId) => navigate(`/my-bookings/series/${seriesId}?cancel=1`)
                             : undefined
                         }
+                        onViewBooking={(bookingId) => navigate(`/my-bookings/${bookingId}`)}
                         onViewSeries={(seriesId) => navigate(`/my-bookings/series/${seriesId}`)}
                         section={entry.section}
                       />
@@ -191,50 +192,17 @@ const MyBookingsPage = () => {
         </div>
       </main>
 
-      <Modal
-        className="mx-4 w-full max-w-md p-6"
-        footer={
-          <>
-            <Button
-              onClick={() => {
-                setCancelBooking(null);
-                setCancelError(null);
-              }}
-              size="sm"
-              variant="outline"
-            >
-              {t("myBookings.cancelOneTime.close")}
-            </Button>
-            <Button
-              disabled={cancelSubmitting}
-              onClick={() => void handleConfirmCancelOneTime()}
-              size="sm"
-              variant="primary"
-            >
-              {t("myBookings.cancelOneTime.confirm")}
-            </Button>
-          </>
-        }
+      <OneTimeCancelModal
+        booking={cancelBooking}
+        error={cancelError}
         isOpen={Boolean(cancelBooking)}
         onClose={() => {
           setCancelBooking(null);
           setCancelError(null);
         }}
-        title={t("myBookings.cancelOneTime.title")}
-      >
-        <p className="m-0 text-sm text-on-surface-variant">{t("myBookings.cancelOneTime.body")}</p>
-        {cancelBooking ? (
-          <p className="mt-3 text-sm font-semibold text-on-surface">
-            {cancelBooking.title || t("myBookings.untitled")} ·{" "}
-            {format_booking_date(cancelBooking.startAt.slice(0, 10))}
-          </p>
-        ) : null}
-        {cancelError ? (
-          <p className="mt-3 text-sm font-medium text-error" role="alert">
-            {cancelError}
-          </p>
-        ) : null}
-      </Modal>
+        onConfirm={(cancelReason) => void handleConfirmCancelOneTime(cancelReason)}
+        submitting={cancelSubmitting}
+      />
     </>
   );
 };

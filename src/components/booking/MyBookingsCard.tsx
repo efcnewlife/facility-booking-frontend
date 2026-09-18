@@ -26,6 +26,7 @@ interface MyBookingsCardProps {
   section: MyBookingsSection;
   now: Date;
   onViewSeries: (seriesId: string) => void;
+  onViewBooking: (bookingId: string) => void;
   onCancelOneTime?: (booking: MemberBookingListItem) => void;
   onCancelSeries?: (seriesId: string) => void;
   className?: string;
@@ -38,6 +39,7 @@ const MyBookingsCard = ({
   section,
   now,
   onViewSeries,
+  onViewBooking,
   onCancelOneTime,
   onCancelSeries,
   className,
@@ -124,18 +126,27 @@ const MyBookingsCard = ({
               </div>
             </div>
 
-            {canCancelOneTime ? (
-              <button
-                className={cn(
-                  "mt-6 text-base font-bold underline underline-offset-2",
-                  highlighted ? "text-white" : "text-on-surface"
-                )}
-                onClick={() => onCancelOneTime?.(card.booking as MemberBookingListItem)}
-                type="button"
+            <div className="mt-6 flex flex-wrap items-center gap-4">
+              <Button
+                onClick={() => onViewBooking((card.booking as MemberBookingListItem).id)}
+                size="sm"
+                variant="outline"
               >
-                {t("myBookings.cancel")}
-              </button>
-            ) : null}
+                {t("myBookings.viewDetail")}
+              </Button>
+              {canCancelOneTime ? (
+                <button
+                  className={cn(
+                    "text-base font-bold underline underline-offset-2",
+                    highlighted ? "text-white" : "text-on-surface"
+                  )}
+                  onClick={() => onCancelOneTime?.(card.booking as MemberBookingListItem)}
+                  type="button"
+                >
+                  {t("myBookings.cancel")}
+                </button>
+              ) : null}
+            </div>
           </div>
         ) : null}
 

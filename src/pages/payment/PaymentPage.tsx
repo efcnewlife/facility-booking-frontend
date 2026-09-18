@@ -1,4 +1,5 @@
 import facilityService, { BookingNotFoundError } from "@/api/services/facilityService";
+import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { formatQuotedAmount, parsePaymentBookingId } from "@/utils/paymentPage";
 import { Button, Spinner } from "@efcnewlife/newlife-ui";
@@ -52,7 +53,6 @@ const PaymentPage = () => {
       <section className="flex w-full max-w-[640px] flex-col gap-8 rounded-[20px] bg-surface px-6 py-10 sm:px-12">
         <div>
           <h1 className="m-0 mb-2 text-[26px] font-semibold leading-none text-booking-primary">{t("payment.title")}</h1>
-          <h2 className="m-0 text-lg font-semibold text-booking-primary">{t("payment.instructionsTitle")}</h2>
         </div>
         {error ? (
           <p className="m-0 text-sm font-medium text-error" role="alert">
@@ -60,19 +60,7 @@ const PaymentPage = () => {
           </p>
         ) : null}
         {loading ? <Spinner showText size="sm" text={t("startBooking.loading")} /> : null}
-        <p className="m-0 text-base leading-6 text-booking-text">
-          {t("payment.instructions", { email: t("payment.email") })}
-        </p>
-        <dl className="m-0">
-          <div className="flex justify-between gap-4 border-t border-gray-300 py-4">
-            <dt className="m-0 font-bold">{t("payment.emailLabel")}</dt>
-            <dd className="m-0">{t("payment.email")}</dd>
-          </div>
-          <div className="flex justify-between gap-4 border-t border-gray-300 py-4">
-            <dt className="m-0 font-bold">{t("payment.total")}</dt>
-            <dd className="m-0">{totalLabel}</dd>
-          </div>
-        </dl>
+        <PaymentInstructionsPanel totalLabel={totalLabel} />
         <Button onClick={() => navigate("/")} variant="primary">
           {t("payment.backHome")}
         </Button>
