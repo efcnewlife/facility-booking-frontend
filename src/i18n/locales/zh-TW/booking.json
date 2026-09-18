@@ -320,6 +320,7 @@
     },
     "cancel": "取消",
     "viewSeries": "查看系列",
+    "viewDetail": "查看詳情",
     "loading": "正在載入你的預訂...",
     "loadError": "無法載入你的預訂。",
     "retry": "再試一次",
@@ -363,6 +364,7 @@
       "chooseOccurrence": "選擇起始場次",
       "affectedTitle": "這會取消 {{count}} 個場次",
       "noneAffected": "沒有符合此選擇、仍可取消的場次。",
+      "reason": "取消原因",
       "confirm": "取消預訂",
       "close": "關閉",
       "successTitle": "已取消",
@@ -371,6 +373,7 @@
     "cancelOneTime": {
       "title": "取消這筆預訂？",
       "body": "這筆預訂將被取消，場地會釋出。",
+      "reason": "取消原因",
       "confirm": "取消預訂",
       "close": "關閉"
     },
@@ -381,6 +384,33 @@
       "occurrenceNotFound": "該場次不屬於此系列。",
       "historicalOccurrence": "過去的場次無法取消。",
       "seriesNotFound": "找不到此預訂系列。"
+    }
+  },
+  "bookingDetail": {
+    "booker": "預訂人",
+    "ministry": "事工",
+    "nonMinistry": "非事工預訂",
+    "timelineTitle": "活動記錄",
+    "bookAgain": "再次預訂",
+    "editTitle": {
+      "action": "編輯標題",
+      "title": "編輯標題",
+      "close": "關閉",
+      "confirm": "儲存",
+      "error": "無法更新標題。"
+    },
+    "timeline": {
+      "created": "預訂已建立",
+      "cancelled": "預訂已取消",
+      "overridden": "此預訂已被事工預訂取代",
+      "payment_expired": "付款保留已過期",
+      "unknown": "預訂已更新"
+    }
+  },
+  "cancellationReason": {
+    "errors": {
+      "required": "請填寫取消原因。",
+      "tooLong": "取消原因請保持在 250 字以內。"
     }
   },
   "startBooking": {

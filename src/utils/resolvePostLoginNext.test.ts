@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { buildLoginPathWithNext, isAllowlistedPostLoginPath, resolvePostLoginNext } from "./resolvePostLoginNext";
 
 const MINISTRY_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
+const BOOKING_ID = "6f9619ff-8b86-d011-b42d-00cf4fc964ff";
 
 describe("isAllowlistedPostLoginPath", () => {
   it("allows ministry approval detail paths", () => {
@@ -25,6 +26,20 @@ describe("isAllowlistedPostLoginPath", () => {
     expect(isAllowlistedPostLoginPath("/my-ministry")).toBe(false);
     expect(isAllowlistedPostLoginPath("/")).toBe(false);
     expect(isAllowlistedPostLoginPath("/contact")).toBe(false);
+  });
+
+  it("allows a My Bookings Booking/Occurrence detail path (override-email deep link)", () => {
+    expect(isAllowlistedPostLoginPath(`/my-bookings/${BOOKING_ID}`)).toBe(true);
+  });
+
+  it("rejects the My Bookings list and Series detail without a plain booking id", () => {
+    expect(isAllowlistedPostLoginPath("/my-bookings")).toBe(false);
+    expect(isAllowlistedPostLoginPath("/my-bookings/")).toBe(false);
+    expect(isAllowlistedPostLoginPath(`/my-bookings/series/${BOOKING_ID}`)).toBe(false);
+  });
+
+  it("rejects a non-uuid booking id", () => {
+    expect(isAllowlistedPostLoginPath("/my-bookings/not-a-uuid")).toBe(false);
   });
 });
 

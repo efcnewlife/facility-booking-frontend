@@ -6,6 +6,7 @@ import ContactPage from "@/pages/contact/ContactPage";
 import HomePage from "@/pages/home/HomePage";
 import LegalDocumentPage from "@/pages/legal-document/LegalDocumentPage";
 import LoginPage from "@/pages/login/LoginPage";
+import BookingDetailPage from "@/pages/my-bookings/BookingDetailPage";
 import MyBookingsPage from "@/pages/my-bookings/MyBookingsPage";
 import RecurringSeriesDetailPage from "@/pages/my-bookings/RecurringSeriesDetailPage";
 import MyMinistryPage from "@/pages/my-ministry/MyMinistryPage";
@@ -50,6 +51,10 @@ export const router = createBrowserRouter([
           {
             path: "/my-bookings/series/:seriesId",
             element: <RecurringSeriesDetailPage />,
+          },
+          {
+            path: "/my-bookings/:bookingId",
+            element: <BookingDetailPage />,
           },
           {
             path: "/my-profile",

@@ -290,7 +290,7 @@ export const pendingPaymentResultFromSeries = (series: RecurringBookingSeriesDet
   localStartTime: series.localStartTime,
   localEndTime: series.localEndTime,
   occurrenceCount: series.occurrenceCount,
-  roomIds: series.occurrences[0]?.facilityIds ?? [],
+  roomIds: series.occurrences[0]?.rooms.map((room) => room.facilityId) ?? [],
 });
 
 export interface RecurringSeriesPreviewControllerDeps {

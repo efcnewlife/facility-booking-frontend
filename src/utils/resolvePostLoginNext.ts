@@ -1,5 +1,6 @@
 const BOOKING_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const MINISTRY_APPROVAL_PREFIX = "/my-ministry/approvals/";
+const MY_BOOKINGS_DETAIL_PREFIX = "/my-bookings/";
 const HOME_PATH = "/";
 
 const normalizePathname = (pathname: string): string => {
@@ -43,16 +44,18 @@ const isSafeRelativePath = (value: string): boolean => {
 
 export const isAllowlistedPostLoginPath = (pathname: string): boolean => {
   const path = normalizePathname(pathname);
-  if (!path.startsWith(MINISTRY_APPROVAL_PREFIX)) {
-    return false;
+
+  if (path.startsWith(MINISTRY_APPROVAL_PREFIX)) {
+    const ministryId = path.slice(MINISTRY_APPROVAL_PREFIX.length);
+    return Boolean(ministryId) && !ministryId.includes("/") && BOOKING_UUID.test(ministryId);
   }
 
-  const ministryId = path.slice(MINISTRY_APPROVAL_PREFIX.length);
-  if (!ministryId || ministryId.includes("/")) {
-    return false;
+  if (path.startsWith(MY_BOOKINGS_DETAIL_PREFIX)) {
+    const bookingId = path.slice(MY_BOOKINGS_DETAIL_PREFIX.length);
+    return Boolean(bookingId) && !bookingId.includes("/") && BOOKING_UUID.test(bookingId);
   }
 
-  return BOOKING_UUID.test(ministryId);
+  return false;
 };
 
 export const resolvePostLoginNext = (next: string | null | undefined): string => {

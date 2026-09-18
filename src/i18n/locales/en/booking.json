@@ -320,6 +320,7 @@
     },
     "cancel": "Cancel",
     "viewSeries": "View series",
+    "viewDetail": "View detail",
     "loading": "Loading your bookings...",
     "loadError": "Failed to load your bookings.",
     "retry": "Try again",
@@ -363,6 +364,7 @@
       "chooseOccurrence": "Choose the starting occurrence",
       "affectedTitle": "This will cancel {{count}} occurrence(s)",
       "noneAffected": "No remaining live occurrences match this choice.",
+      "reason": "Reason for cancelling",
       "confirm": "Cancel bookings",
       "close": "Close",
       "successTitle": "Cancellation saved",
@@ -371,6 +373,7 @@
     "cancelOneTime": {
       "title": "Cancel this booking?",
       "body": "This booking will be cancelled and the room will be released.",
+      "reason": "Reason for cancelling",
       "confirm": "Cancel booking",
       "close": "Close"
     },
@@ -381,6 +384,33 @@
       "occurrenceNotFound": "That occurrence is not part of this series.",
       "historicalOccurrence": "Past occurrences cannot be cancelled.",
       "seriesNotFound": "This booking series was not found."
+    }
+  },
+  "bookingDetail": {
+    "booker": "Booker",
+    "ministry": "Ministry",
+    "nonMinistry": "Non-ministry booking",
+    "timelineTitle": "Activity",
+    "bookAgain": "Book again",
+    "editTitle": {
+      "action": "Edit title",
+      "title": "Edit title",
+      "close": "Close",
+      "confirm": "Save",
+      "error": "Failed to update the title."
+    },
+    "timeline": {
+      "created": "Booking created",
+      "cancelled": "Booking cancelled",
+      "overridden": "Booking overridden by a ministry booking",
+      "payment_expired": "Payment hold expired",
+      "unknown": "Booking updated"
+    }
+  },
+  "cancellationReason": {
+    "errors": {
+      "required": "Tell us why you're cancelling.",
+      "tooLong": "Keep the reason under 250 characters."
     }
   },
   "startBooking": {

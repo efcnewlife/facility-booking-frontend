@@ -2,8 +2,11 @@ import facilityService, {
   BookingSeriesNotFoundError,
   type RecurringBookingSeriesDetail,
 } from "@/api/services/facilityService";
+import EditTitleModal from "@/components/booking/EditTitleModal";
+import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
 import RecurringSeriesCancelModal from "@/components/booking/RecurringSeriesCancelModal";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
+import { canShowPaymentInstructions } from "@/utils/bookingDetail";
 import { formatQuotedAmount } from "@/utils/paymentPage";
 import { format_booking_date, format_booking_time_range } from "@/utils/bookingFormat";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
@@ -42,6 +45,9 @@ const RecurringSeriesDetailPage = () => {
   const [cancelError, setCancelError] = useState<string | null>(null);
   const [cancelSuccessCount, setCancelSuccessCount] = useState<number | null>(null);
   const [cancelSuccessStarts, setCancelSuccessStarts] = useState<string[]>([]);
+  const [editTitleOpen, setEditTitleOpen] = useState(false);
+  const [editTitleSubmitting, setEditTitleSubmitting] = useState(false);
+  const [editTitleError, setEditTitleError] = useState<string | null>(null);
 
   const loadSeries = useCallback(async () => {
     if (!seriesId) {
@@ -93,14 +99,14 @@ const RecurringSeriesDetailPage = () => {
     }
   };
 
-  const handleCancel = async (scope: RecurringCancellationScope, occurrenceId: string | null) => {
+  const handleCancel = async (scope: RecurringCancellationScope, occurrenceId: string | null, cancelReason: string) => {
     if (!seriesId) {
       return;
     }
     setCancelSubmitting(true);
     setCancelError(null);
     try {
-      const updated = await facilityService.cancelBookingSeries(seriesId, { scope, occurrenceId });
+      const updated = await facilityService.cancelBookingSeries(seriesId, { scope, occurrenceId, cancelReason });
       const previous = series;
       const cancelled = previous
         ? previous.occurrences.filter((occurrence) => {
@@ -119,6 +125,23 @@ const RecurringSeriesDetailPage = () => {
     }
   };
 
+  const handleConfirmEditTitle = async (title: string) => {
+    if (!seriesId) {
+      return;
+    }
+    setEditTitleSubmitting(true);
+    setEditTitleError(null);
+    try {
+      const updated = await facilityService.updateBookingSeriesTitle(seriesId, title);
+      setSeries(updated);
+      setEditTitleOpen(false);
+    } catch (err) {
+      setEditTitleError(resolveRecurringBookingSeriesErrorMessage(err, "bookingDetail.editTitle.error"));
+    } finally {
+      setEditTitleSubmitting(false);
+    }
+  };
+
   if (!seriesId || notFound) {
     return <NotFoundPage />;
   }
@@ -126,6 +149,7 @@ const RecurringSeriesDetailPage = () => {
   const displayStatus = series ? resolveSeriesDisplayStatus(series, now) : SERIES_DISPLAY_STATUS.PENDING_PAYMENT;
   const canCancel = Boolean(series?.occurrences.some((occurrence) => isCancellableOccurrence(occurrence, now)));
   const holdLabel = series?.paymentHoldExpiresAt ? moment(series.paymentHoldExpiresAt).format("LLL") : "—";
+  const showPaymentInstructions = series != null && canShowPaymentInstructions(series, now);
 
   return (
     <main className="mx-auto w-full max-w-[960px] flex-1 px-4 py-7 sm:px-6 lg:px-8">
@@ -134,11 +158,21 @@ const RecurringSeriesDetailPage = () => {
       </Button>
 
       <div className="mt-6 flex flex-wrap items-center gap-3">
-        <h1 className="m-0 text-3xl font-bold text-on-surface">{t("myBookings.detail.title")}</h1>
+        <h1 className="m-0 text-3xl font-bold text-on-surface">{series?.title || t("myBookings.detail.title")}</h1>
         {series ? (
           <Badge color={getBookingStatusBadgeColor(displayStatus)}>
             {t(`myBookings.status.${displayStatus}`, { defaultValue: displayStatus })}
           </Badge>
+        ) : null}
+        {series?.isViewOnly ? (
+          <Badge color="info" size="sm">
+            {t("myBookings.viewOnlyBadge")}
+          </Badge>
+        ) : null}
+        {series?.actions.canEditTitle ? (
+          <Button onClick={() => setEditTitleOpen(true)} size="sm" variant="outline">
+            {t("bookingDetail.editTitle.action")}
+          </Button>
         ) : null}
       </div>
 
@@ -191,7 +225,36 @@ const RecurringSeriesDetailPage = () => {
               <dt className="text-xs font-medium text-booking-text">{t("myBookings.fields.holdDeadline")}</dt>
               <dd className="mt-1 text-lg font-bold text-on-surface">{holdLabel}</dd>
             </div>
+            <div>
+              <dt className="text-xs font-medium text-booking-text">{t("bookingDetail.booker")}</dt>
+              <dd className="mt-1 text-lg font-bold text-on-surface">
+                {series.bookerDisplayName || "—"}
+                {series.bookerEmail ? (
+                  <span className="ml-2 text-sm font-normal text-booking-text">{series.bookerEmail}</span>
+                ) : null}
+              </dd>
+            </div>
+            <div>
+              <dt className="text-xs font-medium text-booking-text">{t("bookingDetail.ministry")}</dt>
+              <dd className="mt-1 text-lg font-bold text-on-surface">
+                {series.ministryName || t("bookingDetail.nonMinistry")}
+              </dd>
+            </div>
+            {series.remark ? (
+              <div className="sm:col-span-2">
+                <dt className="text-xs font-medium text-booking-text">{t("myBookings.fields.note")}</dt>
+                <dd className="mt-1 text-base text-on-surface">{series.remark}</dd>
+              </div>
+            ) : null}
           </dl>
+
+          {showPaymentInstructions ? (
+            <div className="rounded-[20px] bg-surface p-6 shadow-sm">
+              <PaymentInstructionsPanel
+                totalLabel={formatQuotedAmount(series.quotedAmount, series.currency, i18nInstance.language)}
+              />
+            </div>
+          ) : null}
 
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -219,9 +282,14 @@ const RecurringSeriesDetailPage = () => {
                           )}
                         </p>
                       </div>
-                      <Badge color={getBookingStatusBadgeColor(occurrenceStatus)} size="sm">
-                        {t(`myBookings.status.${occurrenceStatus}`, { defaultValue: occurrenceStatus })}
-                      </Badge>
+                      <div className="flex items-center gap-3">
+                        <Badge color={getBookingStatusBadgeColor(occurrenceStatus)} size="sm">
+                          {t(`myBookings.status.${occurrenceStatus}`, { defaultValue: occurrenceStatus })}
+                        </Badge>
+                        <Button onClick={() => navigate(`/my-bookings/${occurrence.id}`)} size="xs" variant="outline">
+                          {t("myBookings.viewDetail")}
+                        </Button>
+                      </div>
                     </div>
                   </li>
                 );
@@ -238,12 +306,26 @@ const RecurringSeriesDetailPage = () => {
           now={now}
           occurrences={series.occurrences}
           onClose={closeCancel}
-          onConfirm={(scope, occurrenceId) => {
-            void handleCancel(scope, occurrenceId);
+          onConfirm={(scope, occurrenceId, cancelReason) => {
+            void handleCancel(scope, occurrenceId, cancelReason);
           }}
           submitting={cancelSubmitting}
           successCount={cancelSuccessCount}
           successStarts={cancelSuccessStarts}
+        />
+      ) : null}
+
+      {series ? (
+        <EditTitleModal
+          error={editTitleError}
+          initialTitle={series.title}
+          isOpen={editTitleOpen}
+          onClose={() => {
+            setEditTitleOpen(false);
+            setEditTitleError(null);
+          }}
+          onConfirm={(title) => void handleConfirmEditTitle(title)}
+          submitting={editTitleSubmitting}
         />
       ) : null}
     </main>

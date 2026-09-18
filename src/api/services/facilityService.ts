@@ -6,9 +6,12 @@ import {
   maxBookingLinesFromPayload,
   type ApiRoomAvailabilityList,
 } from "@/utils/availabilityMapper";
+import { mapMemberBookingDetail, mapMemberBookingActions, type MemberBookingDetail } from "@/utils/bookingDetail";
 import { mapBrowsePage, type ApiMemberBookingBrowsePage, type RecurringCancellationScope } from "@/utils/myBookings";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
+
+export type { MemberBookingDetail } from "@/utils/bookingDetail";
 
 interface CreateBookingPayload {
   title: string;
@@ -73,20 +76,6 @@ export interface MemberPreviewQuote {
   quotedAmount: string | number | null;
   currency: string | null;
   roomLines: MemberPreviewQuoteRoomLine[];
-}
-
-interface ApiBookingDetail {
-  id?: string;
-  status?: string;
-  quotedAmount?: string | number | null;
-  quoted_amount?: string | number | null;
-  currency?: string | null;
-}
-
-export interface MemberBookingDetail {
-  id: string;
-  quotedAmount: string | number | null;
-  currency: string | null;
 }
 
 export class BookingNotFoundError extends Error {
@@ -235,58 +224,17 @@ const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): Recurri
   ministryStewardEmail: data.ministryStewardEmail ?? data.ministry_steward_email ?? null,
 });
 
-interface ApiRecurringBookingOccurrence {
-  id: string;
-  startAt?: string;
-  start_at?: string;
-  endAt?: string;
-  end_at?: string;
-  status?: string;
-  quotedAmount?: string | number | null;
-  quoted_amount?: string | number | null;
-  currency?: string | null;
-  facilityIds?: string[];
-  facility_ids?: string[];
-}
-
-interface ApiRecurringBookingSeriesDetail {
-  id: string;
-  ministryId?: string | null;
-  ministry_id?: string | null;
-  firstOccurrenceDate?: string;
-  first_occurrence_date?: string;
-  lastOccurrenceDate?: string;
-  last_occurrence_date?: string;
-  localStartTime?: string;
-  local_start_time?: string;
-  localEndTime?: string;
-  local_end_time?: string;
-  status?: string;
-  paymentHoldExpiresAt?: string | null;
-  payment_hold_expires_at?: string | null;
-  quotedAmount?: string | number | null;
-  quoted_amount?: string | number | null;
-  currency?: string | null;
-  occurrenceCount?: number;
-  occurrence_count?: number;
-  isPriority?: boolean;
-  is_priority?: boolean;
-  occurrences?: ApiRecurringBookingOccurrence[];
-}
-
-export interface RecurringBookingSeriesOccurrence {
-  id: string;
-  startAt: string;
-  endAt: string;
-  status: string;
-  quotedAmount: string | number | null;
-  currency: string | null;
-  facilityIds: string[];
-}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw API payload may still be snake_case.
+type ApiRecurringBookingSeriesDetail = any;
 
 export interface RecurringBookingSeriesDetail {
   id: string;
+  title: string;
   ministryId: string | null;
+  ministryName: string | null;
+  remark: string | null;
+  bookerDisplayName: string | null;
+  bookerEmail: string | null;
   firstOccurrenceDate: string;
   lastOccurrenceDate: string;
   localStartTime: string;
@@ -297,7 +245,11 @@ export interface RecurringBookingSeriesDetail {
   currency: string | null;
   occurrenceCount: number;
   isPriority: boolean;
-  occurrences: RecurringBookingSeriesOccurrence[];
+  isBooker: boolean;
+  isViewOnly: boolean;
+  timeline: MemberBookingDetail["timeline"];
+  actions: MemberBookingDetail["actions"];
+  occurrences: MemberBookingDetail[];
 }
 
 export class BookingSeriesNotFoundError extends Error {
@@ -310,7 +262,7 @@ export class BookingSeriesNotFoundError extends Error {
 export interface CancelRecurringBookingSeriesPayload {
   scope: RecurringCancellationScope;
   occurrenceId?: string | null;
-  cancelReason?: string | null;
+  cancelReason: string;
 }
 
 const optionalIsoString = (value: string | null | undefined): string | null => {
@@ -322,7 +274,12 @@ const optionalIsoString = (value: string | null | undefined): string | null => {
 
 const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail): RecurringBookingSeriesDetail => ({
   id: String(data.id),
+  title: String(data.title ?? ""),
   ministryId: data.ministryId ?? data.ministry_id ?? null,
+  ministryName: data.ministryName ?? data.ministry_name ?? null,
+  remark: data.remark ?? null,
+  bookerDisplayName: data.bookerDisplayName ?? data.booker_display_name ?? null,
+  bookerEmail: data.bookerEmail ?? data.booker_email ?? null,
   firstOccurrenceDate: String(data.firstOccurrenceDate ?? data.first_occurrence_date ?? ""),
   lastOccurrenceDate: String(data.lastOccurrenceDate ?? data.last_occurrence_date ?? ""),
   localStartTime: String(data.localStartTime ?? data.local_start_time ?? ""),
@@ -333,15 +290,17 @@ const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail):
   currency: data.currency ?? null,
   occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
   isPriority: Boolean(data.isPriority ?? data.is_priority),
-  occurrences: (data.occurrences ?? []).map((occurrence) => ({
-    id: String(occurrence.id),
-    startAt: String(occurrence.startAt ?? occurrence.start_at ?? ""),
-    endAt: String(occurrence.endAt ?? occurrence.end_at ?? ""),
-    status: String(occurrence.status ?? ""),
-    quotedAmount: occurrence.quotedAmount ?? occurrence.quoted_amount ?? null,
-    currency: occurrence.currency ?? null,
-    facilityIds: (occurrence.facilityIds ?? occurrence.facility_ids ?? []).map(String),
-  })),
+  isBooker: Boolean(data.isBooker ?? data.is_booker),
+  isViewOnly: Boolean(data.isViewOnly ?? data.is_view_only ?? true),
+  timeline: (data.timeline ?? []).map(
+    (event: { kind?: string; occurredAt?: string; occurred_at?: string; reason?: string | null }) => ({
+      kind: String(event.kind ?? ""),
+      occurredAt: String(event.occurredAt ?? event.occurred_at ?? ""),
+      reason: event.reason ?? null,
+    })
+  ),
+  actions: mapMemberBookingActions(data.actions),
+  occurrences: (data.occurrences ?? []).map(mapMemberBookingDetail),
 });
 
 class FacilityService {
@@ -478,21 +437,33 @@ class FacilityService {
 
   async getMyBooking(bookingId: string): Promise<MemberBookingDetail> {
     try {
-      const response = await httpClient.get<ApiBookingDetail>(API_ENDPOINTS.FACILITY.booking(bookingId));
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapMemberBookingDetail normalizes camel/snake keys.
+      const response = await httpClient.get<any>(API_ENDPOINTS.FACILITY.booking(bookingId));
       if (!response.success || !response.data) {
         throw new Error(response.message || "Failed to load booking");
       }
-      const quotedAmount = response.data.quotedAmount ?? response.data.quoted_amount ?? null;
-      return {
-        id: response.data.id || bookingId,
-        quotedAmount,
-        currency: response.data.currency ?? null,
-      };
+      return mapMemberBookingDetail(response.data);
     } catch (err) {
       if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
         throw new BookingNotFoundError();
       }
       throw err instanceof Error ? err : new Error("Failed to load booking");
+    }
+  }
+
+  async updateMyBookingTitle(bookingId: string, title: string): Promise<MemberBookingDetail> {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapMemberBookingDetail normalizes camel/snake keys.
+      const response = await httpClient.patch<any>(API_ENDPOINTS.FACILITY.bookingTitle(bookingId), { title });
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to update booking title");
+      }
+      return mapMemberBookingDetail(response.data);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to update booking title");
     }
   }
 
@@ -532,6 +503,24 @@ class FacilityService {
     }
   }
 
+  async updateBookingSeriesTitle(seriesId: string, title: string): Promise<RecurringBookingSeriesDetail> {
+    try {
+      const response = await httpClient.patch<ApiRecurringBookingSeriesDetail>(
+        API_ENDPOINTS.FACILITY.bookingSeriesTitle(seriesId),
+        { title }
+      );
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to update recurring booking series title");
+      }
+      return mapRecurringBookingSeriesDetail(response.data);
+    } catch (err) {
+      if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
+        throw new BookingSeriesNotFoundError();
+      }
+      throw err instanceof Error ? err : new Error("Failed to update recurring booking series title");
+    }
+  }
+
   async cancelBookingSeries(
     seriesId: string,
     payload: CancelRecurringBookingSeriesPayload
@@ -553,10 +542,10 @@ class FacilityService {
     }
   }
 
-  async cancelMyBooking(bookingId: string, cancelReason?: string | null): Promise<void> {
+  async cancelMyBooking(bookingId: string, cancelReason: string): Promise<void> {
     const response = await httpClient.post(API_ENDPOINTS.FACILITY.cancelBooking(bookingId), {
       scope: "single",
-      cancelReason: cancelReason ?? null,
+      cancelReason,
     });
     if (!response.success) {
       throw new Error(response.message || "Failed to cancel booking");

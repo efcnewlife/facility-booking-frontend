@@ -320,6 +320,7 @@
     },
     "cancel": "取消",
     "viewSeries": "查看系列",
+    "viewDetail": "查看详情",
     "loading": "正在加载你的预订...",
     "loadError": "无法加载你的预订。",
     "retry": "再试一次",
@@ -363,6 +364,7 @@
       "chooseOccurrence": "选择起始场次",
       "affectedTitle": "这会取消 {{count}} 个场次",
       "noneAffected": "没有符合此选择、仍可取消的场次。",
+      "reason": "取消原因",
       "confirm": "取消预订",
       "close": "关闭",
       "successTitle": "已取消",
@@ -371,6 +373,7 @@
     "cancelOneTime": {
       "title": "取消这笔预订？",
       "body": "这笔预订将被取消，场地会释出。",
+      "reason": "取消原因",
       "confirm": "取消预订",
       "close": "关闭"
     },
@@ -381,6 +384,33 @@
       "occurrenceNotFound": "该场次不属于此系列。",
       "historicalOccurrence": "过去的场次无法取消。",
       "seriesNotFound": "找不到此预订系列。"
+    }
+  },
+  "bookingDetail": {
+    "booker": "预订人",
+    "ministry": "事工",
+    "nonMinistry": "非事工预订",
+    "timelineTitle": "活动记录",
+    "bookAgain": "再次预订",
+    "editTitle": {
+      "action": "编辑标题",
+      "title": "编辑标题",
+      "close": "关闭",
+      "confirm": "保存",
+      "error": "无法更新标题。"
+    },
+    "timeline": {
+      "created": "预订已创建",
+      "cancelled": "预订已取消",
+      "overridden": "此预订已被事工预订取代",
+      "payment_expired": "付款保留已过期",
+      "unknown": "预订已更新"
+    }
+  },
+  "cancellationReason": {
+    "errors": {
+      "required": "请填写取消原因。",
+      "tooLong": "取消原因请保持在 250 字以内。"
     }
   },
   "startBooking": {
