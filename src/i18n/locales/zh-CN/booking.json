@@ -266,6 +266,7 @@
     "email": "booking@example.com",
     "emailLabel": "转账至",
     "total": "总计",
+    "holdDeadline": "保留期限",
     "backHome": "返回首页",
     "loadError": "无法加载此预订。"
   },

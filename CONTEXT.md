@@ -81,7 +81,7 @@ The booking create form finds secondary stewards among active auth users by emai
 _Avoid_: invite-by-email without an existing auth user, searching Member Person records
 
 **Start booking**:
-The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated. Choosing One-time continues through When to the Timetable. Choosing Repeated collects First occurrence / weekday and optional shared Start Time / End Time, then continues to the same `/rooms` route in Repeated mode; that route collects Last occurrence and rooms before review. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
+The question flow after Home. Ministry choice: Yes goes to ministry name, No skips to One-time vs Repeated. Choosing One-time continues through When to the Timetable. Choosing Repeated collects First occurrence / weekday and optional shared Start Time / End Time, then continues to the same `/rooms` route in Repeated mode; that route collects Last occurrence and rooms before review. There is no Space needed step. Entering this flow deletes all of the member's Booking Drafts and Recurring Series Drafts and clears the Timetable's persisted Booking cart, so restarting always begins from a clean slate.
 _Avoid_: Landing, Find Space, wizard (as the product name), Rooms as the member-facing name of the post-Search screen, Space needed, Room shortcut on this flow, a separate Repeated-only room picker, leaving a stale cart or Draft behind after restarting
 
 **One-time**:
@@ -113,8 +113,12 @@ The maximum number of lines the Booking cart or Booking Details will accept. Bac
 _Avoid_: hardcoding 3 as the limit, assuming the cap can't change without a frontend deploy
 
 **Booking Draft**:
-The backend resource behind Booking Details, identified by `checkoutId` in the URL. Created from the Booking cart when Review Booking is clicked; Edit/Remove on Booking Details update the same Draft in place. Only the member who created it can open it. Entering Start Booking again deletes all of that member's Booking Drafts.
+The member-owned in-progress One-time Booking behind Booking Details, identified by `draftId` in the URL. Created from the One-time Booking cart when Review Booking is clicked; Edit/Remove on Booking Details update the same Draft in place. Only the member who created it can open it. Entering Start Booking again deletes all of that member's Booking Drafts.
 _Avoid_: treating it as a paid or locked reservation, a link safe to share with someone else, expecting a Draft to survive restarting Start Booking
+
+**Recurring Series Draft**:
+The member-owned in-progress Repeated Booking proposal behind Booking Details. It records one weekly schedule, its shared local time window, selected rooms, the current preview, and any permitted conflict exclusions. Review Booking creates it from the Repeated cart; returning to the Timetable edits the proposal before a fresh preview. Its Booking Details view permits a Title but no schedule or room changes. If revalidation finds its preview stale, Confirm is disabled and the member returns to Timetable to revise. Only its creator can open it. It does not reserve rooms or create a Recurring Booking Series.
+_Avoid_: reusing a Booking Draft for a weekly Series, treating preview as a reservation, creating a Series before Confirm on Booking Details
 
 **Booking line**:
 One room plus one start–end interval the member confirmed for a One-time booking, on the same calendar day as every other line in that booking. Lines live in the Booking cart before Review Booking and on Booking Details. The same room may appear on more than one line in one booking.
@@ -125,7 +129,7 @@ The single-room span the member commits on the Timetable by clicking after hover
 _Avoid_: pinning all rooms from one click, treating pin as cart membership, BOOK, expecting it to survive a refresh
 
 **Booking Details**:
-The confirm page after Review Booking from the Booking cart. The route is `/booking-details`, carrying `?checkoutId=` for its Booking Draft. A back control above the title returns to the Timetable with cart state preserved. Each visit reloads availability and Payment Summary from that Draft — it still never locks the room. If any line is no longer available, Confirm stays disabled. Confirm calls create booking, which also deletes the Draft; success goes to Payment. There is no single Time row at the top; each Space row shows a thumbnail, that line's time, Edit, and Remove — Edit/Remove PATCH the Draft in place, so the URL doesn't change. Below all Space rows, + Room returns to the Timetable to add more lines. Opening someone else's `checkoutId`, or one already consumed by Confirm, shows Not Found.
+The confirm page after Review Booking from either Booking cart. Its typed route is `/booking-details/one-time/:draftId` for a Booking Draft or `/booking-details/repeated/:draftId` for a Recurring Series Draft. A back control above the title returns to the Timetable with the in-progress proposal preserved. Each visit reloads its current availability and Payment Summary; neither draft locks rooms. Confirm stays disabled when its proposal is no longer valid. Confirm creates the matching Booking or Recurring Booking Series, deletes the draft, and then shows Payment. One-time shows independently timed Space rows; Repeated shows an editable Title, the shared weekly schedule, and selected rooms, with schedule or room changes made only by returning to Timetable for a fresh preview. Opening another member's draft, or one already consumed by Confirm, shows Not Found.
 _Avoid_: a single shared Time field, confirm modal as the product name, treating the query as a paid reservation, skipping back to Timetable, a link safe to share with another member, encoding Booking lines directly in the query
 
 **Payment Summary**:
@@ -133,11 +137,11 @@ The Booking Details aside that shows rate, ministry discount, tax, and total. Th
 _Avoid_: calculating totals only in the browser, treating this aside as the Interac instructions screen
 
 **Payment**:
-The page after a successful create booking. The route uses the booking id. It shows Canada Interac e-Transfer instructions and a placeholder email, plus the backend total. It does not collect or verify payment. The member continues with Back to Home.
-_Avoid_: Confirm & Pay, a payment processor, treating this page as Booking Details, a second submit that marks the booking paid
+The page after a successful One-time Booking or Recurring Booking Series create. Its typed route is `/payment/one-time/:bookingId` for a Booking or `/payment/repeated/:seriesId` for a Recurring Booking Series. It shows Canada Interac e-Transfer instructions and a placeholder email, plus the backend total and payment-hold deadline when applicable. It does not collect or verify payment. The member continues with Back to Home.
+_Avoid_: Confirm & Pay, a payment processor, treating this page as Booking Details, a second submit that marks the booking paid, using an occurrence amount in place of the Series total
 
 **Review Booking**:
-The Timetable CTA at the top of the Booking cart that opens Booking Details. It is disabled until at least one Booking line exists. The label reflects how many lines are in the cart.
+The Timetable CTA at the top of either Booking cart that creates the appropriate in-progress Draft and opens Booking Details. It is disabled until the proposal is complete and its required preview is ready. The label reflects how many rooms or lines are in the cart.
 _Avoid_: Review as the name of Booking Details, Multiple-only, opening Booking Details directly from ADD without a cart line, BOOK
 
 **Confirm Booking Time**:

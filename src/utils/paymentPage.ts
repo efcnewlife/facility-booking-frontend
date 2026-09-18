@@ -1,12 +1,30 @@
-const BOOKING_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+import { extractTypedRouteId } from "./typedRoutePath";
 
 const EM_DASH = "—";
 
-export const parsePaymentBookingId = (value: string | undefined): string | null => {
-  if (!value || !BOOKING_UUID.test(value)) {
-    return null;
+const ONE_TIME_PREFIX = "/payment/one-time/";
+const REPEATED_PREFIX = "/payment/repeated/";
+
+export type PaymentRoute = { kind: "one-time"; bookingId: string } | { kind: "repeated"; seriesId: string };
+
+/**
+ * The path segment (`one-time` vs `repeated`) determines the resource kind; UUID format alone
+ * never infers it, so a wrong-kind id is rejected up front instead of hitting the other kind's endpoint.
+ */
+export const parsePaymentRoute = (pathname: string): PaymentRoute | null => {
+  const bookingId = extractTypedRouteId(pathname, ONE_TIME_PREFIX);
+  if (bookingId) {
+    return { kind: "one-time", bookingId };
   }
-  return value;
+  const seriesId = extractTypedRouteId(pathname, REPEATED_PREFIX);
+  if (seriesId) {
+    return { kind: "repeated", seriesId };
+  }
+  return null;
+};
+
+export const isPaymentPath = (pathname: string): boolean => {
+  return parsePaymentRoute(pathname) != null;
 };
 
 export const formatQuotedAmount = (
@@ -25,9 +43,4 @@ export const formatQuotedAmount = (
     style: "currency",
     currency: currency || "CAD",
   }).format(amount);
-};
-
-export const isPaymentPath = (pathname: string): boolean => {
-  const parts = pathname.split("/").filter(Boolean);
-  return parts.length === 2 && parts[0] === "payment" && parsePaymentBookingId(parts[1]) != null;
 };

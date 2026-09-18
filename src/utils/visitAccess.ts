@@ -1,3 +1,4 @@
+import { isOneTimeBookingDetailsPath } from "./bookingDetailsPath";
 import { isMinistryApprovalDetailPath } from "./ministryApprovalPath";
 import { isPaymentPath } from "./paymentPage";
 
@@ -11,7 +12,6 @@ const KNOWN_MEMBER_PATHS = new Set([
   "/",
   "/start-booking",
   "/rooms",
-  "/booking-details",
   "/my-bookings",
   "/my-profile",
   SUPPORT_PATH,
@@ -42,7 +42,12 @@ export const visitAccess = ({ isAuthenticated, canAccessMyMinistry, pathname }: 
     return "allow";
   }
 
-  if (!KNOWN_MEMBER_PATHS.has(path) && !isPaymentPath(path) && !isMinistryApprovalDetailPath(path)) {
+  if (
+    !KNOWN_MEMBER_PATHS.has(path) &&
+    !isPaymentPath(path) &&
+    !isMinistryApprovalDetailPath(path) &&
+    !isOneTimeBookingDetailsPath(path)
+  ) {
     return "not-found";
   }
 

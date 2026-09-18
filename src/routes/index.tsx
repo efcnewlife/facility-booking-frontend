@@ -37,11 +37,15 @@ export const router = createBrowserRouter([
             element: <RoomFilterPage />,
           },
           {
-            path: "/booking-details",
+            path: "/booking-details/one-time/:draftId",
             element: <BookingDetailsPage />,
           },
           {
-            path: "/payment/:bookingId",
+            path: "/payment/one-time/:bookingId",
+            element: <PaymentPage />,
+          },
+          {
+            path: "/payment/repeated/:seriesId",
             element: <PaymentPage />,
           },
           {
