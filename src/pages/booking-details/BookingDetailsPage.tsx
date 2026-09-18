@@ -22,7 +22,7 @@ import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdArrowBack, MdPhoto } from "react-icons/md";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Navigate, useNavigate, useParams } from "react-router";
 
 const formatClock = (clock: string, locale: string): string => {
   if (clock === "24:00") {
@@ -47,8 +47,7 @@ const messageFromUnknown = (err: unknown, fallback: string): string => {
 const BookingDetailsPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const checkoutId = searchParams.get("checkoutId");
+  const { draftId } = useParams();
 
   const [draft, setDraft] = useState<BookingCartDraft | null>(null);
   const [notFound, setNotFound] = useState(false);
@@ -57,7 +56,7 @@ const BookingDetailsPage = () => {
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummaryLabels>(() =>
     mapPaymentSummary(null, i18nInstance.language)
   );
-  const [loading, setLoading] = useState(() => Boolean(checkoutId));
+  const [loading, setLoading] = useState(() => Boolean(draftId));
   const [confirming, setConfirming] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -68,7 +67,7 @@ const BookingDetailsPage = () => {
   const [titleTouched, setTitleTouched] = useState(false);
 
   const loadDraftDetail = useCallback(async () => {
-    if (!checkoutId) {
+    if (!draftId) {
       return;
     }
     setLoading(true);
@@ -76,7 +75,7 @@ const BookingDetailsPage = () => {
     setNotFound(false);
     setPaymentSummary(mapPaymentSummary(null, i18nInstance.language));
     try {
-      const detail = await facilityService.getBookingDraft(checkoutId);
+      const detail = await facilityService.getBookingDraft(draftId);
       setDraft(bookingDraftDetailToCartDraft(detail));
     } catch (err) {
       if (err instanceof BookingDraftNotFoundError) {
@@ -87,7 +86,7 @@ const BookingDetailsPage = () => {
       }
       setLoading(false);
     }
-  }, [checkoutId, i18nInstance.language, t]);
+  }, [draftId, i18nInstance.language, t]);
 
   useEffect(() => {
     void loadDraftDetail();
@@ -140,7 +139,7 @@ const BookingDetailsPage = () => {
     return linesAvailable;
   }, [confirming, draft, linesAvailable, loading, titleError, updating]);
 
-  if (!checkoutId) {
+  if (!draftId) {
     return <Navigate replace to="/" />;
   }
 
@@ -175,7 +174,7 @@ const BookingDetailsPage = () => {
     setUpdating(true);
     setError(null);
     try {
-      const updated = await facilityService.updateBookingDraft(checkoutId, buildCreateBookingDraftPayload(nextDraft));
+      const updated = await facilityService.updateBookingDraft(draftId, buildCreateBookingDraftPayload(nextDraft));
       setDraft(bookingDraftDetailToCartDraft(updated));
     } catch (err) {
       if (err instanceof BookingDraftNotFoundError) {
@@ -234,8 +233,8 @@ const BookingDetailsPage = () => {
     setConfirming(true);
     setError(null);
     try {
-      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, title, checkoutId));
-      navigate(`/payment/${created.id}`);
+      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, title, draftId));
+      navigate(`/payment/one-time/${created.id}`);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.createError")));
     } finally {

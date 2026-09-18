@@ -2,9 +2,10 @@ import { useTranslation } from "react-i18next";
 
 interface PaymentInstructionsPanelProps {
   totalLabel: string;
+  holdDeadlineLabel?: string | null;
 }
 
-const PaymentInstructionsPanel = ({ totalLabel }: PaymentInstructionsPanelProps) => {
+const PaymentInstructionsPanel = ({ totalLabel, holdDeadlineLabel }: PaymentInstructionsPanelProps) => {
   const { t } = useTranslation("booking");
 
   return (
@@ -22,6 +23,12 @@ const PaymentInstructionsPanel = ({ totalLabel }: PaymentInstructionsPanelProps)
           <dt className="m-0 font-bold">{t("payment.total")}</dt>
           <dd className="m-0">{totalLabel}</dd>
         </div>
+        {holdDeadlineLabel ? (
+          <div className="flex justify-between gap-4 border-t border-gray-300 py-4">
+            <dt className="m-0 font-bold">{t("payment.holdDeadline")}</dt>
+            <dd className="m-0">{holdDeadlineLabel}</dd>
+          </div>
+        ) : null}
       </dl>
     </div>
   );

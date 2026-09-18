@@ -871,10 +871,7 @@ const RoomFilterPage = () => {
     }
     try {
       const created = await facilityService.createBookingDraft(buildCreateBookingDraftPayload(nextDraft));
-      navigate({
-        pathname: "/booking-details",
-        search: new URLSearchParams({ checkoutId: created.id }).toString(),
-      });
+      navigate(`/booking-details/one-time/${created.id}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : t("timetable.reviewError"));
     }

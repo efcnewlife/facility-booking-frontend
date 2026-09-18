@@ -266,6 +266,7 @@
     "email": "booking@example.com",
     "emailLabel": "Send to",
     "total": "Total",
+    "holdDeadline": "Hold deadline",
     "backHome": "Back to Home",
     "loadError": "Failed to load this booking."
   },
