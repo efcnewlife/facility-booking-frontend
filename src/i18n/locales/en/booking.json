@@ -392,6 +392,7 @@
     "nonMinistry": "Non-ministry booking",
     "timelineTitle": "Activity",
     "bookAgain": "Book again",
+    "roomsTitle": "Rooms",
     "editTitle": {
       "action": "Edit title",
       "title": "Edit title",
@@ -405,6 +406,19 @@
       "overridden": "Booking overridden by a ministry booking",
       "payment_expired": "Payment hold expired",
       "unknown": "Booking updated"
+    },
+    "priceSummary": {
+      "title": "Price breakdown",
+      "subtotal": "Subtotal",
+      "discount": "Ministry discount",
+      "surcharge": "Surcharge",
+      "total": "Total"
+    },
+    "billingUnit": {
+      "hourly": "per hour",
+      "daily_flat": "per day",
+      "per_slot": "per slot",
+      "flat_per_booking": "flat rate"
     }
   },
   "cancellationReason": {

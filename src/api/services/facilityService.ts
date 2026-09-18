@@ -6,7 +6,14 @@ import {
   maxBookingLinesFromPayload,
   type ApiRoomAvailabilityList,
 } from "@/utils/availabilityMapper";
-import { mapMemberBookingDetail, mapMemberBookingActions, type MemberBookingDetail } from "@/utils/bookingDetail";
+import {
+  mapMemberBookingDetail,
+  mapMemberBookingActions,
+  type ApiMemberBookingActions,
+  type ApiMemberBookingDetail,
+  type ApiMemberBookingTimelineEvent,
+  type MemberBookingDetail,
+} from "@/utils/bookingDetail";
 import { mapBrowsePage, type ApiMemberBookingBrowsePage, type RecurringCancellationScope } from "@/utils/myBookings";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
@@ -224,8 +231,44 @@ const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): Recurri
   ministryStewardEmail: data.ministryStewardEmail ?? data.ministry_steward_email ?? null,
 });
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any -- raw API payload may still be snake_case.
-type ApiRecurringBookingSeriesDetail = any;
+interface ApiRecurringBookingSeriesDetail {
+  id: string;
+  title?: string;
+  ministryId?: string | null;
+  ministry_id?: string | null;
+  ministryName?: string | null;
+  ministry_name?: string | null;
+  remark?: string | null;
+  bookerDisplayName?: string | null;
+  booker_display_name?: string | null;
+  bookerEmail?: string | null;
+  booker_email?: string | null;
+  firstOccurrenceDate?: string;
+  first_occurrence_date?: string;
+  lastOccurrenceDate?: string;
+  last_occurrence_date?: string;
+  localStartTime?: string;
+  local_start_time?: string;
+  localEndTime?: string;
+  local_end_time?: string;
+  status?: string;
+  paymentHoldExpiresAt?: string | null;
+  payment_hold_expires_at?: string | null;
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  currency?: string | null;
+  occurrenceCount?: number;
+  occurrence_count?: number;
+  isPriority?: boolean;
+  is_priority?: boolean;
+  isBooker?: boolean;
+  is_booker?: boolean;
+  isViewOnly?: boolean;
+  is_view_only?: boolean;
+  timeline?: ApiMemberBookingTimelineEvent[];
+  actions?: ApiMemberBookingActions;
+  occurrences?: ApiMemberBookingDetail[];
+}
 
 export interface RecurringBookingSeriesDetail {
   id: string;
@@ -292,13 +335,11 @@ const mapRecurringBookingSeriesDetail = (data: ApiRecurringBookingSeriesDetail):
   isPriority: Boolean(data.isPriority ?? data.is_priority),
   isBooker: Boolean(data.isBooker ?? data.is_booker),
   isViewOnly: Boolean(data.isViewOnly ?? data.is_view_only ?? true),
-  timeline: (data.timeline ?? []).map(
-    (event: { kind?: string; occurredAt?: string; occurred_at?: string; reason?: string | null }) => ({
-      kind: String(event.kind ?? ""),
-      occurredAt: String(event.occurredAt ?? event.occurred_at ?? ""),
-      reason: event.reason ?? null,
-    })
-  ),
+  timeline: (data.timeline ?? []).map((event: ApiMemberBookingTimelineEvent) => ({
+    kind: String(event.kind ?? ""),
+    occurredAt: String(event.occurredAt ?? event.occurred_at ?? ""),
+    reason: event.reason ?? null,
+  })),
   actions: mapMemberBookingActions(data.actions),
   occurrences: (data.occurrences ?? []).map(mapMemberBookingDetail),
 });
@@ -437,8 +478,7 @@ class FacilityService {
 
   async getMyBooking(bookingId: string): Promise<MemberBookingDetail> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapMemberBookingDetail normalizes camel/snake keys.
-      const response = await httpClient.get<any>(API_ENDPOINTS.FACILITY.booking(bookingId));
+      const response = await httpClient.get<ApiMemberBookingDetail>(API_ENDPOINTS.FACILITY.booking(bookingId));
       if (!response.success || !response.data) {
         throw new Error(response.message || "Failed to load booking");
       }
@@ -453,8 +493,9 @@ class FacilityService {
 
   async updateMyBookingTitle(bookingId: string, title: string): Promise<MemberBookingDetail> {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any -- mapMemberBookingDetail normalizes camel/snake keys.
-      const response = await httpClient.patch<any>(API_ENDPOINTS.FACILITY.bookingTitle(bookingId), { title });
+      const response = await httpClient.patch<ApiMemberBookingDetail>(API_ENDPOINTS.FACILITY.bookingTitle(bookingId), {
+        title,
+      });
       if (!response.success || !response.data) {
         throw new Error(response.message || "Failed to update booking title");
       }

@@ -1,14 +1,11 @@
 import facilityService, { BookingNotFoundError, type MemberBookingDetail } from "@/api/services/facilityService";
+import BookingRoomLines from "@/components/booking/BookingRoomLines";
+import BookingTimelineList from "@/components/booking/BookingTimelineList";
 import EditTitleModal from "@/components/booking/EditTitleModal";
 import OneTimeCancelModal from "@/components/booking/OneTimeCancelModal";
 import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
-import {
-  bookAgainRoomsSearchParams,
-  canShowPaymentInstructions,
-  parseBookingDetailId,
-  timelineEventLabelKey,
-} from "@/utils/bookingDetail";
+import { bookAgainRoomsSearchParams, canShowPaymentInstructions, parseBookingDetailId } from "@/utils/bookingDetail";
 import { format_booking_date, format_booking_time_range } from "@/utils/bookingFormat";
 import { formatQuotedAmount } from "@/utils/paymentPage";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
@@ -17,7 +14,6 @@ import { Alert, Badge, Button, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { MdPhoto } from "react-icons/md";
 import { useNavigate, useParams } from "react-router";
 
 const occurrenceClock = (value: string): string => moment(value).format("HH:mm");
@@ -213,45 +209,22 @@ const BookingDetailPage = () => {
           </dl>
 
           <div className="flex flex-col gap-6 rounded-[20px] bg-surface p-6 shadow-sm sm:flex-row sm:justify-between">
-            <div className="min-w-0 flex-1 space-y-4">
-              <h2 className="m-0 text-xl font-bold text-on-surface">{t("bookingDetails.space")}</h2>
-              {detail.rooms.map((room) => (
-                <div className="grid w-full grid-cols-[auto_minmax(0,1fr)_auto] items-start gap-4" key={room.id}>
-                  <div className="relative h-14 w-20 shrink-0 overflow-hidden rounded bg-booking-grey">
-                    {room.photoUrls[0] ? (
-                      <img alt="" className="size-full object-cover" src={room.photoUrls[0]} />
-                    ) : (
-                      <div aria-hidden className="flex size-full items-center justify-center text-booking-primary/40">
-                        <MdPhoto size={24} />
-                      </div>
-                    )}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="m-0 text-base font-bold text-booking-primary">
-                      {room.facilityName || room.facilityId}
-                    </p>
-                    <p className="m-0 mt-1 text-sm font-normal text-on-surface-variant">
-                      {format_booking_time_range(occurrenceClock(room.startAt), occurrenceClock(room.endAt))}
-                    </p>
-                    {room.rentalRateName ? (
-                      <p className="m-0 mt-1 text-sm text-on-surface-variant">{room.rentalRateName}</p>
-                    ) : null}
-                  </div>
-                  <span className="text-sm font-bold text-booking-primary">
-                    {formatQuotedAmount(room.lineSubtotal, room.currency ?? detail.currency, i18nInstance.language)}
-                  </span>
-                </div>
-              ))}
+            <div className="min-w-0 flex-1">
+              <BookingRoomLines
+                fallbackCurrency={detail.currency}
+                locale={i18nInstance.language}
+                rooms={detail.rooms}
+              />
             </div>
 
             <aside className="flex w-full shrink-0 flex-col gap-2 sm:w-[260px]">
-              <h2 className="m-0 text-xl font-bold text-on-surface">{t("bookingDetails.paymentSummary")}</h2>
+              <h2 className="m-0 text-xl font-bold text-on-surface">{t("bookingDetail.priceSummary.title")}</h2>
               <div className="flex justify-between text-sm text-on-surface">
-                <span>{t("bookingDetails.subtotal")}</span>
+                <span>{t("bookingDetail.priceSummary.subtotal")}</span>
                 <span>{formatQuotedAmount(detail.subtotalAmount, detail.currency, i18nInstance.language)}</span>
               </div>
               <div className="flex justify-between text-sm text-on-surface">
-                <span>{t("bookingDetails.ministryDiscount")}</span>
+                <span>{t("bookingDetail.priceSummary.discount")}</span>
                 <span>
                   {detail.discountAmount != null
                     ? `-${formatQuotedAmount(detail.discountAmount, detail.currency, i18nInstance.language)}`
@@ -259,12 +232,12 @@ const BookingDetailPage = () => {
                 </span>
               </div>
               <div className="flex justify-between text-sm text-on-surface">
-                <span>{t("bookingDetails.surcharge")}</span>
+                <span>{t("bookingDetail.priceSummary.surcharge")}</span>
                 <span>{formatQuotedAmount(detail.surchargeAmount, detail.currency, i18nInstance.language)}</span>
               </div>
               <hr className="m-0 border-t border-gray-300" />
               <div className="flex justify-between text-base font-bold text-on-surface">
-                <span>{t("bookingDetails.total")}</span>
+                <span>{t("bookingDetail.priceSummary.total")}</span>
                 <span>{formatQuotedAmount(detail.quotedAmount, detail.currency, i18nInstance.language)}</span>
               </div>
             </aside>
@@ -278,25 +251,7 @@ const BookingDetailPage = () => {
             </div>
           ) : null}
 
-          {detail.timeline.length > 0 ? (
-            <div className="rounded-[20px] bg-surface p-6 shadow-sm">
-              <h2 className="m-0 text-xl font-bold text-on-surface">{t("bookingDetail.timelineTitle")}</h2>
-              <ul className="mt-4 space-y-3">
-                {detail.timeline.map((event, index) => (
-                  <li
-                    className="flex flex-wrap items-center justify-between gap-2 text-sm"
-                    key={`${event.kind}-${index}`}
-                  >
-                    <span className="font-medium text-on-surface">{t(timelineEventLabelKey(event.kind))}</span>
-                    <span className="text-booking-text">
-                      {moment(event.occurredAt).locale(i18nInstance.language).format("LLL")}
-                    </span>
-                    {event.reason ? <span className="w-full text-booking-text">{event.reason}</span> : null}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
+          <BookingTimelineList events={detail.timeline} locale={i18nInstance.language} />
 
           <div className="flex flex-wrap gap-3">
             {detail.actions.canCancel ? (

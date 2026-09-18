@@ -392,6 +392,7 @@
     "nonMinistry": "非事工预订",
     "timelineTitle": "活动记录",
     "bookAgain": "再次预订",
+    "roomsTitle": "场地",
     "editTitle": {
       "action": "编辑标题",
       "title": "编辑标题",
@@ -405,6 +406,19 @@
       "overridden": "此预订已被事工预订取代",
       "payment_expired": "付款保留已过期",
       "unknown": "预订已更新"
+    },
+    "priceSummary": {
+      "title": "价格明细",
+      "subtotal": "小计",
+      "discount": "事工优惠",
+      "surcharge": "附加费",
+      "total": "总额"
+    },
+    "billingUnit": {
+      "hourly": "每小时",
+      "daily_flat": "每日",
+      "per_slot": "每时段",
+      "flat_per_booking": "单笔固定费"
     }
   },
   "cancellationReason": {

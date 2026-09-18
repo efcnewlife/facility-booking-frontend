@@ -2,6 +2,8 @@ import facilityService, {
   BookingSeriesNotFoundError,
   type RecurringBookingSeriesDetail,
 } from "@/api/services/facilityService";
+import BookingRoomLines from "@/components/booking/BookingRoomLines";
+import BookingTimelineList from "@/components/booking/BookingTimelineList";
 import EditTitleModal from "@/components/booking/EditTitleModal";
 import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
 import RecurringSeriesCancelModal from "@/components/booking/RecurringSeriesCancelModal";
@@ -248,6 +250,16 @@ const RecurringSeriesDetailPage = () => {
             ) : null}
           </dl>
 
+          {series.occurrences[0]?.rooms.length ? (
+            <div className="rounded-[20px] bg-surface p-6 shadow-sm">
+              <BookingRoomLines
+                fallbackCurrency={series.currency}
+                locale={i18nInstance.language}
+                rooms={series.occurrences[0].rooms}
+              />
+            </div>
+          ) : null}
+
           {showPaymentInstructions ? (
             <div className="rounded-[20px] bg-surface p-6 shadow-sm">
               <PaymentInstructionsPanel
@@ -255,6 +267,8 @@ const RecurringSeriesDetailPage = () => {
               />
             </div>
           ) : null}
+
+          <BookingTimelineList events={series.timeline} locale={i18nInstance.language} />
 
           <div>
             <div className="flex flex-wrap items-center justify-between gap-3">
