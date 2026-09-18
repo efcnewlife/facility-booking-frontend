@@ -5,7 +5,9 @@ import {
   buildRoomsSearchQuery,
   canAdvance,
   canSubmitRepeatedConfirmBookingTime,
+  frequencyAfterAvailabilityRefresh,
   isRecurringScheduleValid,
+  isRepeatedFrequencySelectable,
   isRecurringSharedTimeValid,
   isRecurringWhenValid,
   isRepeatedDateTimeSearchValid,
@@ -14,6 +16,7 @@ import {
   isWhenEndAfterStart,
   isWhenValid,
   nextStep,
+  repeatedWindowForAdvance,
   repeatedWindowNoticeKind,
   parseBookingDetailsQuery,
   parseRoomsSearchQuery,
@@ -227,6 +230,63 @@ describe("canAdvance", () => {
     expect(nextStep("frequency", answers({ frequency: "one_time" }), now, false)).toBe("when");
   });
 
+  it("blocks Repeated Continue while Recurring Booking availability is still loading", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    expect(canAdvance("frequency", answers({ frequency: "repeated" }), now, null)).toBe(false);
+    expect(canAdvance("frequency", answers({ frequency: "one_time" }), now, null)).toBe(true);
+    expect(nextStep("frequency", answers({ frequency: "repeated" }), now, null)).toBe(null);
+    expect(nextStep("frequency", answers({ frequency: "one_time" }), now, null)).toBe("when");
+  });
+
+  it("disables Repeated unless Recurring Booking availability is explicitly open", () => {
+    expect(isRepeatedFrequencySelectable(null)).toBe(false);
+    expect(isRepeatedFrequencySelectable(false)).toBe(false);
+    expect(isRepeatedFrequencySelectable(true)).toBe(true);
+  });
+
+  it("keeps One-time selectable while Repeated is disabled", () => {
+    expect(canAdvance("frequency", answers({ frequency: "one_time" }), new Date("2026-09-17T12:00:00"), null)).toBe(
+      true
+    );
+    expect(canAdvance("frequency", answers({ frequency: "one_time" }), new Date("2026-09-17T12:00:00"), false)).toBe(
+      true
+    );
+  });
+
+  it("clears a Repeated selection when a refreshed availability result is closed", () => {
+    expect(frequencyAfterAvailabilityRefresh("repeated", false)).toBe(null);
+  });
+
+  it("keeps a Repeated selection while availability is still loading or stays open", () => {
+    expect(frequencyAfterAvailabilityRefresh("repeated", null)).toBe("repeated");
+    expect(frequencyAfterAvailabilityRefresh("repeated", true)).toBe("repeated");
+  });
+
+  it("does not clear a One-time selection when availability is closed or loading", () => {
+    expect(frequencyAfterAvailabilityRefresh("one_time", false)).toBe("one_time");
+    expect(frequencyAfterAvailabilityRefresh("one_time", null)).toBe("one_time");
+    expect(frequencyAfterAvailabilityRefresh(null, false)).toBe(null);
+  });
+
+  it("still applies the closed window on Date & Time even if Repeated was cleared", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    const firstOccurrence = recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 });
+    const windowStatus = repeatedWindowForAdvance("recurring_when", null, false);
+    expect(windowStatus).toBe(false);
+    expect(
+      canAdvance("recurring_when", answers({ frequency: null, recurringWhen: firstOccurrence }), now, windowStatus)
+    ).toBe(false);
+    expect(
+      nextStep("recurring_when", answers({ frequency: null, recurringWhen: firstOccurrence }), now, windowStatus)
+    ).toBe(null);
+  });
+
+  it("ignores a closed window for One-time on How often", () => {
+    expect(repeatedWindowForAdvance("frequency", "one_time", false)).toBe(true);
+    expect(repeatedWindowForAdvance("frequency", "repeated", false)).toBe(false);
+    expect(repeatedWindowForAdvance("frequency", "repeated", null)).toBe(null);
+  });
+
   it("shows the How often Repeated window reminder before Repeated is selected", () => {
     expect(repeatedWindowNoticeKind(null, null)).toBe("policy");
     expect(repeatedWindowNoticeKind(true, null)).toBe("policy");
@@ -296,6 +356,19 @@ describe("canAdvance", () => {
   it("blocks Repeated Search when First occurrence is outside the availability window", () => {
     const now = new Date("2026-09-17T12:00:00");
     const firstOccurrence = recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 });
+    expect(
+      canAdvance("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
+    ).toBe(false);
+    expect(
+      nextStep("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
+    ).toBe(null);
+  });
+
+  it("can close Repeated after First occurrence even when How often was open", () => {
+    const now = new Date("2026-09-17T12:00:00");
+    const firstOccurrence = recurringWhen({ firstOccurrenceDate: "2026-08-20", weekday: 4 });
+    expect(canAdvance("frequency", answers({ frequency: "repeated" }), now, true)).toBe(true);
+    expect(nextStep("frequency", answers({ frequency: "repeated" }), now, true)).toBe("recurring_when");
     expect(
       canAdvance("recurring_when", answers({ frequency: "repeated", recurringWhen: firstOccurrence }), now, false)
     ).toBe(false);

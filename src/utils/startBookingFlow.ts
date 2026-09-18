@@ -312,6 +312,31 @@ export const repeatedWindowNoticeKind = (
   return "policy";
 };
 
+export const isRepeatedFrequencySelectable = (repeatedWindowOpen: boolean | null): boolean => {
+  return repeatedWindowOpen === true;
+};
+
+export const frequencyAfterAvailabilityRefresh = (
+  frequency: BookingFrequency | null,
+  repeatedWindowOpen: boolean | null
+): BookingFrequency | null => {
+  if (frequency === "repeated" && repeatedWindowOpen === false) {
+    return null;
+  }
+  return frequency;
+};
+
+export const repeatedWindowForAdvance = (
+  step: StartBookingStep,
+  frequency: BookingFrequency | null,
+  repeatedWindowOpen: boolean | null
+): boolean | null => {
+  if (step === "recurring_when" || frequency === "repeated") {
+    return repeatedWindowOpen;
+  }
+  return true;
+};
+
 export const canAdvance = (
   step: StartBookingStep,
   answers: StartBookingAnswers,
@@ -328,13 +353,15 @@ export const canAdvance = (
         return true;
       }
       if (answers.frequency === "repeated") {
-        return repeatedWindowOpen === true;
+        return isRepeatedFrequencySelectable(repeatedWindowOpen);
       }
       return false;
     case "when":
       return isWhenValid(answers.when, now);
     case "recurring_when":
-      return isRepeatedDateTimeSearchValid(answers.recurringWhen, now) && repeatedWindowOpen === true;
+      return (
+        isRepeatedDateTimeSearchValid(answers.recurringWhen, now) && isRepeatedFrequencySelectable(repeatedWindowOpen)
+      );
     case "recurring_conflicts":
       /** Gated by conflict/exclusion state, which lives outside StartBookingAnswers; see canCreateRecurringSeriesWithExclusions. */
       return true;
