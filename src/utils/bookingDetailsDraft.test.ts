@@ -69,8 +69,8 @@ describe("buildPreviewQuotePayload", () => {
 });
 
 describe("buildCreateBookingPayload", () => {
-  it("sends header envelope and per-line room intervals", () => {
-    const payload = buildCreateBookingPayload(baseDraft);
+  it("sends header envelope, per-line room intervals, and the trimmed Booker title", () => {
+    const payload = buildCreateBookingPayload(baseDraft, "  Choir practice  ");
     expect(payload.rooms).toEqual([
       expect.objectContaining({ facilityId: "room-a", sequence: 1 }),
       expect.objectContaining({ facilityId: "room-a", sequence: 2 }),
@@ -78,10 +78,11 @@ describe("buildCreateBookingPayload", () => {
     expect(payload.rooms[0].startAt).not.toBe(payload.rooms[1].startAt);
     expect(new Date(payload.startAt).getTime()).toBeLessThan(new Date(payload.endAt).getTime());
     expect(payload.bookingDraftId).toBeNull();
+    expect(payload.title).toBe("Choir practice");
   });
 
   it("carries the source Booking Draft id so the backend can dispose of it on success", () => {
-    const payload = buildCreateBookingPayload(baseDraft, "draft-123");
+    const payload = buildCreateBookingPayload(baseDraft, "Choir practice", "draft-123");
     expect(payload.bookingDraftId).toBe("draft-123");
   });
 });

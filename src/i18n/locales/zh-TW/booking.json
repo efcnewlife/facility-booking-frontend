@@ -227,6 +227,16 @@
     "cancel": "取消",
     "confirm": "更換時段"
   },
+  "bookingTitle": {
+    "label": "預訂標題",
+    "placeholder": "例如：詩班練習",
+    "hint": "1-30 個字元",
+    "errors": {
+      "required": "請輸入標題（1-30 個字元）。",
+      "tooLong": "標題不能超過 30 個字元。",
+      "invalidCharacters": "標題必須是純文字。"
+    }
+  },
   "bookingDetails": {
     "title": "預訂詳情",
     "backToTimetable": "返回時間表",

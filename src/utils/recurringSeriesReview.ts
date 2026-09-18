@@ -3,6 +3,7 @@ import type {
   RecurringBookingConflict,
   RecurringBookingSeriesDetail,
 } from "@/api/services/facilityService";
+import { isValidBookingTitle } from "./bookingTitle";
 import {
   canCreateRecurringSeriesWithExclusions,
   sanitizeExcludedDates,
@@ -26,6 +27,7 @@ export interface RecurringSeriesReviewSnapshot {
   excludedDates: string[];
   quotedAmount: string | number | null;
   currency: string | null;
+  title: string;
   createdSeries: RecurringBookingSeriesDetail | null;
   createError: string | null;
   previewError: string | null;
@@ -66,6 +68,7 @@ export const emptyRecurringSeriesReviewSnapshot = (): RecurringSeriesReviewSnaps
   excludedDates: [],
   quotedAmount: null,
   currency: null,
+  title: "",
   createdSeries: null,
   createError: null,
   previewError: null,
@@ -202,11 +205,17 @@ export const closeReview = (state: RecurringSeriesReviewSnapshot): RecurringSeri
   return { ...state, phase: "selecting", createError: null };
 };
 
+export const applyTitleChanged = (
+  state: RecurringSeriesReviewSnapshot,
+  title: string
+): RecurringSeriesReviewSnapshot => ({ ...state, title, createError: null });
+
 export const canConfirmCreate = (state: RecurringSeriesReviewSnapshot): boolean => {
   return (
     state.phase === "review" &&
     state.previewStatus === "ready" &&
     state.createdSeries === null &&
+    isValidBookingTitle(state.title) &&
     canCreateRecurringSeriesWithExclusions(state.conflicts, state.excludedDates)
   );
 };
@@ -344,6 +353,9 @@ export const createRecurringSeriesPreviewController = (deps: RecurringSeriesPrev
     },
     toggleExcludedDate: (occurrenceDate: string) => {
       emit(toggleReviewExcludedDate(state, occurrenceDate));
+    },
+    setTitle: (title: string) => {
+      emit(applyTitleChanged(state, title));
     },
     beginCreate: () => {
       emit(applyCreateStarted(state));

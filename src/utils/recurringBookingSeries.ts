@@ -2,6 +2,7 @@ import type {
   CreateRecurringBookingSeriesPayload,
   PreviewRecurringBookingSeriesPayload,
 } from "@/api/services/facilityService";
+import { normalizeBookingTitle } from "./bookingTitle";
 import type { StartBookingAnswers } from "./startBookingFlow";
 import { isRecurringWhenValid } from "./startBookingFlow";
 
@@ -30,6 +31,7 @@ export const buildPreviewRecurringBookingSeriesPayload = (
 
 export const buildCreateRecurringBookingSeriesPayload = (
   answers: StartBookingAnswers,
+  title: string,
   now: Date = new Date(),
   excludedDates: string[] = []
 ): CreateRecurringBookingSeriesPayload | null => {
@@ -37,5 +39,5 @@ export const buildCreateRecurringBookingSeriesPayload = (
   if (!preview) {
     return null;
   }
-  return { ...preview, excludedDates };
+  return { ...preview, title: normalizeBookingTitle(title), excludedDates };
 };

@@ -1,6 +1,7 @@
 import facilityService, { BookingDraftNotFoundError } from "@/api/services/facilityService";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
+import { BOOKING_TITLE_ERROR_KEYS, validateBookingTitle } from "@/utils/bookingTitle";
 import type { BookingCartDraft } from "@/utils/bookingCartDraft";
 import {
   allLinesCoverAvailability,
@@ -16,7 +17,7 @@ import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSum
 import { toRoomsSearchParams } from "@/utils/startBookingFlow";
 import { saveTimetableCart } from "@/utils/timetableCartStorage";
 import { MAX_BOOKING_LINES, type BookingInterval, type RoomDay } from "@/utils/timetableRules";
-import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
+import { Button, cn, Input, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -63,6 +64,8 @@ const BookingDetailsPage = () => {
   const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
+  const [title, setTitle] = useState("");
+  const [titleTouched, setTitleTouched] = useState(false);
 
   const loadDraftDetail = useCallback(async () => {
     if (!checkoutId) {
@@ -127,12 +130,14 @@ const BookingDetailsPage = () => {
     return allLinesCoverAvailability(rooms, draft);
   }, [draft, rooms]);
 
+  const titleError = validateBookingTitle(title);
+
   const canConfirm = useMemo(() => {
-    if (!draft || loading || confirming || updating) {
+    if (!draft || loading || confirming || updating || titleError) {
       return false;
     }
     return linesAvailable;
-  }, [confirming, draft, linesAvailable, loading, updating]);
+  }, [confirming, draft, linesAvailable, loading, titleError, updating]);
 
   if (!checkoutId) {
     return <Navigate replace to="/" />;
@@ -228,7 +233,7 @@ const BookingDetailsPage = () => {
     setConfirming(true);
     setError(null);
     try {
-      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, checkoutId));
+      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, title, checkoutId));
       navigate(`/payment/${created.id}`);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.createError")));
@@ -277,6 +282,20 @@ const BookingDetailsPage = () => {
               </p>
             ) : null}
             {loading ? <Spinner className="mb-4" showText size="sm" text={t("startBooking.loading")} /> : null}
+            <Input
+              error={titleTouched && titleError ? t(BOOKING_TITLE_ERROR_KEYS[titleError]) : undefined}
+              hint={titleTouched && titleError ? undefined : t("bookingTitle.hint")}
+              id="booking-title"
+              label={t("bookingTitle.label")}
+              onChange={(event) => {
+                setTitleTouched(true);
+                setTitle(event.target.value);
+              }}
+              placeholder={t("bookingTitle.placeholder")}
+              required
+              value={title}
+              wrapperClassName="mb-6"
+            />
             <dl>
               <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
                 <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.date")}</dt>

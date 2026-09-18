@@ -898,6 +898,7 @@ const RoomFilterPage = () => {
     }
     const payload = buildCreateRecurringBookingSeriesPayload(
       repeatedAnswers,
+      controller.getState().title,
       new Date(),
       excludedDatesForCreate(controller.getState())
     );
@@ -1398,9 +1399,11 @@ const RoomFilterPage = () => {
           isPriorityMinistry={isPriorityMinistryBooking(appliedQuery.ministryId, bookableMinistries)}
           onBack={handleCloseRepeatedReview}
           onConfirm={() => void handleConfirmRepeatedSeries()}
+          onTitleChange={(title) => seriesPreviewControllerRef.current?.setTitle(title)}
           onToggleExcludeDate={handleToggleRepeatedExclusion}
           rooms={rooms}
           summary={reviewSummary}
+          title={reviewState.title}
         />
       ) : null}
     </main>
