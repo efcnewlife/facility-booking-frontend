@@ -1,12 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router";
 import type { CreateRecurringSeriesDraftPayload, RecurringSeriesDraftDetail } from "@/api/services/facilityService";
 import { repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
 import { buildCreateRecurringSeriesDraftPayload } from "@/utils/recurringBookingSeries";
 import type { StartBookingAnswers } from "@/utils/startBookingFlow";
+import "@testing-library/jest-dom/vitest";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Route, Routes, useNavigate } from "react-router";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const DRAFT_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 const SERIES_ID = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa";
@@ -122,10 +122,10 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
   };
 });
 
+import "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
-import "@/i18n";
 
 const answers: StartBookingAnswers = {
   isMinistryBooking: false,
