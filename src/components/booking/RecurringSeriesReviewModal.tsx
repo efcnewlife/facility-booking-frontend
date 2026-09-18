@@ -53,6 +53,7 @@ const RecurringSeriesReviewModal = ({
 
   return (
     <Modal
+      childrenClassName="p-2"
       className={cn("mx-4 w-full p-6", hasConflicts ? "max-w-2xl" : "max-w-lg")}
       footer={
         <>

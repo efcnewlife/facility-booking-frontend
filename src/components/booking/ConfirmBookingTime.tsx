@@ -111,6 +111,7 @@ const ConfirmBookingTime = ({
 
   return (
     <Modal
+      childrenClassName="p-2"
       className="mx-4 w-full max-w-md p-6"
       footer={
         <>
