@@ -1,12 +1,12 @@
 import { API_ENDPOINTS, HTTP_STATUS } from "@/api/config";
 import type { ApiError } from "@/types/api";
-import type { MemberBookingListItem } from "@/types/myBookings";
+import type { MyBookingsBrowsePage, MyBookingsSection } from "@/types/myBookings";
 import {
   mapAvailabilityToRoomDays,
   maxBookingLinesFromPayload,
   type ApiRoomAvailabilityList,
 } from "@/utils/availabilityMapper";
-import { mapMemberBookingList, type ApiMemberBookingList, type RecurringCancellationScope } from "@/utils/myBookings";
+import { mapBrowsePage, type ApiMemberBookingBrowsePage, type RecurringCancellationScope } from "@/utils/myBookings";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
 
@@ -501,12 +501,16 @@ class FacilityService {
     }
   }
 
-  async listMyBookings(): Promise<MemberBookingListItem[]> {
-    const response = await httpClient.get<ApiMemberBookingList>(API_ENDPOINTS.FACILITY.MY_BOOKINGS);
+  async browseMyBookings(section: MyBookingsSection, page: number, pageSize: number): Promise<MyBookingsBrowsePage> {
+    const response = await httpClient.get<ApiMemberBookingBrowsePage>(API_ENDPOINTS.FACILITY.MY_BOOKINGS, {
+      section,
+      page,
+      pageSize,
+    });
     if (!response.success || !response.data) {
       throw new Error(response.message || "Failed to load bookings");
     }
-    return mapMemberBookingList(response.data);
+    return mapBrowsePage(response.data);
   }
 
   async getBookingSeries(seriesId: string): Promise<RecurringBookingSeriesDetail> {

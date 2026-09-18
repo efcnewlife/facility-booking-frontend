@@ -298,19 +298,26 @@
     "updatePhoto": "更新个人照片"
   },
   "myBookings": {
-    "upcomingTitle": "即将到来的预订",
-    "pastTitle": "过去的预订",
-    "seeAll": "查看全部",
-    "noUpcoming": "目前没有即将到来的预订",
-    "noPast": "目前没有过去的预订",
-    "change": "变更",
+    "sections": {
+      "upcoming": "即将到来",
+      "upcomingEmpty": "目前没有即将到来的预订",
+      "overridden": "已被取代",
+      "overriddenEmpty": "目前没有已被取代的预订",
+      "past": "过去",
+      "pastEmpty": "目前没有过去的预订",
+      "cancelledOrExpired": "已取消或已过期",
+      "cancelledOrExpiredEmpty": "目前没有已取消或已过期的预订"
+    },
     "cancel": "取消",
     "viewSeries": "查看系列",
     "loading": "正在加载你的预订...",
     "loadError": "无法加载你的预订。",
     "retry": "再试一次",
+    "loadMore": "加载更多",
     "seriesTitle": "重复预订",
     "occurrenceCount": "{{count}} 个场次",
+    "viewOnlyBadge": "事工预订 · 仅供查看",
+    "untitled": "未命名预订",
     "fields": {
       "room": "场地",
       "date": "日期",

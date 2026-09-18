@@ -298,19 +298,26 @@
     "updatePhoto": "Update profile photo"
   },
   "myBookings": {
-    "upcomingTitle": "Upcoming Bookings",
-    "pastTitle": "Past Bookings",
-    "seeAll": "See all",
-    "noUpcoming": "No upcoming bookings",
-    "noPast": "No past bookings",
-    "change": "Change",
+    "sections": {
+      "upcoming": "Upcoming",
+      "upcomingEmpty": "No upcoming bookings",
+      "overridden": "Overridden",
+      "overriddenEmpty": "No overridden bookings",
+      "past": "Past",
+      "pastEmpty": "No past bookings",
+      "cancelledOrExpired": "Cancelled or Expired",
+      "cancelledOrExpiredEmpty": "No cancelled or expired bookings"
+    },
     "cancel": "Cancel",
     "viewSeries": "View series",
     "loading": "Loading your bookings...",
     "loadError": "Failed to load your bookings.",
     "retry": "Try again",
+    "loadMore": "Load more",
     "seriesTitle": "Repeated booking",
     "occurrenceCount": "{{count}} occurrences",
+    "viewOnlyBadge": "Ministry booking · View only",
+    "untitled": "Untitled booking",
     "fields": {
       "room": "Room",
       "date": "Date",
