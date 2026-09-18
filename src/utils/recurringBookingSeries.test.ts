@@ -51,8 +51,11 @@ describe("buildPreviewRecurringBookingSeriesPayload", () => {
 });
 
 describe("buildCreateRecurringBookingSeriesPayload", () => {
-  it("builds a Personal Rental payload with a null ministryId and no exclusions", () => {
-    expect(buildCreateRecurringBookingSeriesPayload(answers({ isMinistryBooking: false }), now)).toEqual({
+  it("builds a Personal Rental payload with a null ministryId, the trimmed title, and no exclusions", () => {
+    expect(
+      buildCreateRecurringBookingSeriesPayload(answers({ isMinistryBooking: false }), "  Weekly choir  ", now)
+    ).toEqual({
+      title: "Weekly choir",
       ministryId: null,
       firstOccurrenceDate: "2026-08-20",
       lastOccurrenceDate: "2026-09-24",
@@ -69,8 +72,13 @@ describe("buildCreateRecurringBookingSeriesPayload", () => {
 
   it("builds a Ministry payload with isMissionAligned true", () => {
     expect(
-      buildCreateRecurringBookingSeriesPayload(answers({ isMinistryBooking: true, ministryId: "ministry-1" }), now)
+      buildCreateRecurringBookingSeriesPayload(
+        answers({ isMinistryBooking: true, ministryId: "ministry-1" }),
+        "Weekly choir",
+        now
+      )
     ).toEqual({
+      title: "Weekly choir",
       ministryId: "ministry-1",
       firstOccurrenceDate: "2026-08-20",
       lastOccurrenceDate: "2026-09-24",
@@ -86,15 +94,22 @@ describe("buildCreateRecurringBookingSeriesPayload", () => {
   });
 
   it("carries excludedDates through to the create payload", () => {
-    const payload = buildCreateRecurringBookingSeriesPayload(answers({ isMinistryBooking: false }), now, [
-      "2026-08-27",
-    ]);
+    const payload = buildCreateRecurringBookingSeriesPayload(
+      answers({ isMinistryBooking: false }),
+      "Weekly choir",
+      now,
+      ["2026-08-27"]
+    );
     expect(payload?.excludedDates).toEqual(["2026-08-27"]);
   });
 
   it("returns null when the recurring When is incomplete", () => {
     expect(
-      buildCreateRecurringBookingSeriesPayload(answers({ recurringWhen: { ...baseRecurringWhen, roomIds: [] } }), now)
+      buildCreateRecurringBookingSeriesPayload(
+        answers({ recurringWhen: { ...baseRecurringWhen, roomIds: [] } }),
+        "Weekly choir",
+        now
+      )
     ).toBe(null);
   });
 });

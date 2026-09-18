@@ -227,6 +227,16 @@
     "cancel": "Cancel",
     "confirm": "Replace time"
   },
+  "bookingTitle": {
+    "label": "Booking title",
+    "placeholder": "e.g., Choir practice",
+    "hint": "1-30 characters",
+    "errors": {
+      "required": "Enter a title (1-30 characters).",
+      "tooLong": "Title must be 30 characters or fewer.",
+      "invalidCharacters": "Title must be plain text."
+    }
+  },
   "bookingDetails": {
     "title": "Booking Details",
     "backToTimetable": "Back to Timetable",

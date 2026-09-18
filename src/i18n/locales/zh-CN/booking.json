@@ -227,6 +227,16 @@
     "cancel": "取消",
     "confirm": "更换时段"
   },
+  "bookingTitle": {
+    "label": "预订标题",
+    "placeholder": "例如：诗班练习",
+    "hint": "1-30 个字符",
+    "errors": {
+      "required": "请输入标题（1-30 个字符）。",
+      "tooLong": "标题不能超过 30 个字符。",
+      "invalidCharacters": "标题必须是纯文本。"
+    }
+  },
   "bookingDetails": {
     "title": "预订详情",
     "backToTimetable": "返回时间表",

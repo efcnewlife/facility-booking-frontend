@@ -5,10 +5,12 @@ import type {
 } from "@/api/services/facilityService";
 
 import { clockFromDateTime, combineDateAndClock } from "./bookingDateTime";
+import { normalizeBookingTitle } from "./bookingTitle";
 import type { BookingCartDraft, BookingLineDraft } from "./bookingCartDraft";
 import { clockToMinutes, isRoomAvailable, MAX_BOOKING_LINES, type RoomDay } from "./timetableRules";
 
 export interface CreateBookingFromDraftPayload {
+  title: string;
   startAt: string;
   endAt: string;
   ministryId?: string | null;
@@ -66,10 +68,12 @@ export const buildPreviewQuotePayload = (draft: BookingCartDraft): PreviewQuoteP
 
 export const buildCreateBookingPayload = (
   draft: BookingCartDraft,
+  title: string,
   bookingDraftId?: string | null
 ): CreateBookingFromDraftPayload => {
   const envelope = envelopeClocks(draft.lines);
   return {
+    title: normalizeBookingTitle(title),
     startAt: combineDateAndClock(draft.date, envelope.start),
     endAt: combineDateAndClock(draft.date, envelope.end),
     ministryId: draft.ministryId || null,

@@ -11,6 +11,7 @@ import {
   applyPreviewStarted,
   applyPreviewSucceeded,
   applyScheduledPreview,
+  applyTitleChanged,
   buildConflictFreeReviewSummary,
   canConfirmCreate,
   canOpenReview,
@@ -130,7 +131,7 @@ describe("mandatory review gate", () => {
     const ready = readyConflictFree();
     expect(canOpenReview(ready)).toBe(true);
     expect(canConfirmCreate(ready)).toBe(false);
-    expect(canConfirmCreate(openReview(ready))).toBe(true);
+    expect(canConfirmCreate(applyTitleChanged(openReview(ready), "Weekly choir"))).toBe(true);
   });
 
   it("still requires Review when the preview reports no conflicts", () => {
@@ -168,7 +169,7 @@ describe("conflict Review", () => {
     expect(canConfirmCreate(reviewed)).toBe(false);
     const withoutBlackout = toggleReviewExcludedDate(reviewed, "2026-08-27");
     expect(withoutBlackout.excludedDates).toEqual(["2026-08-27"]);
-    expect(canConfirmCreate(withoutBlackout)).toBe(true);
+    expect(canConfirmCreate(applyTitleChanged(withoutBlackout, "Weekly choir"))).toBe(true);
   });
 
   it("does not exclude a free or unreported date from Review", () => {
@@ -220,8 +221,9 @@ describe("buildConflictFreeReviewSummary", () => {
 });
 
 describe("create payloads from Review", () => {
-  it("builds the existing create-Series request with no exclusions for a conflict-free Review", () => {
-    expect(buildCreateRecurringBookingSeriesPayload(answers(), now, [])).toEqual({
+  it("builds the existing create-Series request with the Review title and no exclusions for a conflict-free Review", () => {
+    expect(buildCreateRecurringBookingSeriesPayload(answers(), "Weekly choir", now, [])).toEqual({
+      title: "Weekly choir",
       ministryId: null,
       firstOccurrenceDate: "2026-08-20",
       lastOccurrenceDate: "2026-09-24",
@@ -243,14 +245,37 @@ describe("create payloads from Review", () => {
     );
     expect(excludedDatesForCreate(reviewed)).toEqual(["2026-08-27"]);
     expect(
-      buildCreateRecurringBookingSeriesPayload(answers(), now, excludedDatesForCreate(reviewed))?.excludedDates
+      buildCreateRecurringBookingSeriesPayload(answers(), "Weekly choir", now, excludedDatesForCreate(reviewed))
+        ?.excludedDates
     ).toEqual(["2026-08-27"]);
+  });
+});
+
+describe("title validation gates create", () => {
+  it("keeps create blocked on an otherwise-ready, reviewed, conflict-free proposal until the title is valid", () => {
+    const reviewed = openReview(readyConflictFree());
+    expect(canConfirmCreate(reviewed)).toBe(false);
+    expect(canConfirmCreate(applyTitleChanged(reviewed, ""))).toBe(false);
+    expect(canConfirmCreate(applyTitleChanged(reviewed, "   "))).toBe(false);
+    expect(canConfirmCreate(applyTitleChanged(reviewed, "a".repeat(31)))).toBe(false);
+    expect(canConfirmCreate(applyTitleChanged(reviewed, "<b>Weekly choir</b>"))).toBe(false);
+    expect(canConfirmCreate(applyTitleChanged(reviewed, "Weekly choir"))).toBe(true);
+  });
+
+  it("applyTitleChanged only replaces the title, clearing a stale create error", () => {
+    const reviewed = openReview(readyConflictFree());
+    const withError = { ...reviewed, createError: "Failed to create your booking series." };
+    const changed = applyTitleChanged(withError, "Weekly choir");
+    expect(changed.title).toBe("Weekly choir");
+    expect(changed.createError).toBeNull();
+    expect(changed.phase).toBe(reviewed.phase);
+    expect(changed.conflicts).toBe(reviewed.conflicts);
   });
 });
 
 describe("Pending-payment result", () => {
   it("maps a successful create to the existing Pending-payment hold explanation", () => {
-    const reviewed = openReview(readyConflictFree());
+    const reviewed = applyTitleChanged(openReview(readyConflictFree()), "Weekly choir");
     const created = applyCreateSucceeded(applyCreateStarted(reviewed), createdSeries());
     expect(isPendingPaymentSuccess(created)).toBe(true);
     expect(pendingPaymentResultFromSeries(created.createdSeries as RecurringBookingSeriesDetail)).toEqual({
@@ -269,7 +294,7 @@ describe("Pending-payment result", () => {
   });
 
   it("keeps Review open and does not present a Series as created when create fails", () => {
-    const reviewed = openReview(readyConflictFree());
+    const reviewed = applyTitleChanged(openReview(readyConflictFree()), "Weekly choir");
     const failed = applyCreateFailed(applyCreateStarted(reviewed), "Failed to create your booking series.");
     expect(failed.phase).toBe("review");
     expect(failed.createdSeries).toBe(null);
@@ -412,6 +437,24 @@ describe("createRecurringSeriesPreviewController", () => {
       proposalKeyForAnswers(answers({ recurringWhen: { ...baseRecurringWhen, roomIds: ["room-1"] } }))
     );
     expect(latest.previewStatus).toBe("ready");
+    controller.dispose();
+  });
+
+  it("setTitle updates the title Review reads for canConfirmCreate", async () => {
+    const controller = createRecurringSeriesPreviewController({
+      preview: vi.fn().mockResolvedValue([]),
+      now: () => now,
+      onState: vi.fn(),
+    });
+    controller.setProposal(answers());
+    await vi.advanceTimersByTimeAsync(RECURRING_SERIES_PREVIEW_DEBOUNCE_MS);
+    await Promise.resolve();
+    controller.openReview();
+    expect(canConfirmCreate(controller.getState())).toBe(false);
+
+    controller.setTitle("Weekly choir");
+    expect(controller.getState().title).toBe("Weekly choir");
+    expect(canConfirmCreate(controller.getState())).toBe(true);
     controller.dispose();
   });
 

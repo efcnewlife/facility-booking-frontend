@@ -267,6 +267,34 @@ describe("mapBrowsePage", () => {
       items: [],
     });
   });
+
+  it("maps a legacy titleless row to an empty string rather than substituting the room name", () => {
+    const result = mapBrowsePage({
+      page: 0,
+      pageSize: 20,
+      total: 1,
+      section: "upcoming",
+      items: [
+        {
+          kind: "one_time",
+          isBooker: true,
+          isViewOnly: false,
+          photoUrls: [],
+          booking: {
+            id: "booking-1",
+            facility_name: "Gym",
+            booking_type: "one_time",
+            start_at: "2026-10-01T14:00:00.000Z",
+            end_at: "2026-10-01T16:00:00.000Z",
+            status: "confirmed",
+          },
+        },
+      ],
+    });
+
+    expect(result.items[0].booking?.title).toBe("");
+    expect(result.items[0].booking?.facilityName).toBe("Gym");
+  });
 });
 
 describe("browseCardKey", () => {

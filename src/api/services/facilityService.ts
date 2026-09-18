@@ -11,6 +11,7 @@ import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
 
 interface CreateBookingPayload {
+  title: string;
   startAt: string;
   endAt: string;
   isMissionAligned?: boolean;
@@ -174,6 +175,7 @@ export interface CreateRecurringBookingSeriesRoomInput {
 }
 
 export interface CreateRecurringBookingSeriesPayload {
+  title: string;
   ministryId?: string | null;
   firstOccurrenceDate: string;
   lastOccurrenceDate: string;
@@ -189,7 +191,7 @@ export interface RecurringBookingWindowStatus {
   nextOpeningDate: string | null;
 }
 
-export type PreviewRecurringBookingSeriesPayload = Omit<CreateRecurringBookingSeriesPayload, "excludedDates">;
+export type PreviewRecurringBookingSeriesPayload = Omit<CreateRecurringBookingSeriesPayload, "excludedDates" | "title">;
 
 export type RecurringConflictKind = "occupancy" | "ministry" | "blackout" | "weekly_quota";
 
