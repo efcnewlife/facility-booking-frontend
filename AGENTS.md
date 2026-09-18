@@ -6,21 +6,21 @@ This document helps AI agents quickly understand the **Facility Booking** member
 
 ## 1. What This Project Is
 
-| Item                | Value                                                                                           |
-| ------------------- | ----------------------------------------------------------------------------------------------- |
-| **Purpose**         | Member-facing SPA for church facility (room) booking                                            |
-| **Package**         | `facility-booking-frontend` `0.1.0` (`private`)                                                 |
-| **Framework**       | React 19 + Vite 6 + TypeScript                                                                  |
-| **Styling**         | Tailwind CSS v4 (CSS-first `@theme` in `src/index.css`); host owns tokens                       |
-| **UI lib**          | `@efcnewlife/newlife-ui` (GitHub Packages)                                                      |
-| **Router**          | React Router v7 (`react-router`) — routes centralized in `src/routes/index.tsx`                 |
-| **HTTP**            | Axios via `httpClient`; app API prefix `/api/v1`                                                |
-| **Auth**            | Microsoft Entra ID (MSAL popup) → backend token exchange; optional mock login in non-production |
-| **i18n**            | `i18next` + `react-i18next` (`en`, `zh-TW`, `zh-CN`)                                            |
-| **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                                   |
-| **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                                   |
-| **Tests**           | Vitest (Node). `pnpm test` for `src/**/*.test.ts`; also `pnpm type-check`                       |
-| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                                       |
+| Item                | Value                                                                                                                   |
+| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| **Purpose**         | Member-facing SPA for church facility (room) booking                                                                    |
+| **Package**         | `facility-booking-frontend` `0.1.0` (`private`)                                                                         |
+| **Framework**       | React 19 + Vite 6 + TypeScript                                                                                          |
+| **Styling**         | Tailwind CSS v4 (CSS-first `@theme` in `src/index.css`); host owns tokens                                               |
+| **UI lib**          | `@efcnewlife/newlife-ui` (GitHub Packages)                                                                              |
+| **Router**          | React Router v7 (`react-router`) — routes centralized in `src/routes/index.tsx`                                         |
+| **HTTP**            | Axios via `httpClient`; app API prefix `/api/v1`                                                                        |
+| **Auth**            | Microsoft Entra ID (MSAL popup) → backend token exchange; optional mock login in non-production                         |
+| **i18n**            | `i18next` + `react-i18next` (`en`, `zh-TW`, `zh-CN`)                                                                    |
+| **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                                                           |
+| **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                                                           |
+| **Tests**           | Vitest: Node `src/**/*.test.ts` plus jsdom `src/**/*.test.tsx` checkout-flow harnesses; `pnpm test` / `pnpm type-check` |
+| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                                                               |
 
 `flatpickr`, `moment-timezone`, and `react-helmet-async` are listed in `package.json` but **unused in `src/`**. Do not assume they are part of the stack. `BookingDatePicker` is a custom moment calendar.
 

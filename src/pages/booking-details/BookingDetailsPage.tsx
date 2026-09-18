@@ -22,7 +22,9 @@ import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdArrowBack, MdPhoto } from "react-icons/md";
-import { Navigate, useNavigate, useParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useParams } from "react-router";
+import { parseBookingDetailsRoute } from "@/utils/bookingDetailsPath";
+import RepeatedBookingDetailsPage from "@/pages/booking-details/RepeatedBookingDetailsPage";
 
 const formatClock = (clock: string, locale: string): string => {
   if (clock === "24:00") {
@@ -45,6 +47,17 @@ const messageFromUnknown = (err: unknown, fallback: string): string => {
 };
 
 const BookingDetailsPage = () => {
+  const location = useLocation();
+  const route = parseBookingDetailsRoute(location.pathname);
+
+  if (route?.kind === "repeated") {
+    return <RepeatedBookingDetailsPage draftId={route.draftId} />;
+  }
+
+  return <OneTimeBookingDetailsPage />;
+};
+
+const OneTimeBookingDetailsPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
   const { draftId } = useParams();

@@ -3,16 +3,19 @@ import { saveTimetableCart, type CartStorage } from "./timetableCartStorage";
 /**
  * Fire-and-forget cleanup run every time a member enters Start Booking: clears the
  * Timetable's persisted cart outright and asks the backend to bulk-delete all of the
- * member's Booking Drafts. A failed bulk-delete must not block entering the flow.
+ * member's unconfirmed Booking Drafts and Recurring Series Drafts. A failed bulk-delete
+ * must not block entering the flow, and one failed cleanup must not skip the other.
  */
 export const clearStartBookingState = async (
   storage: CartStorage,
-  deleteAllDrafts: () => Promise<void>
+  ...deleteDraftOperations: Array<() => Promise<void>>
 ): Promise<void> => {
   saveTimetableCart(storage, null);
-  try {
-    await deleteAllDrafts();
-  } catch {
-    // ignore: a transient failure here should not block Start Booking
+  for (const deleteDrafts of deleteDraftOperations) {
+    try {
+      await deleteDrafts();
+    } catch {
+      // ignore: a transient failure here should not block Start Booking
+    }
   }
 };

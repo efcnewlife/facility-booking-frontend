@@ -180,7 +180,11 @@ const StartBookingPage = () => {
   }, [loadMinistries, step]);
 
   useEffect(() => {
-    void clearStartBookingState(window.localStorage, () => facilityService.deleteAllMyBookingDrafts());
+    void clearStartBookingState(
+      window.localStorage,
+      () => facilityService.deleteAllMyBookingDrafts(),
+      () => facilityService.deleteAllMyBookingSeriesDrafts()
+    );
   }, []);
 
   useEffect(() => {

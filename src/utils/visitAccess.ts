@@ -1,6 +1,7 @@
-import { isOneTimeBookingDetailsPath } from "./bookingDetailsPath";
+import { isBookingDetailsPath } from "./bookingDetailsPath";
 import { isMinistryApprovalDetailPath } from "./ministryApprovalPath";
 import { isPaymentPath } from "./paymentPage";
+import { extractTypedRouteId } from "./typedRoutePath";
 
 export type VisitAccess = "login" | "not-found" | "allow";
 
@@ -31,6 +32,13 @@ const normalizePathname = (pathname: string): string => {
   return pathname;
 };
 
+const isMyBookingsDetailPath = (pathname: string): boolean => {
+  return (
+    extractTypedRouteId(pathname, "/my-bookings/series/") != null ||
+    extractTypedRouteId(pathname, "/my-bookings/") != null
+  );
+};
+
 export const visitAccess = ({ isAuthenticated, canAccessMyMinistry, pathname }: VisitAccessInput): VisitAccess => {
   const path = normalizePathname(pathname);
 
@@ -46,7 +54,8 @@ export const visitAccess = ({ isAuthenticated, canAccessMyMinistry, pathname }: 
     !KNOWN_MEMBER_PATHS.has(path) &&
     !isPaymentPath(path) &&
     !isMinistryApprovalDetailPath(path) &&
-    !isOneTimeBookingDetailsPath(path)
+    !isBookingDetailsPath(path) &&
+    !isMyBookingsDetailPath(path)
   ) {
     return "not-found";
   }

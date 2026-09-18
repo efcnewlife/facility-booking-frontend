@@ -30,6 +30,18 @@ describe("clearStartBookingState", () => {
     expect(deleteAllDrafts).toHaveBeenCalledTimes(1);
   });
 
+  it("clears unconfirmed Recurring Series Drafts even if One-time Draft cleanup fails", async () => {
+    const storage = createFakeStorage();
+    const deleteAllBookingDrafts = vi.fn().mockRejectedValue(new Error("booking drafts failed"));
+    const deleteAllSeriesDrafts = vi.fn().mockResolvedValue(undefined);
+
+    await expect(
+      clearStartBookingState(storage, deleteAllBookingDrafts, deleteAllSeriesDrafts)
+    ).resolves.toBeUndefined();
+    expect(deleteAllBookingDrafts).toHaveBeenCalledTimes(1);
+    expect(deleteAllSeriesDrafts).toHaveBeenCalledTimes(1);
+  });
+
   it("is a safe no-op when there is nothing to clear", async () => {
     const storage = createFakeStorage();
     const deleteAllDrafts = vi.fn().mockResolvedValue(undefined);

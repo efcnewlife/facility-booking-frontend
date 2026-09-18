@@ -83,8 +83,11 @@ describe("visitAccess", () => {
     "/rooms",
     "/my-profile",
     "/booking-details/one-time/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "/booking-details/repeated/3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "/payment/one-time/3fa85f64-5717-4562-b3fc-2c963f66afa6",
     "/payment/repeated/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "/my-bookings/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+    "/my-bookings/series/3fa85f64-5717-4562-b3fc-2c963f66afa6",
   ])("allows an authenticated member to open %s", (pathname) => {
     expect(
       visitAccess({
@@ -108,6 +111,23 @@ describe("visitAccess", () => {
         isAuthenticated: true,
         canAccessMyMinistry: false,
         pathname: "/payment/one-time/not-a-uuid",
+      })
+    ).toBe("not-found");
+  });
+
+  it("shows Not Found for My Bookings detail paths without a typed id", () => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        canAccessMyMinistry: false,
+        pathname: "/my-bookings/not-a-uuid",
+      })
+    ).toBe("not-found");
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        canAccessMyMinistry: false,
+        pathname: "/my-bookings/series/not-a-uuid",
       })
     ).toBe("not-found");
   });

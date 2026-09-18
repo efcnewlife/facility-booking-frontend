@@ -1,7 +1,6 @@
-/// <reference types="vitest/config" />
 import react from "@vitejs/plugin-react";
 import path from "path";
-import { defineConfig } from "vite";
+import { defineConfig } from "vitest/config";
 import svgr from "vite-plugin-svgr";
 
 // https://vite.dev/config/
@@ -28,7 +27,23 @@ export default defineConfig({
     strictPort: true,
   },
   test: {
-    environment: "node",
-    include: ["src/**/*.test.ts"],
+    projects: [
+      {
+        extends: true,
+        test: {
+          name: "unit",
+          environment: "node",
+          include: ["src/**/*.test.ts"],
+        },
+      },
+      {
+        extends: true,
+        test: {
+          name: "flow",
+          environment: "jsdom",
+          include: ["src/**/*.test.tsx"],
+        },
+      },
+    ],
   },
 });
