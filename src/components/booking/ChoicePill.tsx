@@ -8,22 +8,25 @@ interface ChoicePillProps {
   label: string;
   hint?: string;
   wide?: boolean;
+  disabled?: boolean;
   onChange: (value: string) => void;
 }
 
-const ChoicePill = ({ id, name, value, checked, label, hint, wide, onChange }: ChoicePillProps) => {
+const ChoicePill = ({ id, name, value, checked, label, hint, wide, disabled, onChange }: ChoicePillProps) => {
   return (
     <div className={cn("flex flex-col items-center", wide && "w-full")}>
       <div
         className={cn(
           "inline-flex overflow-hidden rounded-full border border-booking-secondary [&_label]:text-base",
           wide ? "w-full" : "min-w-[200px]",
-          checked && "bg-booking-secondary/10"
+          checked && "bg-booking-secondary/10",
+          disabled && "opacity-60"
         )}
       >
         <Radio
           checked={checked}
           className={cn("w-full px-5 py-3", wide ? "justify-start" : "justify-center")}
+          disabled={disabled}
           id={id}
           label={label}
           name={name}

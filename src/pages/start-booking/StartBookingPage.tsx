@@ -11,10 +11,13 @@ import {
   applyWeekday,
   buildRoomsSearchQuery,
   canAdvance,
+  frequencyAfterAvailabilityRefresh,
+  isRepeatedFrequencySelectable,
   isWhenEndAfterStart,
   isStartBookingStep,
   nextStep,
   previousStep,
+  repeatedWindowForAdvance,
   repeatedWindowNoticeKind,
   toRoomsSearchParams,
   type BookingFrequency,
@@ -78,7 +81,7 @@ const StartBookingPage = () => {
   const [recurringWeekday, setRecurringWeekday] = useState<number | null>(null);
   const [recurringStartValue, setRecurringStartValue] = useState<TimePickerValue>(null);
   const [recurringEndValue, setRecurringEndValue] = useState<TimePickerValue>(null);
-  const [repeatedWindowOpen, setRepeatedWindowOpen] = useState<boolean | null>(true);
+  const [repeatedWindowOpen, setRepeatedWindowOpen] = useState<boolean | null>(null);
   const [repeatedWindowNextOpening, setRepeatedWindowNextOpening] = useState<string | null>(null);
   const now = new Date();
   const minDate = moment(now).format("YYYY-MM-DD");
@@ -106,7 +109,9 @@ const StartBookingPage = () => {
     when,
     recurringWhen,
   };
-  const canGoForward = canAdvance(step, answers, now, frequency === "repeated" ? repeatedWindowOpen : true);
+  const windowForAdvance = repeatedWindowForAdvance(step, frequency, repeatedWindowOpen);
+  const canGoForward = canAdvance(step, answers, now, windowForAdvance);
+  const repeatedSelectable = isRepeatedFrequencySelectable(repeatedWindowOpen);
   const endTimeError = isWhenEndAfterStart(when) ? undefined : t("startBooking.when.endAfterStart");
   const recurringTimeIncomplete = Boolean(recurringWhen.startTime) !== Boolean(recurringWhen.endTime);
   const recurringEndTimeError = recurringTimeIncomplete
@@ -206,6 +211,13 @@ const StartBookingPage = () => {
     };
   }, [recurringWhen.firstOccurrenceDate, step, t]);
 
+  useEffect(() => {
+    if (step !== "frequency") {
+      return;
+    }
+    setFrequency((current) => frequencyAfterAvailabilityRefresh(current, repeatedWindowOpen));
+  }, [repeatedWindowOpen, step]);
+
   const handleMinistryChoice = (value: string) => {
     const isMinistry = value === "yes";
     if (!isMinistry) {
@@ -230,7 +242,7 @@ const StartBookingPage = () => {
   };
 
   const handleContinue = () => {
-    const next = nextStep(step, answers, now, frequency === "repeated" ? repeatedWindowOpen : true);
+    const next = nextStep(step, answers, now, windowForAdvance);
     if (next === "rooms") {
       const query = buildRoomsSearchQuery(answers);
       if (!query) {
@@ -360,6 +372,7 @@ const StartBookingPage = () => {
             />
             <ChoicePill
               checked={frequency === "repeated"}
+              disabled={!repeatedSelectable}
               hint={t("startBooking.frequency.repeatedHint")}
               id="frequency-repeated"
               label={t("startBooking.frequency.repeated")}
