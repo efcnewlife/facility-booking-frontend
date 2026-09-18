@@ -68,7 +68,7 @@ const RecurringSeriesReviewModal = ({
       onClose={onBack}
       title={hasConflicts ? t("startBooking.recurringConflicts.title") : t("startBooking.recurringReview.title")}
     >
-      <div className="flex max-h-[min(70vh,40rem)] flex-col gap-4 overflow-y-auto">
+      <div className="flex flex-col gap-4">
         <Alert
           message={t("startBooking.recurringReview.previewDoesNotReserve")}
           size="sm"
