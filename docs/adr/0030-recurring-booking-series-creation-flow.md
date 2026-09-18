@@ -1,3 +1,7 @@
+---
+status: superseded by ADR-0034
+---
+
 # Repeated Booking creates a Recurring Booking Series through its own Start booking form, not the Timetable
 
 Repeated is now bookable. Choosing Repeated at Start booking's One-time vs Repeated step continues to a new "recurring occurrence form" step (`recurring_when`) instead of the Timetable's date-and-time `when` step. That form collects First occurrence, Last occurrence, one shared local start–end time window, and a room selection, then submits directly to `POST /api/v1/facility/booking-series` (core-api#148). A successful create shows a Pending-payment result — total, hold deadline, and the initial occurrence — inline on the same Start booking page; it does not navigate to `/rooms` or `/booking-details`.
