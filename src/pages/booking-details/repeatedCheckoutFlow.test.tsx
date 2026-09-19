@@ -42,6 +42,7 @@ const { mockFacility, BookingSeriesDraftNotFoundError } = vi.hoisted(() => {
       confirmBookingSeriesDraft: vi.fn(),
       getAvailability: vi.fn(),
       getBookingSeries: vi.fn(),
+      getDiscountEligibility: vi.fn(),
     },
   };
 });
@@ -261,6 +262,7 @@ describe("Repeated Review-to-Payment", () => {
     );
     mockFacility.confirmBookingSeriesDraft.mockResolvedValue(createdSeries());
     mockFacility.getBookingSeries.mockResolvedValue(createdSeries());
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
     mockFacility.getAvailability.mockResolvedValue({
       rooms: [
         {
@@ -361,6 +363,22 @@ describe("Repeated Review-to-Payment", () => {
 
     await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
     expect(await screen.findByRole("heading", { name: "Timetable" })).toBeTruthy();
+  });
+
+  it("shows the server's effective Recurring Discount label instead of a hardcoded Ministry label", async () => {
+    mockFacility.getDiscountEligibility.mockResolvedValue({
+      discountCode: "recurring_weekly_monthly",
+      discountPercent: 20,
+    });
+    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
+
+    await waitFor(() => {
+      expect(mockFacility.getDiscountEligibility).toHaveBeenCalledWith({
+        bookingType: "recurring",
+        ministryId: null,
+      });
+    });
+    expect(await screen.findByText("Recurring discount")).toBeTruthy();
   });
 
   it("shows Not Found for a missing Recurring Series Draft", async () => {

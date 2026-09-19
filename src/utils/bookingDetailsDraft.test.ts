@@ -64,7 +64,7 @@ describe("buildPreviewQuotePayload", () => {
     expect(payload.lines[0].facilityId).toBe("room-a");
     expect(payload.lines[1].startAt).toContain("T");
     expect(payload.ministryId).toBe("m-1");
-    expect(payload.isMissionAligned).toBe(true);
+    expect(payload).not.toHaveProperty("isMissionAligned");
   });
 });
 
@@ -79,6 +79,7 @@ describe("buildCreateBookingPayload", () => {
     expect(new Date(payload.startAt).getTime()).toBeLessThan(new Date(payload.endAt).getTime());
     expect(payload.bookingDraftId).toBeNull();
     expect(payload.title).toBe("Choir practice");
+    expect(payload).not.toHaveProperty("isMissionAligned");
   });
 
   it("carries the source Booking Draft id so the backend can dispose of it on success", () => {

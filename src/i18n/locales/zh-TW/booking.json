@@ -257,6 +257,8 @@
     "paymentSummary": "付款摘要",
     "rate": "費率",
     "ministryDiscount": "事工折扣",
+    "recurringDiscount": "重複預訂折扣",
+    "discount": "折扣",
     "surcharge": "附加費",
     "subtotal": "小計",
     "tax": "HST 稅",

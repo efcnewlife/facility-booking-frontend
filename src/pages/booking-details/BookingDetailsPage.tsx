@@ -13,6 +13,7 @@ import {
   removeLineFromDraft,
   replaceLineInDraft,
 } from "@/utils/bookingDetailsDraft";
+import { discountLabelKey } from "@/utils/discountEligibility";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { toRoomsSearchParams } from "@/utils/startBookingFlow";
 import { saveTimetableCart } from "@/utils/timetableCartStorage";
@@ -69,6 +70,7 @@ const OneTimeBookingDetailsPage = () => {
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummaryLabels>(() =>
     mapPaymentSummary(null, i18nInstance.language)
   );
+  const [discountCode, setDiscountCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(() => Boolean(draftId));
   const [confirming, setConfirming] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -134,6 +136,29 @@ const OneTimeBookingDetailsPage = () => {
   useEffect(() => {
     void loadPriceAndAvailability();
   }, [loadPriceAndAvailability]);
+
+  useEffect(() => {
+    if (!draft) {
+      return;
+    }
+    let cancelled = false;
+    facilityService
+      .getDiscountEligibility({ bookingType: "one_time", ministryId: draft.ministryId || null })
+      .then((result) => {
+        if (!cancelled) {
+          setDiscountCode(result.discountCode);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDiscountCode(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.ministryId]);
 
   const linesAvailable = useMemo(() => {
     if (!draft || rooms.length === 0) {
@@ -394,7 +419,7 @@ const OneTimeBookingDetailsPage = () => {
                 <span>{paymentSummary.rate}</span>
               </div>
               <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.ministryDiscount")}</span>
+                <span>{t(discountLabelKey(discountCode))}</span>
                 <span>{paymentSummary.ministryDiscount}</span>
               </div>
               <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">

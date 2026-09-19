@@ -25,7 +25,6 @@ export const buildPreviewRecurringBookingSeriesPayload = (
     lastOccurrenceDate: lastOccurrenceDate as string,
     localStartTime: toLocalTime(startTime as string),
     localEndTime: toLocalTime(endTime as string),
-    isMissionAligned: Boolean(ministryId),
     rooms: roomIds.map((facilityId, index) => ({ facilityId, sequence: index })),
   };
 };

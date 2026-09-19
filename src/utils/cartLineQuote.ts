@@ -22,7 +22,6 @@ export const fetchCartLineQuote = async (
 ): Promise<{ lineSubtotal: string | number | null; currency: string | null }> => {
   const quote = await facilityService.previewQuote({
     ministryId: ministryId || null,
-    isMissionAligned: Boolean(ministryId),
     lines: [previewQuoteLinePayload(date, line)],
   });
   const roomLine = quote.roomLines[0];
