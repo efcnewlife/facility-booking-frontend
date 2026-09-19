@@ -8,6 +8,7 @@ import RecurringConflictReview from "@/components/booking/RecurringConflictRevie
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import type { MinistryItem } from "@/types/ministry";
 import { bookingTitleFieldFeedback, validateBookingTitle } from "@/utils/bookingTitle";
+import { discountLabelKey } from "@/utils/discountEligibility";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { toggleExcludedDate } from "@/utils/recurringBookingConflicts";
 import {
@@ -64,6 +65,7 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
   const [paymentSummary, setPaymentSummary] = useState<PaymentSummaryLabels>(() =>
     mapPaymentSummary(null, i18nInstance.language)
   );
+  const [discountCode, setDiscountCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [confirming, setConfirming] = useState(false);
   const [updating, setUpdating] = useState(false);
@@ -157,6 +159,29 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (!draft) {
+      return;
+    }
+    let cancelled = false;
+    facilityService
+      .getDiscountEligibility({ bookingType: "recurring", ministryId: draft.ministryId || null })
+      .then((result) => {
+        if (!cancelled) {
+          setDiscountCode(result.discountCode);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setDiscountCode(null);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft?.ministryId]);
 
   const titleError = validateBookingTitle(title);
   const titleFeedback = bookingTitleFieldFeedback(title, titleTouched, t);
@@ -436,7 +461,7 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
               <span>{paymentSummary.rate}</span>
             </div>
             <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-              <span>{t("bookingDetails.ministryDiscount")}</span>
+              <span>{t(discountLabelKey(discountCode))}</span>
               <span>{paymentSummary.ministryDiscount}</span>
             </div>
             <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">

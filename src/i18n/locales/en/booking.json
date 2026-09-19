@@ -257,6 +257,8 @@
     "paymentSummary": "Payment Summary",
     "rate": "Rate",
     "ministryDiscount": "Ministry discount",
+    "recurringDiscount": "Recurring discount",
+    "discount": "Discount",
     "surcharge": "Surcharge",
     "subtotal": "Subtotal",
     "tax": "HST Tax",

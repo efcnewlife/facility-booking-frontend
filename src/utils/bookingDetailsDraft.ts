@@ -14,7 +14,6 @@ export interface CreateBookingFromDraftPayload {
   startAt: string;
   endAt: string;
   ministryId?: string | null;
-  isMissionAligned?: boolean;
   rooms: Array<{
     facilityId: string;
     startAt: string;
@@ -62,7 +61,6 @@ const mapDraftLineToInterval = (
 
 export const buildPreviewQuotePayload = (draft: BookingCartDraft): PreviewQuotePayload => ({
   ministryId: draft.ministryId || null,
-  isMissionAligned: Boolean(draft.ministryId),
   lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
 });
 
@@ -77,7 +75,6 @@ export const buildCreateBookingPayload = (
     startAt: combineDateAndClock(draft.date, envelope.start),
     endAt: combineDateAndClock(draft.date, envelope.end),
     ministryId: draft.ministryId || null,
-    isMissionAligned: Boolean(draft.ministryId),
     rooms: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
     bookingDraftId: bookingDraftId || null,
   };

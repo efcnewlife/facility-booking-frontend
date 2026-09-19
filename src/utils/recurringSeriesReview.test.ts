@@ -277,7 +277,6 @@ describe("create payloads from Review", () => {
       lastOccurrenceDate: "2026-09-24",
       localStartTime: "09:00:00",
       localEndTime: "10:30:00",
-      isMissionAligned: false,
       rooms: [
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },

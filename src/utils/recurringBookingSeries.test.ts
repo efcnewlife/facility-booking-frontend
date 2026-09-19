@@ -36,7 +36,6 @@ describe("buildPreviewRecurringBookingSeriesPayload", () => {
       lastOccurrenceDate: "2026-09-24",
       localStartTime: "09:00:00",
       localEndTime: "10:30:00",
-      isMissionAligned: false,
       rooms: [
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },
@@ -62,7 +61,6 @@ describe("buildCreateRecurringBookingSeriesPayload", () => {
       lastOccurrenceDate: "2026-09-24",
       localStartTime: "09:00:00",
       localEndTime: "10:30:00",
-      isMissionAligned: false,
       rooms: [
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },
@@ -71,27 +69,26 @@ describe("buildCreateRecurringBookingSeriesPayload", () => {
     });
   });
 
-  it("builds a Ministry payload with isMissionAligned true", () => {
-    expect(
-      buildCreateRecurringBookingSeriesPayload(
-        answers({ isMinistryBooking: true, ministryId: "ministry-1" }),
-        "Weekly choir",
-        now
-      )
-    ).toEqual({
+  it("builds a Ministry payload with the selected ministryId and no client-derived discount flag", () => {
+    const payload = buildCreateRecurringBookingSeriesPayload(
+      answers({ isMinistryBooking: true, ministryId: "ministry-1" }),
+      "Weekly choir",
+      now
+    );
+    expect(payload).toEqual({
       title: "Weekly choir",
       ministryId: "ministry-1",
       firstOccurrenceDate: "2026-08-20",
       lastOccurrenceDate: "2026-09-24",
       localStartTime: "09:00:00",
       localEndTime: "10:30:00",
-      isMissionAligned: true,
       rooms: [
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },
       ],
       excludedDates: [],
     });
+    expect(payload).not.toHaveProperty("isMissionAligned");
   });
 
   it("carries excludedDates through to the create payload", () => {
@@ -123,7 +120,6 @@ describe("buildCreateRecurringSeriesDraftPayload", () => {
       lastOccurrenceDate: "2026-09-24",
       localStartTime: "09:00:00",
       localEndTime: "10:30:00",
-      isMissionAligned: false,
       rooms: [
         { facilityId: "room-1", sequence: 0 },
         { facilityId: "room-2", sequence: 1 },

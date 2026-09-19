@@ -36,7 +36,6 @@ export const seriesDraftToUpdatePayload = (
     lastOccurrenceDate: draft.lastOccurrenceDate,
     localStartTime: draft.localStartTime,
     localEndTime: draft.localEndTime,
-    isMissionAligned: draft.isMissionAligned,
     rooms: draft.rooms,
     excludedDates: overrides.excludedDates ?? draft.excludedDates,
   };

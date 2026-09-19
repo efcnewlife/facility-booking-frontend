@@ -15,6 +15,7 @@ import {
   type MemberBookingDetail,
 } from "@/utils/bookingDetail";
 import { mapBrowsePage, type ApiMemberBookingBrowsePage, type RecurringCancellationScope } from "@/utils/myBookings";
+import type { DiscountEligibilityBookingType } from "@/utils/discountEligibility";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
 
@@ -24,7 +25,6 @@ interface CreateBookingPayload {
   title: string;
   startAt: string;
   endAt: string;
-  isMissionAligned?: boolean;
   ministryId?: string | null;
   rooms: Array<{
     facilityId: string;
@@ -44,8 +44,24 @@ export interface PreviewQuoteLinePayload {
 
 export interface PreviewQuotePayload {
   ministryId?: string | null;
-  isMissionAligned?: boolean;
   lines: PreviewQuoteLinePayload[];
+}
+
+export interface DiscountEligibilityPayload {
+  bookingType: DiscountEligibilityBookingType;
+  ministryId?: string | null;
+}
+
+export interface DiscountEligibility {
+  discountCode: string | null;
+  discountPercent: string | number | null;
+}
+
+interface ApiDiscountEligibility {
+  discountCode?: string | null;
+  discount_code?: string | null;
+  discountPercent?: string | number | null;
+  discount_percent?: string | number | null;
 }
 
 interface ApiPreviewQuoteRoomLine {
@@ -191,7 +207,6 @@ export interface CreateRecurringBookingSeriesPayload {
   lastOccurrenceDate: string;
   localStartTime: string;
   localEndTime: string;
-  isMissionAligned?: boolean;
   rooms: CreateRecurringBookingSeriesRoomInput[];
   excludedDates?: string[];
 }
@@ -210,7 +225,6 @@ export interface CreateRecurringSeriesDraftPayload {
   lastOccurrenceDate: string;
   localStartTime: string;
   localEndTime: string;
-  isMissionAligned?: boolean;
   rooms: CreateRecurringBookingSeriesRoomInput[];
   excludedDates?: string[];
 }
@@ -536,6 +550,21 @@ class FacilityService {
     return {
       isOpen: Boolean(response.data.isOpen ?? response.data.is_open),
       nextOpeningDate: nextOpening ? String(nextOpening) : null,
+    };
+  }
+
+  async getDiscountEligibility(payload: DiscountEligibilityPayload): Promise<DiscountEligibility> {
+    const response = await httpClient.post<ApiDiscountEligibility>(
+      API_ENDPOINTS.FACILITY.DISCOUNT_ELIGIBILITY,
+      payload
+    );
+    if (!response.success || !response.data) {
+      throw new Error(response.message || "Failed to load discount eligibility");
+    }
+    const data = response.data;
+    return {
+      discountCode: data.discountCode ?? data.discount_code ?? null,
+      discountPercent: data.discountPercent ?? data.discount_percent ?? null,
     };
   }
 
