@@ -1,9 +1,10 @@
-import type { RecurringSeriesDraftDetail } from "@/api/services/facilityService";
+import type { CreateRecurringSeriesDraftPayload, RecurringSeriesDraftDetail } from "@/api/services/facilityService";
 import { isValidBookingTitle, normalizeBookingTitle } from "./bookingTitle";
 import { canCreateRecurringSeriesWithExclusions } from "./recurringBookingConflicts";
-import type { CreateRecurringSeriesDraftPayload } from "@/api/services/facilityService";
 import { weekdayForDate } from "./startBookingFlow";
 import { emptyCartState, type TimetableCartState } from "./timetableRules";
+
+const BOOKING_TITLE_INVALID = "FACILITY_BOOKING_TITLE_INVALID";
 
 export const clockFromLocalTime = (localTime: string): string => {
   const [hours, minutes] = localTime.split(":");
@@ -18,7 +19,7 @@ export const canConfirmSeriesDraft = (draft: RecurringSeriesDraftDetail): boolea
 };
 
 export const seriesDraftNeedsTimetableRevision = (draft: RecurringSeriesDraftDetail): boolean => {
-  if (draft.isConfirmable) {
+  if (draft.isConfirmable || draft.invalidityCode === BOOKING_TITLE_INVALID) {
     return false;
   }
   return canCreateRecurringSeriesWithExclusions(draft.conflicts, draft.excludedDates);

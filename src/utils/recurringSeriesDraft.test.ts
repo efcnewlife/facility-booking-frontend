@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest";
 import type { RecurringBookingConflict, RecurringSeriesDraftDetail } from "@/api/services/facilityService";
+import { describe, expect, it } from "vitest";
 import {
   canConfirmSeriesDraft,
   clockFromLocalTime,
+  repeatedCartFromDraft,
   seriesDraftNeedsTimetableRevision,
   toRepeatedTimetableSearchParams,
-  repeatedCartFromDraft,
 } from "./recurringSeriesDraft";
 
 const conflict = (overrides: Partial<RecurringBookingConflict> = {}): RecurringBookingConflict => ({
@@ -81,6 +81,20 @@ describe("seriesDraftNeedsTimetableRevision", () => {
   it("sends the member back to Timetable when the Draft is no longer confirmable", () => {
     expect(seriesDraftNeedsTimetableRevision(confirmableDraft())).toBe(false);
     expect(seriesDraftNeedsTimetableRevision(confirmableDraft({ isConfirmable: false }))).toBe(true);
+  });
+
+  it("does not treat a missing Title as a stale timetable proposal", () => {
+    expect(
+      seriesDraftNeedsTimetableRevision(
+        confirmableDraft({
+          title: null,
+          conflicts: [],
+          excludedDates: [],
+          isConfirmable: false,
+          invalidityCode: "FACILITY_BOOKING_TITLE_INVALID",
+        })
+      )
+    ).toBe(false);
   });
 
   it("keeps the member on Booking Details while permitted exclusions still need resolving", () => {

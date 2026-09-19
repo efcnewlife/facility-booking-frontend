@@ -347,6 +347,23 @@ describe("Repeated Review-to-Payment", () => {
     expect(mockFacility.getBookingSeriesDraft).toHaveBeenCalled();
   });
 
+  it("does not show the stale proposal warning for a conflict-free Draft that only needs a Title", async () => {
+    draft = confirmableDraft({
+      title: null,
+      isConfirmable: false,
+      invalidityCode: "FACILITY_BOOKING_TITLE_INVALID",
+    });
+    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(
+      screen.queryByText(
+        "This Repeated proposal is no longer valid. Return to the Timetable to revise it and preview again."
+      )
+    ).toBeNull();
+    expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
+  });
+
   it("disables Confirm for a stale Draft and sends the member back to Timetable", async () => {
     const user = userEvent.setup();
     draft = confirmableDraft({
