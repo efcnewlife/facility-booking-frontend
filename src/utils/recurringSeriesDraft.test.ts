@@ -46,7 +46,7 @@ const confirmableDraft = (overrides: Partial<RecurringSeriesDraftDetail> = {}): 
   surchargeAmount: "0.00",
   currency: "CAD",
   occurrenceCount: 5,
-  pendingPaymentHoldHours: 48,
+  pendingPaymentHoldDays: 3,
   paymentHoldExpiresAt: "2026-08-22T16:00:00.000Z",
   ...overrides,
 });
