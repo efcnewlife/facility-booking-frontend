@@ -1,38 +1,19 @@
 import MyApplicationsTab from "@/pages/my-ministry/MyApplicationsTab";
 import PendingApprovalsTab from "@/pages/my-ministry/PendingApprovalsTab";
+import { applyMyMinistryTabToSearchParams, resolveMyMinistryTab } from "@/utils/myMinistryTab";
 import { Tabs } from "@efcnewlife/newlife-ui";
-import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { useSearchParams } from "react-router";
-
-type MyMinistryTab = "applications" | "approvals";
-
-const isMyMinistryTab = (value: string | null): value is MyMinistryTab => {
-  return value === "applications" || value === "approvals";
-};
 
 const MyMinistryPage = () => {
   const { t } = useTranslation("booking");
   const [searchParams, setSearchParams] = useSearchParams();
-  const tabParam = searchParams.get("tab");
-  const [activeTab, setActiveTab] = useState<MyMinistryTab>(isMyMinistryTab(tabParam) ? tabParam : "applications");
-
-  useEffect(() => {
-    if (isMyMinistryTab(tabParam) && tabParam !== activeTab) {
-      setActiveTab(tabParam);
-    }
-  }, [activeTab, tabParam]);
+  const activeTab = resolveMyMinistryTab(searchParams.get("tab"));
 
   const handleTabChange = (value: string) => {
-    const nextTab = value as MyMinistryTab;
-    setActiveTab(nextTab);
-    const nextParams = new URLSearchParams(searchParams);
-    if (nextTab === "applications") {
-      nextParams.delete("tab");
-    } else {
-      nextParams.set("tab", nextTab);
-    }
-    setSearchParams(nextParams, { replace: true });
+    setSearchParams(applyMyMinistryTabToSearchParams(searchParams, resolveMyMinistryTab(value)), {
+      replace: true,
+    });
   };
 
   return (
