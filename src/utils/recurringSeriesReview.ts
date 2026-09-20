@@ -2,6 +2,7 @@ import type {
   PreviewRecurringBookingSeriesPayload,
   RecurringBookingConflict,
   RecurringBookingSeriesDetail,
+  RecurringBookingSeriesPreview,
 } from "@/api/services/facilityService";
 import { isValidBookingTitle } from "./bookingTitle";
 import {
@@ -182,13 +183,20 @@ export const applyPreviewFailed = (
   };
 };
 
+/** Title is member input, not price/conflict data, so it survives a preview invalidation. */
 export const invalidatePreview = (state: RecurringSeriesReviewSnapshot): RecurringSeriesReviewSnapshot => ({
   ...emptyRecurringSeriesReviewSnapshot(),
+  title: state.title,
   previewRequestId: state.previewRequestId,
 });
 
 export const canOpenReview = (state: RecurringSeriesReviewSnapshot): boolean => {
   return state.previewStatus === "ready" && state.phase !== "creating" && state.phase !== "created";
+};
+
+/** Gates the Timetable cart's Review & Confirm CTA: a current price preview plus a valid Title. */
+export const canReviewAndConfirm = (state: RecurringSeriesReviewSnapshot): boolean => {
+  return canOpenReview(state) && isValidBookingTitle(state.title);
 };
 
 export const openReview = (state: RecurringSeriesReviewSnapshot): RecurringSeriesReviewSnapshot => {
@@ -294,7 +302,7 @@ export const pendingPaymentResultFromSeries = (series: RecurringBookingSeriesDet
 });
 
 export interface RecurringSeriesPreviewControllerDeps {
-  preview: (payload: PreviewRecurringBookingSeriesPayload) => Promise<RecurringBookingConflict[]>;
+  preview: (payload: PreviewRecurringBookingSeriesPayload) => Promise<RecurringBookingSeriesPreview>;
   now?: () => Date;
   debounceMs?: number;
   onState?: (state: RecurringSeriesReviewSnapshot) => void;
@@ -329,8 +337,10 @@ export const createRecurringSeriesPreviewController = (deps: RecurringSeriesPrev
     }
     emit(applyPreviewStarted(state, requestId));
     try {
-      const conflicts = await deps.preview(payload);
-      emit(applyPreviewSucceeded(state, requestId, proposalKey, conflicts));
+      const result = await deps.preview(payload);
+      emit(
+        applyPreviewSucceeded(state, requestId, proposalKey, result.conflicts, result.quotedAmount, result.currency)
+      );
     } catch (error) {
       emit(
         applyPreviewFailed(

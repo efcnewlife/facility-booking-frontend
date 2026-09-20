@@ -3,6 +3,7 @@ import {
   isBookingDetailsPath,
   isOneTimeBookingDetailsPath,
   isRepeatedBookingDetailsPath,
+  oneTimeBookingDetailsPath,
   parseBookingDetailsRoute,
   parseOneTimeBookingDetailsDraftId,
   parseRepeatedBookingDetailsDraftId,
@@ -88,6 +89,14 @@ describe("repeatedBookingDetailsPath", () => {
   it("builds the typed Repeated Booking Details route", () => {
     expect(repeatedBookingDetailsPath("3fa85f64-5717-4562-b3fc-2c963f66afa6")).toBe(
       "/booking-details/repeated/3fa85f64-5717-4562-b3fc-2c963f66afa6"
+    );
+  });
+});
+
+describe("oneTimeBookingDetailsPath", () => {
+  it("builds the typed One-time Booking Details route", () => {
+    expect(oneTimeBookingDetailsPath("3fa85f64-5717-4562-b3fc-2c963f66afa6")).toBe(
+      "/booking-details/one-time/3fa85f64-5717-4562-b3fc-2c963f66afa6"
     );
   });
 });

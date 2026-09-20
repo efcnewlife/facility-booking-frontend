@@ -194,14 +194,18 @@
     "cart": {
       "title": "Booking cart",
       "empty": "Confirm a time on the timetable to add a booking line.",
-      "emptyRepeated": "Confirm a time on the timetable to add a room to this Repeated Booking."
+      "emptyRepeated": "Confirm a time on the timetable to add a room to this Repeated Booking.",
+      "roomCount_one": "{{count}} room",
+      "roomCount_other": "{{count}} rooms",
+      "ministry": "Ministry: {{name}}",
+      "estimatedTotal": "Estimated Total",
+      "priceUnavailable": "Price unavailable"
     },
     "available": "Available",
     "unavailable": "Unavailable",
     "closed": "Closed",
     "override": "Override",
-    "reviewBooking": "Review Booking",
-    "reviewBookingCount": "Review Booking ({{count}})",
+    "reviewAndConfirm": "Review & Confirm",
     "noMatchingResults": "No matching results",
     "capacity": "{{count}}",
     "success": "Booking created successfully.",

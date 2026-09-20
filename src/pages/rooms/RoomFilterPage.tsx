@@ -7,14 +7,15 @@ import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
 import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
-import { repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
+import { oneTimeBookingDetailsPath, repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
 import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
-import { applyCartLineQuote, fetchCartLineQuote } from "@/utils/cartLineQuote";
+import { validateBookingTitle } from "@/utils/bookingTitle";
+import { applyCartAggregateQuote, fetchCartAggregateQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
 import { buildCreateRecurringSeriesDraftPayload } from "@/utils/recurringBookingSeries";
 import {
-  canOpenReview,
+  canReviewAndConfirm,
   createRecurringSeriesPreviewController,
   emptyRecurringSeriesReviewSnapshot,
   excludedDatesForCreate,
@@ -43,6 +44,7 @@ import {
   addCartLine,
   applyRepeatedTimeReplacement,
   blockActionForInterval,
+  canReviewCart,
   cartPointerAction,
   clockToMinutes,
   confirmBookingTimePrefillForCart,
@@ -91,7 +93,7 @@ import moment from "moment";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdArrowBack, MdArrowForward, MdCheck, MdPhoto, MdZoomIn } from "react-icons/md";
-import { Navigate, useNavigate, useSearchParams } from "react-router";
+import { Navigate, useLocation, useNavigate, useSearchParams } from "react-router";
 
 const ROOMS_PER_PAGE = 4;
 const SLOT_HEIGHT_PX = 40;
@@ -224,15 +226,28 @@ const buildInitialCartState = (query: RoomsSearchQuery | null): TimetableCartSta
   return emptyCartState(whenSeed);
 };
 
-const QUOTE_KEY_SEP = "\0";
-
-const lineQuoteKey = (line: Pick<BookingLine, "sequence" | "facilityId" | "start" | "end">): string => {
-  return [line.sequence, line.facilityId, line.start, line.end].join(QUOTE_KEY_SEP);
+const oneTimeLineSignature = (lines: BookingLine[]): string => {
+  return lines.map((line) => `${line.sequence}\0${line.facilityId}\0${line.start}\0${line.end}`).join("|");
 };
+
+interface OneTimeQuoteState {
+  key: string;
+  status: "idle" | "loading" | "ready" | "error";
+  quotedAmount: string | number | null;
+  currency: string | null;
+}
+
+const idleOneTimeQuote = (key: string): OneTimeQuoteState => ({
+  key,
+  status: "idle",
+  quotedAmount: null,
+  currency: null,
+});
 
 const RoomFilterPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
   const appliedQuery = useMemo(() => parseRoomsSearchQuery(new URLSearchParams(searchKey)), [searchKey]);
@@ -252,11 +267,12 @@ const RoomFilterPage = () => {
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
   const [cartState, setCartState] = useState<TimetableCartState>(() => {
     if (isRepeated) {
-      const whenSeed = whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end);
       const roomIds = parseRepeatedRoomIds(searchParams);
       if (appliedQuery?.start && appliedQuery?.end && roomIds.length > 0) {
+        // Restoring an existing proposal (e.g. returning from Booking Details): show only its own
+        // rooms and shared time, not a When seed highlight suggesting other rooms at the same time.
         return {
-          ...emptyCartState(whenSeed),
+          ...emptyCartState(null),
           sharedTime: { start: appliedQuery.start, end: appliedQuery.end },
           lines: roomIds.map((facilityId, index) => ({
             sequence: index + 1,
@@ -266,7 +282,7 @@ const RoomFilterPage = () => {
           })),
         };
       }
-      return emptyCartState(whenSeed);
+      return emptyCartState(whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end));
     }
     return buildInitialCartState(appliedQuery);
   });
@@ -284,6 +300,11 @@ const RoomFilterPage = () => {
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const [reviewState, setReviewState] = useState<RecurringSeriesReviewSnapshot>(emptyRecurringSeriesReviewSnapshot);
   const [repeatedWindowOpen, setRepeatedWindowOpen] = useState<boolean | null>(isRepeated ? null : true);
+  const navigationState = location.state as { draftId?: string; seriesDraftId?: string; title?: string } | null;
+  const [draftId, setDraftId] = useState<string | null>(navigationState?.draftId ?? null);
+  const [seriesDraftId, setSeriesDraftId] = useState<string | null>(navigationState?.seriesDraftId ?? null);
+  const [titleTouched, setTitleTouched] = useState(false);
+  const [oneTimeQuote, setOneTimeQuote] = useState<OneTimeQuoteState>(() => idleOneTimeQuote(""));
   const gridScrollRef = useRef<HTMLDivElement>(null);
   const seriesPreviewControllerRef = useRef<ReturnType<typeof createRecurringSeriesPreviewController> | null>(null);
 
@@ -422,11 +443,16 @@ const RoomFilterPage = () => {
         }
       },
     });
+    if (navigationState?.title) {
+      controller.setTitle(navigationState.title);
+    }
     seriesPreviewControllerRef.current = controller;
     return () => {
       controller.dispose();
       seriesPreviewControllerRef.current = null;
     };
+    // Only the Title carried by the initial navigation (returning from Booking Details) should seed the controller.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -445,7 +471,7 @@ const RoomFilterPage = () => {
       return;
     }
     prevAppliedKeyRef.current = appliedKey;
-    setCartState(emptyCartState(whenSeed));
+    setCartState((current) => emptyCartState(whenSeed, current.title));
     setHover(null);
     setConfirmRoom(null);
     setEditingSequence(undefined);
@@ -492,55 +518,46 @@ const RoomFilterPage = () => {
     });
   }, [appliedDate, capacityBand, loading, rooms, view, whenSeed]);
 
-  const linesNeedingQuoteKey = cartState.lines
-    .filter((line) => line.lineSubtotal == null)
-    .map(lineQuoteKey)
-    .join("|");
+  const oneTimeLinesKey = oneTimeLineSignature(cartState.lines);
 
   useEffect(() => {
-    if (isRepeated || !appliedDate || !linesNeedingQuoteKey) {
+    if (isRepeated) {
+      return;
+    }
+    if (!appliedDate || cartState.lines.length === 0) {
+      setOneTimeQuote(idleOneTimeQuote(oneTimeLinesKey));
       return;
     }
     let cancelled = false;
-    const segments = linesNeedingQuoteKey.split("|").filter(Boolean);
-    const loadQuotes = async () => {
-      for (const segment of segments) {
-        const parts = segment.split(QUOTE_KEY_SEP);
-        if (parts.length !== 4) {
-          continue;
+    const lines = cartState.lines;
+    const sequences = lines.map((line) => line.sequence);
+    setOneTimeQuote((current) => ({ ...current, status: "loading" }));
+    fetchCartAggregateQuote(appliedDate, lines, appliedMinistryId)
+      .then((quote) => {
+        if (cancelled) {
+          return;
         }
-        const sequence = Number.parseInt(parts[0], 10);
-        const facilityId = parts[1];
-        const start = parts[2];
-        const end = parts[3];
-        if (!Number.isFinite(sequence)) {
-          continue;
+        setOneTimeQuote({
+          key: oneTimeLinesKey,
+          status: "ready",
+          quotedAmount: quote.quotedAmount,
+          currency: quote.currency,
+        });
+        setCartState((current) => applyCartAggregateQuote(current, sequences, quote));
+      })
+      .catch(() => {
+        if (cancelled) {
+          return;
         }
-        try {
-          const quote = await fetchCartLineQuote(appliedDate, { facilityId, start, end }, appliedMinistryId);
-          if (cancelled) {
-            return;
-          }
-          setCartState((current) => {
-            const existing = current.lines.find((item) => item.sequence === sequence);
-            if (!existing || existing.lineSubtotal != null) {
-              return current;
-            }
-            if (lineQuoteKey(existing) !== segment) {
-              return current;
-            }
-            return applyCartLineQuote(current, sequence, quote);
-          });
-        } catch {
-          // Leave em dash subtotal when quote fails.
-        }
-      }
-    };
-    void loadQuotes();
+        setOneTimeQuote({ key: oneTimeLinesKey, status: "error", quotedAmount: null, currency: null });
+      });
     return () => {
       cancelled = true;
     };
-  }, [appliedDate, appliedMinistryId, isRepeated, linesNeedingQuoteKey]);
+    // oneTimeLinesKey is a content signature of cartState.lines; depending on cartState.lines directly
+    // would refetch every time the quote response itself replaces the lines array with the same content.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [appliedDate, appliedMinistryId, isRepeated, oneTimeLinesKey]);
 
   const handleUpdateSearch = useCallback(() => {
     if (loading) {
@@ -718,7 +735,7 @@ const RoomFilterPage = () => {
     }
   };
 
-  const handleConfirmBookingTime = async (interval: BookingInterval) => {
+  const handleConfirmBookingTime = (interval: BookingInterval) => {
     if (!confirmRoom || !appliedDate) {
       return;
     }
@@ -772,16 +789,6 @@ const RoomFilterPage = () => {
     }
     setCartState(nextState);
     persistCartState(nextState);
-    const line = nextState.lines.find((item) => item.sequence === quotedSequence);
-    if (!line) {
-      return;
-    }
-    try {
-      const quote = await fetchCartLineQuote(appliedDate, line, appliedMinistryId);
-      setCartState((current) => applyCartLineQuote(current, quotedSequence!, quote));
-    } catch {
-      // Leave em dash subtotal when quote fails.
-    }
   };
 
   const handleConfirmReplacement = () => {
@@ -846,36 +853,57 @@ const RoomFilterPage = () => {
   };
 
   const handleReviewBooking = async () => {
+    setTitleTouched(true);
     if (isRepeated) {
-      if (!canOpenReview(reviewState) || !repeatedAnswers) {
+      if (!canReviewAndConfirm(reviewState) || !repeatedAnswers) {
         return;
       }
       const payload = buildCreateRecurringSeriesDraftPayload(
         repeatedAnswers,
         new Date(),
-        excludedDatesForCreate(reviewState)
+        excludedDatesForCreate(reviewState),
+        reviewState.title
       );
       if (!payload) {
         return;
       }
       try {
-        const created = await facilityService.createBookingSeriesDraft(payload);
-        navigate(repeatedBookingDetailsPath(created.id));
+        if (seriesDraftId) {
+          await facilityService.updateBookingSeriesDraft(seriesDraftId, payload);
+          navigate(repeatedBookingDetailsPath(seriesDraftId));
+        } else {
+          const created = await facilityService.createBookingSeriesDraft(payload);
+          setSeriesDraftId(created.id);
+          navigate(repeatedBookingDetailsPath(created.id));
+        }
       } catch (err) {
         setError(resolveRecurringBookingSeriesErrorMessage(err, "timetable.reviewError"));
       }
       return;
     }
-    if (cartState.lines.length === 0 || !appliedDate) {
+    if (
+      !canReviewCart(cartState) ||
+      !appliedDate ||
+      validateBookingTitle(cartState.title ?? "") ||
+      oneTimeQuote.key !== oneTimeLinesKey ||
+      oneTimeQuote.status !== "ready"
+    ) {
       return;
     }
     const nextDraft = cartStateToDraft(appliedDate, appliedMinistryId, cartState);
     if (!nextDraft) {
       return;
     }
+    const payload = buildCreateBookingDraftPayload(nextDraft);
     try {
-      const created = await facilityService.createBookingDraft(buildCreateBookingDraftPayload(nextDraft));
-      navigate(`/booking-details/one-time/${created.id}`);
+      if (draftId) {
+        await facilityService.updateBookingDraft(draftId, payload);
+        navigate(oneTimeBookingDetailsPath(draftId));
+      } else {
+        const created = await facilityService.createBookingDraft(payload);
+        setDraftId(created.id);
+        navigate(oneTimeBookingDetailsPath(created.id));
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : t("timetable.reviewError"));
     }
@@ -899,6 +927,27 @@ const RoomFilterPage = () => {
   };
 
   const formatClockForLocale = (clock: string) => formatClock(clock, i18nInstance.language);
+
+  const ministryName = appliedMinistryId
+    ? (bookableMinistries.find((ministry) => ministry.id === appliedMinistryId)?.name ?? null)
+    : null;
+
+  const isOneTimeQuoteCurrent = oneTimeQuote.key === oneTimeLinesKey;
+  const oneTimeEstimatedTotal =
+    isOneTimeQuoteCurrent &&
+    oneTimeQuote.status === "ready" &&
+    oneTimeQuote.quotedAmount != null &&
+    oneTimeQuote.currency
+      ? { quotedAmount: oneTimeQuote.quotedAmount, currency: oneTimeQuote.currency }
+      : null;
+  const oneTimePriceLoading =
+    cartState.lines.length > 0 && (!isOneTimeQuoteCurrent || oneTimeQuote.status === "loading");
+  const oneTimePriceUnavailable = isOneTimeQuoteCurrent && oneTimeQuote.status === "error";
+  const oneTimeReviewDisabled =
+    !canReviewCart(cartState) ||
+    Boolean(validateBookingTitle(cartState.title ?? "")) ||
+    !isOneTimeQuoteCurrent ||
+    oneTimeQuote.status !== "ready";
 
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-12">
@@ -1005,11 +1054,6 @@ const RoomFilterPage = () => {
                   ))}
                 </div>
               </FormField>
-              {recurringOccurrenceCount > 0 ? (
-                <p className="m-0 mb-2 text-sm text-booking-light-grey">
-                  {t("startBooking.recurringWhen.occurrenceCount", { count: recurringOccurrenceCount })}
-                </p>
-              ) : null}
             </>
           ) : null}
         </div>
@@ -1298,18 +1342,26 @@ const RoomFilterPage = () => {
           <RepeatedSeriesPanel
             formatClock={formatClockForLocale}
             lines={cartState.lines}
+            ministryName={ministryName}
+            occurrenceCount={recurringOccurrenceCount}
             onRemove={(sequence) => {
               setCartState((current) => removeRepeatedCartLine(current, sequence));
             }}
             onReview={() => void handleReviewBooking()}
+            onTitleChange={(value) => seriesPreviewControllerRef.current?.setTitle(value)}
+            onTitleTouch={() => setTitleTouched(true)}
             reviewState={reviewState}
             rooms={rooms}
             sharedTime={cartState.sharedTime ?? null}
+            titleTouched={titleTouched}
           />
         ) : (
           <BookingCartPanel
+            estimatedTotal={oneTimeEstimatedTotal}
             formatClock={formatClockForLocale}
+            isPriceLoading={oneTimePriceLoading}
             lines={cartState.lines}
+            ministryName={ministryName}
             onEdit={(sequence) => {
               const line = cartState.lines.find((item) => item.sequence === sequence);
               const room = line ? rooms.find((item) => item.id === line.facilityId) : undefined;
@@ -1325,7 +1377,19 @@ const RoomFilterPage = () => {
               });
             }}
             onReview={() => void handleReviewBooking()}
+            onTitleChange={(value) => {
+              setCartState((current) => {
+                const next = { ...current, title: value };
+                persistCartState(next);
+                return next;
+              });
+            }}
+            onTitleTouch={() => setTitleTouched(true)}
+            priceUnavailable={oneTimePriceUnavailable}
+            reviewDisabled={oneTimeReviewDisabled}
             rooms={rooms}
+            title={cartState.title ?? ""}
+            titleTouched={titleTouched}
           />
         )}
       </div>

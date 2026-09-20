@@ -15,6 +15,7 @@ export interface BookingLineDraft {
 export interface BookingCartDraft {
   date: string;
   ministryId?: string;
+  title?: string;
   lines: BookingLineDraft[];
 }
 
@@ -41,6 +42,7 @@ export const cartStateToDraft = (
   return {
     date,
     ministryId,
+    title: state.title,
     lines: state.lines.map((line) => ({
       facilityId: line.facilityId,
       start: line.start,
@@ -61,6 +63,7 @@ export const draftToCartState = (draft: BookingCartDraft, whenSeed: WhenSeedRang
     pinned: null,
     whenSeed,
     sharedTime: null,
+    title: draft.title ?? "",
   };
 };
 

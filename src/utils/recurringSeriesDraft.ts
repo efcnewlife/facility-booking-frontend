@@ -25,22 +25,20 @@ export const seriesDraftNeedsTimetableRevision = (draft: RecurringSeriesDraftDet
   return canCreateRecurringSeriesWithExclusions(draft.conflicts, draft.excludedDates);
 };
 
+/** Title is owned by the Timetable cart; a Booking Details update only ever revises excluded dates. */
 export const seriesDraftToUpdatePayload = (
   draft: RecurringSeriesDraftDetail,
-  overrides: { title?: string | null; excludedDates?: string[] } = {}
-): CreateRecurringSeriesDraftPayload => {
-  const title = overrides.title !== undefined ? overrides.title : draft.title;
-  return {
-    title: title ? normalizeBookingTitle(title) : null,
-    ministryId: draft.ministryId,
-    firstOccurrenceDate: draft.firstOccurrenceDate,
-    lastOccurrenceDate: draft.lastOccurrenceDate,
-    localStartTime: draft.localStartTime,
-    localEndTime: draft.localEndTime,
-    rooms: draft.rooms,
-    excludedDates: overrides.excludedDates ?? draft.excludedDates,
-  };
-};
+  overrides: { excludedDates?: string[] } = {}
+): CreateRecurringSeriesDraftPayload => ({
+  title: draft.title ? normalizeBookingTitle(draft.title) : null,
+  ministryId: draft.ministryId,
+  firstOccurrenceDate: draft.firstOccurrenceDate,
+  lastOccurrenceDate: draft.lastOccurrenceDate,
+  localStartTime: draft.localStartTime,
+  localEndTime: draft.localEndTime,
+  rooms: draft.rooms,
+  excludedDates: overrides.excludedDates ?? draft.excludedDates,
+});
 
 export const toRepeatedTimetableSearchParams = (draft: RecurringSeriesDraftDetail): URLSearchParams => {
   const start = clockFromLocalTime(draft.localStartTime);
@@ -68,11 +66,13 @@ export const toRepeatedTimetableSearchParams = (draft: RecurringSeriesDraftDetai
 export const repeatedCartFromDraft = (draft: RecurringSeriesDraftDetail): TimetableCartState => {
   const start = clockFromLocalTime(draft.localStartTime);
   const end = clockFromLocalTime(draft.localEndTime);
-  const whenSeed = { start, end };
+  const sharedTime = { start, end };
   const rooms = [...draft.rooms].sort((left, right) => left.sequence - right.sequence);
+  // Restore only the Draft's own rooms and shared time — do not reintroduce a When seed that
+  // would highlight every other room eligible for the same interval.
   return {
-    ...emptyCartState(whenSeed),
-    sharedTime: whenSeed,
+    ...emptyCartState(null),
+    sharedTime,
     lines: rooms.map((room, index) => ({
       sequence: index + 1,
       facilityId: room.facilityId,

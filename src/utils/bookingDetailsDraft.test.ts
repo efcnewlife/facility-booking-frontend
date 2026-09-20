@@ -45,6 +45,7 @@ const makeRoom = (id: string): RoomDay => ({
 const baseDraft: BookingCartDraft = {
   date: "2026-09-01",
   ministryId: "m-1",
+  title: "Choir practice",
   lines: [
     { sequence: 1, facilityId: "room-a", start: "10:00", end: "11:00" },
     { sequence: 2, facilityId: "room-a", start: "14:00", end: "15:00" },
@@ -89,14 +90,20 @@ describe("buildCreateBookingPayload", () => {
 });
 
 describe("buildCreateBookingDraftPayload", () => {
-  it("maps each cart line to a Booking Draft line, keyed by ministry and sequence", () => {
+  it("maps each cart line to a Booking Draft line, keyed by ministry, Title, and sequence", () => {
     const payload = buildCreateBookingDraftPayload(baseDraft);
     expect(payload.ministryId).toBe("m-1");
+    expect(payload.title).toBe("Choir practice");
     expect(payload.lines).toEqual([
       expect.objectContaining({ facilityId: "room-a", sequence: 1 }),
       expect.objectContaining({ facilityId: "room-a", sequence: 2 }),
     ]);
     expect(payload.lines[0].startAt).not.toBe(payload.lines[1].startAt);
+  });
+
+  it("trims the Title", () => {
+    const payload = buildCreateBookingDraftPayload({ ...baseDraft, title: "  Choir practice  " });
+    expect(payload.title).toBe("Choir practice");
   });
 });
 
@@ -105,6 +112,7 @@ describe("bookingDraftDetailToCartDraft", () => {
     const cartDraft = bookingDraftDetailToCartDraft({
       id: "draft-123",
       date: "2026-09-01",
+      title: "Choir practice",
       ministryId: "m-1",
       lines: [
         { facilityId: "room-a", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 },
@@ -113,6 +121,7 @@ describe("bookingDraftDetailToCartDraft", () => {
     expect(cartDraft).toEqual({
       date: "2026-09-01",
       ministryId: "m-1",
+      title: "Choir practice",
       lines: [{ facilityId: "room-a", start: "10:00", end: "11:00", sequence: 1 }],
     });
   });
@@ -121,6 +130,7 @@ describe("bookingDraftDetailToCartDraft", () => {
     const cartDraft = bookingDraftDetailToCartDraft({
       id: "draft-123",
       date: "2026-09-01",
+      title: "Choir practice",
       ministryId: null,
       lines: [],
     });

@@ -7,7 +7,6 @@ import ministryService from "@/api/services/ministryService";
 import RecurringConflictReview from "@/components/booking/RecurringConflictReview";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import type { MinistryItem } from "@/types/ministry";
-import { bookingTitleFieldFeedback, validateBookingTitle } from "@/utils/bookingTitle";
 import { discountLabelKey } from "@/utils/discountEligibility";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { toggleExcludedDate } from "@/utils/recurringBookingConflicts";
@@ -19,7 +18,7 @@ import {
   toRepeatedTimetableSearchParams,
 } from "@/utils/recurringSeriesDraft";
 import type { RoomDay } from "@/utils/timetableRules";
-import { Alert, Button, cn, Input, Spinner } from "@efcnewlife/newlife-ui";
+import { Alert, Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -70,13 +69,10 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
   const [confirming, setConfirming] = useState(false);
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [title, setTitle] = useState("");
-  const [titleTouched, setTitleTouched] = useState(false);
 
   const applyDraft = useCallback(
     (next: RecurringSeriesDraftDetail) => {
       setDraft(next);
-      setTitle(next.title ?? "");
       setPaymentSummary(
         mapPaymentSummary(
           {
@@ -183,26 +179,25 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.ministryId]);
 
-  const titleError = validateBookingTitle(title);
-  const titleFeedback = bookingTitleFieldFeedback(title, titleTouched, t);
   const needsRevision = draft ? seriesDraftNeedsTimetableRevision(draft) : false;
-  const confirmable = draft ? canConfirmSeriesDraft({ ...draft, title }) : false;
-  const canConfirm = Boolean(
-    draft && confirmable && !needsRevision && !loading && !confirming && !updating && !titleError
-  );
+  const confirmable = draft ? canConfirmSeriesDraft(draft) : false;
+  const canConfirm = Boolean(draft && confirmable && !needsRevision && !loading && !confirming && !updating);
 
   const goToTimetable = () => {
     if (!draft) {
       navigate("/rooms");
       return;
     }
-    navigate({
-      pathname: "/rooms",
-      search: toRepeatedTimetableSearchParams(draft).toString(),
-    });
+    navigate(
+      {
+        pathname: "/rooms",
+        search: toRepeatedTimetableSearchParams(draft).toString(),
+      },
+      { state: { seriesDraftId: draftId, title: draft.title ?? undefined } }
+    );
   };
 
-  const persistDraft = async (overrides: { title?: string | null; excludedDates?: string[] }): Promise<boolean> => {
+  const persistDraft = async (overrides: { excludedDates?: string[] }): Promise<boolean> => {
     if (!draft) {
       return false;
     }
@@ -227,17 +222,6 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
     }
   };
 
-  const handleTitleBlur = () => {
-    setTitleTouched(true);
-    if (!draft || titleError) {
-      return;
-    }
-    if (title.trim() === (draft.title ?? "").trim()) {
-      return;
-    }
-    void persistDraft({ title });
-  };
-
   const handleToggleExcludedDate = (occurrenceDate: string) => {
     if (!draft || needsRevision) {
       return;
@@ -253,12 +237,6 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
     setConfirming(true);
     setError(null);
     try {
-      if (title.trim() !== (draft.title ?? "").trim()) {
-        const saved = await persistDraft({ title });
-        if (!saved) {
-          return;
-        }
-      }
       const created = await facilityService.confirmBookingSeriesDraft(draftId);
       navigate(`/payment/repeated/${created.id}`);
     } catch (err) {
@@ -342,23 +320,11 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
             </p>
           ) : null}
           {loading ? <Spinner className="mb-4 mt-4" showText size="sm" text={t("startBooking.loading")} /> : null}
-          <div onBlur={handleTitleBlur}>
-            <Input
-              error={titleFeedback.error}
-              hint={titleFeedback.hint}
-              id="booking-title"
-              label={t("bookingTitle.label")}
-              onChange={(event) => {
-                setTitleTouched(true);
-                setTitle(event.target.value);
-              }}
-              placeholder={t("bookingTitle.placeholder")}
-              required
-              value={title}
-              wrapperClassName="mb-6 mt-6"
-            />
-          </div>
           <dl>
+            <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 py-4">
+              <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingTitle.label")}</dt>
+              <dd className="m-0 text-xl font-normal leading-[26px]">{draft.title}</dd>
+            </div>
             <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
               <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.repetition")}</dt>
               <dd className="m-0 text-xl font-normal leading-[26px]">{t("bookingDetails.repeated")}</dd>

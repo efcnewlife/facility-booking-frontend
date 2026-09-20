@@ -52,15 +52,18 @@ export interface TimetableCartState {
   pinned: PinnedInterval | null;
   whenSeed: WhenSeedRange | null;
   sharedTime?: TimeRange | null;
+  /** Only meaningful for the One-time cart; the Repeated cart's Title lives on its review state instead. */
+  title?: string;
 }
 
 export type RepeatedCartState = TimetableCartState;
 
-export const emptyCartState = (whenSeed: WhenSeedRange | null = null): TimetableCartState => ({
+export const emptyCartState = (whenSeed: WhenSeedRange | null = null, title = ""): TimetableCartState => ({
   lines: [],
   pinned: null,
   whenSeed,
   sharedTime: null,
+  title,
 });
 
 export const clockToMinutes = (clock: string): number => {
@@ -550,7 +553,7 @@ export const displayBlocksForCart = (
   }
 
   const pinned = pinnedIntervalForRoom(state, room.id);
-  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && !pinned) {
+  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && !pinned && committedLines.length === 0) {
     overlays.push({
       start: state.whenSeed.start,
       end: state.whenSeed.end,

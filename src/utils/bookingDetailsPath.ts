@@ -40,3 +40,7 @@ export const isBookingDetailsPath = (pathname: string): boolean => {
 export const repeatedBookingDetailsPath = (draftId: string): string => {
   return `${REPEATED_PREFIX}${draftId}`;
 };
+
+export const oneTimeBookingDetailsPath = (draftId: string): string => {
+  return `${ONE_TIME_PREFIX}${draftId}`;
+};

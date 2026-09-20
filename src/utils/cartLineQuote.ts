@@ -15,26 +15,46 @@ export const previewQuoteLinePayload = (
   endAt: combineDateAndClock(date, line.end),
 });
 
-export const fetchCartLineQuote = async (
+export interface CartAggregateQuote {
+  quotedAmount: string | number | null;
+  currency: string | null;
+  lineQuotes: Array<{ lineSubtotal: string | number | null; currency: string | null }>;
+}
+
+/**
+ * Requests one server-authoritative quote for every confirmed Booking line at once, so the
+ * aggregate Estimated Total is never derived by summing per-line subtotals client-side.
+ */
+export const fetchCartAggregateQuote = async (
   date: string,
-  line: Pick<BookingLine, "facilityId" | "start" | "end">,
+  lines: Array<Pick<BookingLine, "facilityId" | "start" | "end">>,
   ministryId?: string | null
-): Promise<{ lineSubtotal: string | number | null; currency: string | null }> => {
+): Promise<CartAggregateQuote> => {
   const quote = await facilityService.previewQuote({
     ministryId: ministryId || null,
-    lines: [previewQuoteLinePayload(date, line)],
+    lines: lines.map((line) => previewQuoteLinePayload(date, line)),
   });
-  const roomLine = quote.roomLines[0];
   return {
-    lineSubtotal: roomLine?.lineSubtotal ?? null,
-    currency: roomLine?.currency ?? quote.currency,
+    quotedAmount: quote.quotedAmount,
+    currency: quote.currency,
+    lineQuotes: lines.map((_, index) => ({
+      lineSubtotal: quote.roomLines[index]?.lineSubtotal ?? null,
+      currency: quote.roomLines[index]?.currency ?? quote.currency,
+    })),
   };
 };
 
-export const applyCartLineQuote = (
+/** `sequences` must be in the same order as the lines passed to `fetchCartAggregateQuote`. */
+export const applyCartAggregateQuote = (
   state: TimetableCartState,
-  sequence: number,
-  quote: { lineSubtotal: string | number | null; currency: string | null }
+  sequences: number[],
+  quote: CartAggregateQuote
 ): TimetableCartState => {
-  return setCartLineQuote(state, sequence, quote.lineSubtotal, quote.currency);
+  return sequences.reduce((next, sequence, index) => {
+    const lineQuote = quote.lineQuotes[index];
+    if (!lineQuote) {
+      return next;
+    }
+    return setCartLineQuote(next, sequence, lineQuote.lineSubtotal, lineQuote.currency);
+  }, state);
 };

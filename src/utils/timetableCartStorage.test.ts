@@ -6,6 +6,7 @@ import { loadTimetableCart, saveTimetableCart, TIMETABLE_CART_STORAGE_KEY } from
 const draft: BookingCartDraft = {
   date: "2026-09-14",
   ministryId: "m-1",
+  title: "Choir practice",
   lines: [{ sequence: 1, facilityId: "room-a", start: "10:00", end: "11:00" }],
 };
 
@@ -60,6 +61,17 @@ describe("loadTimetableCart", () => {
       [TIMETABLE_CART_STORAGE_KEY]: JSON.stringify({ ...draft, ministryId: undefined }),
     });
     expect(loadTimetableCart(storage, "2026-09-14", undefined)).toEqual({ ...draft, ministryId: undefined });
+  });
+
+  it("defaults Title to undefined when the stored draft has none", () => {
+    const storage = createFakeStorage({
+      [TIMETABLE_CART_STORAGE_KEY]: JSON.stringify({
+        date: "2026-09-14",
+        ministryId: "m-1",
+        lines: draft.lines,
+      }),
+    });
+    expect(loadTimetableCart(storage, "2026-09-14", "m-1")?.title).toBeUndefined();
   });
 
   it("returns null for malformed JSON", () => {

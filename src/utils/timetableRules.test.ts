@@ -508,6 +508,20 @@ describe("displayBlocksForCart", () => {
     ]);
   });
 
+  it("hides When seed on a room that already has a committed line (regression: repeated Back to Timetable)", () => {
+    const state: TimetableCartState = {
+      lines: [{ facilityId: "gym-id", start: "10:00", end: "11:00", sequence: 1 }],
+      pinned: null,
+      whenSeed,
+    };
+    expect(displayBlocksForCart(gym(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:00", state: "available", overlayKind: "committed" },
+    ]);
+    expect(displayBlocksForCart(chapel(), state).filter((block) => block.state === "available")).toEqual([
+      { start: "10:00", end: "11:00", state: "available", overlayKind: "whenSeed" },
+    ]);
+  });
+
   it("paints a committed overlay for each cart line regardless of pinned state", () => {
     const state: TimetableCartState = {
       lines: [{ facilityId: "gym-id", start: "09:30", end: "10:30", sequence: 1 }],
