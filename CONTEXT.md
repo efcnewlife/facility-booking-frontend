@@ -45,8 +45,16 @@ The page an authenticated member sees for an unknown path, or a path they are no
 _Avoid_: redirecting unknown paths to Home, 403 as the member-facing response, showing Not Found before login
 
 **My Ministry**:
-The member-facing place for a Ministry member to see the ministries they are listed on, including pending and rejected records. It has tabs for applications they submitted and, when they are an Owner-position incumbent, pending approvals waiting on them.
+The member-facing workspace for a Ministry applicant, Ministry member, or Owner-position incumbent to find Ministries they may view, including pending and rejected records. It has tabs for applications they submitted and, when they are an Owner-position incumbent, pending approvals waiting on them.
 _Avoid_: the approval queue as a separate top-level nav item, showing only active ministries
+
+**Ministry Profile**:
+A read-only member-facing detail of one Ministry, available to its applicant, Ministry member, or Owner-position incumbent. It represents the Ministry across its lifecycle; booking, resubmission, and approval decisions remain separate flows.
+_Avoid_: Application Detail as the name for every lifecycle state, a public Ministry directory, combining Profile with an approval decision form
+
+**Profile booking handoff**:
+The start of a booking from an Active Ministry's Profile with that Ministry already selected. Its Ministry ID and `source=my-ministry` marker are retained in the Start booking URL so refresh does not discard the selection; only an available selected Ministry with that source shows a non-blocking info banner about the automatic selection. It is a booking intent, not proof that the Ministry remains active or that the member may book for it; an unavailable selection and its source marker are cleared before the member can continue.
+_Avoid_: trusting a Ministry ID in the browser as authorization, using a pending or rejected Ministry for a Ministry booking, retaining an unavailable URL selection, showing the handoff banner in ordinary Start booking
 
 **Application notification email**:
 An Outlook message sent from a fixed system mailbox to the Owner-position incumbent when a member submits a Ministry Application. It contains a deep link into the booking approval detail page. Body is bilingual: English first, then Chinese.
@@ -242,6 +250,10 @@ _Avoid_: church member, attendee, Owner, treating a pending applicant as a diffe
 **Owner position**:
 The church Org Position that owns a ministry (`owner_position`). It is a leadership seat, not a Ministry member row. Holding it does not by itself make someone a Ministry member or show the Booking cart switch-to-Ministry action.
 _Avoid_: Owner as a synonym for Ministry member, owner as the booking's user
+
+**Current Owner incumbent**:
+The person currently assigned to a Ministry's Owner position. Ministry Profile shows this person's live display name and email as the Owner contact to every authorized Profile reader; a vacant position has no current incumbent.
+_Avoid_: a historical submission recipient, a Ministry member, treating a vacant position as retaining its former incumbent
 
 **Ministry booking**:
 A booking attached to a ministry the booker belongs to.
