@@ -23,6 +23,21 @@ const { mockFacility, BookingSeriesDraftNotFoundError } = vi.hoisted(() => {
       clear: () => store.clear(),
     },
   });
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+  // jsdom does not implement Element.scrollTo; the Timetable grid scrolls to the pinned time on mount.
+  Element.prototype.scrollTo = () => {};
   class BookingSeriesDraftNotFoundError extends Error {
     constructor() {
       super("Booking series draft not found");
@@ -233,10 +248,45 @@ const createdSeries = () => ({
   occurrences: [],
 });
 
+// Half-hour cells covering the shared 09:00-10:30 window (matching repeatedTimetableUrl's start/end
+// and confirmableDraft's localStartTime/localEndTime), so a room can be evaluated as eligible for
+// the When seed highlight without needing a full 48-cell day.
+const sharedWindowCells = () => [
+  { start: "09:00", end: "09:30", state: "available" as const },
+  { start: "09:30", end: "10:00", state: "available" as const },
+  { start: "10:00", end: "10:30", state: "available" as const },
+];
+const sharedWindowTemplates = () => [{ start: "09:00", end: "10:30", slotDurationMinutes: 90 }];
+
 const availabilityResponse = () => ({
   rooms: [
-    { id: "gym-id", code: "gym", name: "Gym", capacity: 200, photoUrls: [], templates: [], cells: [] },
-    { id: "room-2", code: "room-2", name: "Room 2", capacity: 20, photoUrls: [], templates: [], cells: [] },
+    {
+      id: "gym-id",
+      code: "gym",
+      name: "Gym",
+      capacity: 200,
+      photoUrls: [],
+      templates: sharedWindowTemplates(),
+      cells: sharedWindowCells(),
+    },
+    {
+      id: "room-2",
+      code: "room-2",
+      name: "Room 2",
+      capacity: 20,
+      photoUrls: [],
+      templates: sharedWindowTemplates(),
+      cells: sharedWindowCells(),
+    },
+    {
+      id: "lobby-id",
+      code: "lobby",
+      name: "Lobby",
+      capacity: 30,
+      photoUrls: [],
+      templates: sharedWindowTemplates(),
+      cells: sharedWindowCells(),
+    },
   ],
   maxBookingLines: 3,
 });
@@ -335,6 +385,10 @@ describe("Repeated Timetable cart to Booking Details", () => {
 
     expect(await screen.findByRole("form", { name: "Search details" })).toBeTruthy();
     expect(await screen.findByLabelText("Booking title")).toHaveValue("Weekly choir");
+
+    // Regression: returning to Timetable must show only the cart's own rooms, not a When seed
+    // highlight on every other room eligible for the same shared time (Lobby here).
+    await waitFor(() => expect(screen.getAllByText("Available").length).toBe(2), { timeout: 2000 });
 
     await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled(), {
       timeout: 2000,

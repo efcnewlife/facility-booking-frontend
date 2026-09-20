@@ -132,7 +132,7 @@ describe("repeatedCartFromDraft", () => {
         { sequence: 2, facilityId: "room-2", start: "09:00", end: "10:30" },
       ],
       pinned: null,
-      whenSeed: { start: "09:00", end: "10:30" },
+      whenSeed: null,
       sharedTime: { start: "09:00", end: "10:30" },
       title: "",
     });

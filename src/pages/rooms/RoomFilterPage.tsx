@@ -267,11 +267,12 @@ const RoomFilterPage = () => {
   const [bookableMinistries, setBookableMinistries] = useState<MinistryItem[]>([]);
   const [cartState, setCartState] = useState<TimetableCartState>(() => {
     if (isRepeated) {
-      const whenSeed = whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end);
       const roomIds = parseRepeatedRoomIds(searchParams);
       if (appliedQuery?.start && appliedQuery?.end && roomIds.length > 0) {
+        // Restoring an existing proposal (e.g. returning from Booking Details): show only its own
+        // rooms and shared time, not a When seed highlight suggesting other rooms at the same time.
         return {
-          ...emptyCartState(whenSeed),
+          ...emptyCartState(null),
           sharedTime: { start: appliedQuery.start, end: appliedQuery.end },
           lines: roomIds.map((facilityId, index) => ({
             sequence: index + 1,
@@ -281,7 +282,7 @@ const RoomFilterPage = () => {
           })),
         };
       }
-      return emptyCartState(whenSeed);
+      return emptyCartState(whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end));
     }
     return buildInitialCartState(appliedQuery);
   });

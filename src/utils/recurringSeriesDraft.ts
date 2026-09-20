@@ -66,11 +66,13 @@ export const toRepeatedTimetableSearchParams = (draft: RecurringSeriesDraftDetai
 export const repeatedCartFromDraft = (draft: RecurringSeriesDraftDetail): TimetableCartState => {
   const start = clockFromLocalTime(draft.localStartTime);
   const end = clockFromLocalTime(draft.localEndTime);
-  const whenSeed = { start, end };
+  const sharedTime = { start, end };
   const rooms = [...draft.rooms].sort((left, right) => left.sequence - right.sequence);
+  // Restore only the Draft's own rooms and shared time — do not reintroduce a When seed that
+  // would highlight every other room eligible for the same interval.
   return {
-    ...emptyCartState(whenSeed),
-    sharedTime: whenSeed,
+    ...emptyCartState(null),
+    sharedTime,
     lines: rooms.map((room, index) => ({
       sequence: index + 1,
       facilityId: room.facilityId,
