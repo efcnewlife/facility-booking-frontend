@@ -119,6 +119,27 @@ describe("MyApplicationsTab entry into Ministry Profile", () => {
     });
   });
 
+  it("sends Start booking through the same Ministry Profile handoff as the Profile page", async () => {
+    mockMinistryService.listMine.mockResolvedValue(ministries());
+    mockMinistryService.getApplicationDetail.mockResolvedValue({
+      id: "ministry-rejected",
+      rejectionReason: "Missing steward",
+    });
+
+    renderTab();
+
+    const activeItem = (await screen.findByRole("link", { name: "Youth Ministry" })).closest("li");
+    expect(activeItem).not.toBeNull();
+    expect(within(activeItem as HTMLElement).getByRole("link", { name: "Start booking" })).toHaveAttribute(
+      "href",
+      "/start-booking?step=select_ministry&ministry=1&ministryId=ministry-active&source=my-ministry"
+    );
+
+    const pendingItem = (await screen.findByRole("link", { name: "Choir" })).closest("li");
+    expect(pendingItem).not.toBeNull();
+    expect(within(pendingItem as HTMLElement).queryByRole("link", { name: "Start booking" })).not.toBeInTheDocument();
+  });
+
   it("navigates to the Ministry Profile route when View details is clicked", async () => {
     mockMinistryService.listMine.mockResolvedValue(ministries());
     mockMinistryService.getApplicationDetail.mockResolvedValue({

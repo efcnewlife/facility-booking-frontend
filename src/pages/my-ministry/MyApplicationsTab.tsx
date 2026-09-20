@@ -3,6 +3,7 @@ import ResubmitMinistryModal from "@/pages/my-ministry/ResubmitMinistryModal";
 import { useAuth } from "@/context/AuthContext";
 import type { MinistryItem } from "@/types/ministry";
 import { ministryProfilePath } from "@/utils/ministryProfilePath";
+import { startBookingMinistryProfileHandoffPath } from "@/utils/ministryProfileHandoff";
 import {
   getMinistryStatusBadgeColor,
   isActiveMinistryStatus,
@@ -13,8 +14,6 @@ import { Alert, Badge, Button, Spinner } from "@efcnewlife/newlife-ui";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-
-const START_BOOKING_PATH = "/start-booking?step=select_ministry&ministry=1";
 
 const statusLabelKey = (status: string): string => {
   switch (status) {
@@ -147,7 +146,7 @@ const MyApplicationsTab = () => {
                   </Button>
                 ) : null}
                 {isActiveMinistryStatus(application.status, application.isActive) ? (
-                  <Link to={START_BOOKING_PATH}>
+                  <Link to={startBookingMinistryProfileHandoffPath(application.id)}>
                     <Button size="sm" variant="outline">
                       {t("myMinistry.applications.startBooking")}
                     </Button>
