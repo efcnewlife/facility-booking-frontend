@@ -25,22 +25,20 @@ export const seriesDraftNeedsTimetableRevision = (draft: RecurringSeriesDraftDet
   return canCreateRecurringSeriesWithExclusions(draft.conflicts, draft.excludedDates);
 };
 
+/** Title is owned by the Timetable cart; a Booking Details update only ever revises excluded dates. */
 export const seriesDraftToUpdatePayload = (
   draft: RecurringSeriesDraftDetail,
-  overrides: { title?: string | null; excludedDates?: string[] } = {}
-): CreateRecurringSeriesDraftPayload => {
-  const title = overrides.title !== undefined ? overrides.title : draft.title;
-  return {
-    title: title ? normalizeBookingTitle(title) : null,
-    ministryId: draft.ministryId,
-    firstOccurrenceDate: draft.firstOccurrenceDate,
-    lastOccurrenceDate: draft.lastOccurrenceDate,
-    localStartTime: draft.localStartTime,
-    localEndTime: draft.localEndTime,
-    rooms: draft.rooms,
-    excludedDates: overrides.excludedDates ?? draft.excludedDates,
-  };
-};
+  overrides: { excludedDates?: string[] } = {}
+): CreateRecurringSeriesDraftPayload => ({
+  title: draft.title ? normalizeBookingTitle(draft.title) : null,
+  ministryId: draft.ministryId,
+  firstOccurrenceDate: draft.firstOccurrenceDate,
+  lastOccurrenceDate: draft.lastOccurrenceDate,
+  localStartTime: draft.localStartTime,
+  localEndTime: draft.localEndTime,
+  rooms: draft.rooms,
+  excludedDates: overrides.excludedDates ?? draft.excludedDates,
+});
 
 export const toRepeatedTimetableSearchParams = (draft: RecurringSeriesDraftDetail): URLSearchParams => {
   const start = clockFromLocalTime(draft.localStartTime);

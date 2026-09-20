@@ -116,6 +116,7 @@ export interface BookingDraftLineInput {
 }
 
 export interface CreateBookingDraftPayload {
+  title: string;
   ministryId?: string | null;
   lines: BookingDraftLineInput[];
 }
@@ -136,6 +137,7 @@ interface ApiBookingDraftLine {
 interface ApiBookingDraftDetail {
   id?: string;
   date?: string;
+  title?: string | null;
   ministryId?: string | null;
   ministry_id?: string | null;
   lines?: ApiBookingDraftLine[];
@@ -151,6 +153,7 @@ export interface BookingDraftDetailLine {
 export interface BookingDraftDetail {
   id: string;
   date: string;
+  title: string;
   ministryId: string | null;
   lines: BookingDraftDetailLine[];
 }
@@ -185,6 +188,7 @@ const mapBookingDraftDetail = (data: ApiBookingDraftDetail, fallbackId: string):
   return {
     id: data.id ? String(data.id) : fallbackId,
     date: String(data.date ?? ""),
+    title: String(data.title ?? ""),
     ministryId: data.ministryId ?? data.ministry_id ?? null,
     lines: rawLines.map((line) => ({
       facilityId: String(line.facilityId ?? line.facility_id ?? ""),
@@ -284,6 +288,15 @@ interface ApiRecurringBookingConflict {
 
 interface ApiRecurringBookingPreview {
   conflicts?: ApiRecurringBookingConflict[];
+  quotedAmount?: string | number | null;
+  quoted_amount?: string | number | null;
+  currency?: string | null;
+}
+
+export interface RecurringBookingSeriesPreview {
+  conflicts: RecurringBookingConflict[];
+  quotedAmount: string | number | null;
+  currency: string | null;
 }
 
 export interface RecurringBookingConflict {
@@ -597,7 +610,7 @@ class FacilityService {
     return { id: String(response.data.id) };
   }
 
-  async previewBookingSeries(payload: PreviewRecurringBookingSeriesPayload): Promise<RecurringBookingConflict[]> {
+  async previewBookingSeries(payload: PreviewRecurringBookingSeriesPayload): Promise<RecurringBookingSeriesPreview> {
     const response = await httpClient.post<ApiRecurringBookingPreview>(
       API_ENDPOINTS.FACILITY.BOOKING_SERIES_PREVIEW,
       payload
@@ -605,7 +618,11 @@ class FacilityService {
     if (!response.success || !response.data) {
       throw new Error(response.message || "Failed to preview recurring booking series");
     }
-    return (response.data.conflicts ?? []).map(mapRecurringBookingConflict);
+    return {
+      conflicts: (response.data.conflicts ?? []).map(mapRecurringBookingConflict),
+      quotedAmount: response.data.quotedAmount ?? response.data.quoted_amount ?? null,
+      currency: response.data.currency ?? null,
+    };
   }
 
   async createBookingSeries(payload: CreateRecurringBookingSeriesPayload): Promise<RecurringBookingSeriesDetail> {

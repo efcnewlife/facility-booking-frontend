@@ -49,7 +49,9 @@ const sanitizeLines = (raw: unknown): BookingLineDraft[] => {
   return lines.sort((left, right) => left.sequence - right.sequence);
 };
 
-const isValidDraftShape = (value: unknown): value is { date: unknown; ministryId?: unknown; lines: unknown } => {
+const isValidDraftShape = (
+  value: unknown
+): value is { date: unknown; ministryId?: unknown; title?: unknown; lines: unknown } => {
   if (typeof value !== "object" || value === null) {
     return false;
   }
@@ -94,5 +96,6 @@ export const loadTimetableCart = (
   if (lines.length === 0) {
     return null;
   }
-  return { date, ministryId: storedMinistryId, lines };
+  const title = typeof parsed.title === "string" ? parsed.title : undefined;
+  return { date, ministryId: storedMinistryId, title, lines };
 };

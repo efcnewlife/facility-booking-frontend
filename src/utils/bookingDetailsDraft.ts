@@ -81,6 +81,7 @@ export const buildCreateBookingPayload = (
 };
 
 export const buildCreateBookingDraftPayload = (draft: BookingCartDraft): CreateBookingDraftPayload => ({
+  title: normalizeBookingTitle(draft.title ?? ""),
   ministryId: draft.ministryId || null,
   lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
 });
@@ -88,6 +89,7 @@ export const buildCreateBookingDraftPayload = (draft: BookingCartDraft): CreateB
 export const bookingDraftDetailToCartDraft = (detail: BookingDraftDetail): BookingCartDraft => ({
   date: detail.date,
   ministryId: detail.ministryId || undefined,
+  title: detail.title,
   lines: detail.lines.map((line) => ({
     facilityId: line.facilityId,
     start: clockFromDateTime(detail.date, line.startAt),

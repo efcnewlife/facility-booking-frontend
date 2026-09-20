@@ -194,14 +194,17 @@
     "cart": {
       "title": "预订购物车",
       "empty": "在时刻表确认时间后即可加入预订项目。",
-      "emptyRepeated": "在时刻表确认时间后，即可把房间加入这次重复预订。"
+      "emptyRepeated": "在时刻表确认时间后，即可把房间加入这次重复预订。",
+      "roomCount_other": "{{count}} 间房间",
+      "ministry": "事工：{{name}}",
+      "estimatedTotal": "预估总额",
+      "priceUnavailable": "无法获取价格"
     },
     "available": "可预订",
     "unavailable": "不可预订",
     "closed": "关闭",
     "override": "优先占用",
-    "reviewBooking": "查看预订",
-    "reviewBookingCount": "查看预订 ({{count}})",
+    "reviewAndConfirm": "查看并确认",
     "noMatchingResults": "没有符合的结果",
     "capacity": "{{count}}",
     "success": "预订已创建。",

@@ -1,5 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { RecurringBookingConflict, RecurringBookingSeriesDetail } from "@/api/services/facilityService";
+import type {
+  RecurringBookingConflict,
+  RecurringBookingSeriesDetail,
+  RecurringBookingSeriesPreview,
+} from "@/api/services/facilityService";
 import {
   buildCreateRecurringBookingSeriesPayload,
   buildPreviewRecurringBookingSeriesPayload,
@@ -15,6 +19,7 @@ import {
   buildConflictFreeReviewSummary,
   canConfirmCreate,
   canOpenReview,
+  canReviewAndConfirm,
   closeReview,
   createRecurringSeriesPreviewController,
   emptyRecurringSeriesReviewSnapshot,
@@ -63,6 +68,12 @@ const conflict = (overrides: Partial<RecurringBookingConflict> = {}): RecurringB
   ministryStewardEmail: null,
   ...overrides,
 });
+
+const previewResult = (
+  conflicts: RecurringBookingConflict[] = [],
+  quotedAmount: string | number | null = "150.00",
+  currency: string | null = "CAD"
+): RecurringBookingSeriesPreview => ({ conflicts, quotedAmount, currency });
 
 const noActions = {
   canEditTitle: false,
@@ -192,6 +203,24 @@ describe("mandatory review gate", () => {
     const scheduled = applyScheduledPreview(emptyRecurringSeriesReviewSnapshot(), "proposal-a", 1);
     expect(canOpenReview(scheduled)).toBe(false);
     expect(canOpenReview(applyPreviewStarted(scheduled, 1))).toBe(false);
+  });
+});
+
+describe("invalidatePreview preserves Title", () => {
+  it("keeps the member-entered Title across an invalidation", () => {
+    const withTitle = applyTitleChanged(readyConflictFree(), "Weekly choir");
+    const invalidated = invalidatePreview(withTitle);
+    expect(invalidated.title).toBe("Weekly choir");
+    expect(invalidated.previewStatus).toBe("idle");
+    expect(invalidated.conflicts).toEqual([]);
+  });
+});
+
+describe("canReviewAndConfirm", () => {
+  it("requires both a ready preview and a valid Title", () => {
+    expect(canReviewAndConfirm(readyConflictFree())).toBe(false);
+    expect(canReviewAndConfirm(applyTitleChanged(readyConflictFree(), "Weekly choir"))).toBe(true);
+    expect(canReviewAndConfirm(applyTitleChanged(emptyRecurringSeriesReviewSnapshot(), "Weekly choir"))).toBe(false);
   });
 });
 
@@ -376,7 +405,7 @@ describe("createRecurringSeriesPreviewController", () => {
   });
 
   it("debounces a complete proposal before requesting the full-series preview", async () => {
-    const preview = vi.fn().mockResolvedValue([]);
+    const preview = vi.fn().mockResolvedValue(previewResult());
     const controller = createRecurringSeriesPreviewController({
       preview,
       now: () => now,
@@ -393,12 +422,14 @@ describe("createRecurringSeriesPreviewController", () => {
     expect(preview).toHaveBeenCalledTimes(1);
     expect(preview).toHaveBeenCalledWith(buildPreviewRecurringBookingSeriesPayload(answers(), now));
     expect(canOpenReview(controller.getState())).toBe(true);
+    expect(controller.getState().quotedAmount).toBe("150.00");
+    expect(controller.getState().currency).toBe("CAD");
     expect(canConfirmCreate(controller.getState())).toBe(false);
     controller.dispose();
   });
 
   it("does not start a preview for an incomplete proposal", async () => {
-    const preview = vi.fn().mockResolvedValue([]);
+    const preview = vi.fn().mockResolvedValue(previewResult());
     const controller = createRecurringSeriesPreviewController({
       preview,
       now: () => now,
@@ -413,7 +444,7 @@ describe("createRecurringSeriesPreviewController", () => {
   it("does not emit again when an incomplete proposal is already idle", () => {
     const onState = vi.fn();
     const controller = createRecurringSeriesPreviewController({
-      preview: vi.fn().mockResolvedValue([]),
+      preview: vi.fn().mockResolvedValue(previewResult()),
       now: () => now,
       onState,
     });
@@ -431,7 +462,7 @@ describe("createRecurringSeriesPreviewController", () => {
   it("invalidates a ready preview once, then stays quiet while still incomplete", async () => {
     const onState = vi.fn();
     const controller = createRecurringSeriesPreviewController({
-      preview: vi.fn().mockResolvedValue([]),
+      preview: vi.fn().mockResolvedValue(previewResult()),
       now: () => now,
       onState,
     });
@@ -454,16 +485,16 @@ describe("createRecurringSeriesPreviewController", () => {
   });
 
   it("ignores an obsolete preview once the proposal has changed", async () => {
-    let resolveFirst: ((value: RecurringBookingConflict[]) => void) | undefined;
+    let resolveFirst: ((value: RecurringBookingSeriesPreview) => void) | undefined;
     const preview = vi
       .fn()
       .mockImplementationOnce(
         () =>
-          new Promise<RecurringBookingConflict[]>((resolve) => {
+          new Promise<RecurringBookingSeriesPreview>((resolve) => {
             resolveFirst = resolve;
           })
       )
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce(previewResult());
     const controller = createRecurringSeriesPreviewController({
       preview,
       now: () => now,
@@ -474,7 +505,7 @@ describe("createRecurringSeriesPreviewController", () => {
     await vi.advanceTimersByTimeAsync(RECURRING_SERIES_PREVIEW_DEBOUNCE_MS);
     controller.setProposal(answers({ recurringWhen: { ...baseRecurringWhen, roomIds: ["room-1"] } }));
     await vi.advanceTimersByTimeAsync(RECURRING_SERIES_PREVIEW_DEBOUNCE_MS);
-    resolveFirst?.([conflict()]);
+    resolveFirst?.(previewResult([conflict()]));
     await Promise.resolve();
     await Promise.resolve();
 
@@ -489,7 +520,7 @@ describe("createRecurringSeriesPreviewController", () => {
 
   it("setTitle updates the title Review reads for canConfirmCreate", async () => {
     const controller = createRecurringSeriesPreviewController({
-      preview: vi.fn().mockResolvedValue([]),
+      preview: vi.fn().mockResolvedValue(previewResult()),
       now: () => now,
       onState: vi.fn(),
     });
@@ -525,8 +556,8 @@ describe("createRecurringSeriesPreviewController", () => {
   it("drops Review exclusions when the member revises the proposal", async () => {
     const preview = vi
       .fn()
-      .mockResolvedValueOnce([conflict({ occurrenceDate: "2026-08-27", kind: "blackout" })])
-      .mockResolvedValueOnce([]);
+      .mockResolvedValueOnce(previewResult([conflict({ occurrenceDate: "2026-08-27", kind: "blackout" })]))
+      .mockResolvedValueOnce(previewResult());
     const controller = createRecurringSeriesPreviewController({
       preview,
       now: () => now,

@@ -1,11 +1,8 @@
-import type { CreateRecurringSeriesDraftPayload, RecurringSeriesDraftDetail } from "@/api/services/facilityService";
-import { repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
-import { buildCreateRecurringSeriesDraftPayload } from "@/utils/recurringBookingSeries";
-import type { StartBookingAnswers } from "@/utils/startBookingFlow";
+import type { RecurringSeriesDraftDetail } from "@/api/services/facilityService";
 import "@testing-library/jest-dom/vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { MemoryRouter, Route, Routes, useNavigate } from "react-router";
+import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const DRAFT_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
@@ -41,6 +38,8 @@ const { mockFacility, BookingSeriesDraftNotFoundError } = vi.hoisted(() => {
       updateBookingSeriesDraft: vi.fn(),
       confirmBookingSeriesDraft: vi.fn(),
       getAvailability: vi.fn(),
+      getRecurringBookingWindowStatus: vi.fn(),
+      previewBookingSeries: vi.fn(),
       getBookingSeries: vi.fn(),
       getDiscountEligibility: vi.fn(),
     },
@@ -91,6 +90,11 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
     disabled?: boolean;
     onClick?: () => void;
     type?: "button" | "submit";
+    "aria-pressed"?: boolean;
+    "aria-label"?: string;
+    startIcon?: React.ReactNode;
+    variant?: string;
+    size?: string;
   };
   type InputProps = {
     error?: string;
@@ -104,11 +108,31 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
     value?: string;
     wrapperClassName?: string;
   };
+  type LabeledProps = { id?: string; label?: string; children?: React.ReactNode };
   return {
     Alert: ({ message, title }: { message?: string; title?: string }) =>
       React.createElement("div", null, title ? React.createElement("strong", null, title) : null, message),
-    Button: ({ children, className, disabled, onClick, type = "button" }: ButtonProps) =>
-      React.createElement("button", { className, disabled, onClick, type }, children),
+    Badge: ({ children }: { children?: React.ReactNode }) => React.createElement("span", null, children),
+    Button: ({
+      children,
+      className,
+      disabled,
+      onClick,
+      type = "button",
+      startIcon,
+      variant,
+      size,
+      ...rest
+    }: ButtonProps) => {
+      void startIcon;
+      void variant;
+      void size;
+      return React.createElement("button", { className, disabled, onClick, type, ...rest }, children);
+    },
+    DatePicker: ({ id, label }: LabeledProps) =>
+      React.createElement("div", null, label ? React.createElement("label", { htmlFor: id }, label) : null),
+    FormField: ({ id, label, children }: LabeledProps) =>
+      React.createElement("div", null, label ? React.createElement("label", { htmlFor: id }, label) : null, children),
     Input: ({ error, hint, id, label, onBlur, onChange, placeholder, required, value, wrapperClassName }: InputProps) =>
       React.createElement(
         "div",
@@ -118,6 +142,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
         hint ? React.createElement("p", null, hint) : null,
         error ? React.createElement("p", null, error) : null
       ),
+    Select: ({ id, label }: LabeledProps) =>
+      React.createElement("div", null, label ? React.createElement("label", { htmlFor: id }, label) : null),
     Spinner: ({ text }: { text?: string }) => React.createElement("div", null, text ?? "Loading"),
     cn: (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" "),
   };
@@ -127,28 +153,29 @@ import "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
+import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
 
-const answers: StartBookingAnswers = {
-  isMinistryBooking: false,
-  ministryId: null,
-  frequency: "repeated",
-  when: { date: null, start: null, end: null },
-  recurringWhen: {
-    weekday: 4,
-    firstOccurrenceDate: "2026-08-20",
-    lastOccurrenceDate: "2026-09-24",
-    startTime: "09:00",
-    endTime: "10:30",
-    roomIds: ["gym-id", "room-2"],
-  },
+// Far in the future so the run stays valid for years, since the live preview controller validates
+// the proposal against the real current date rather than an injectable clock.
+const repeatedTimetableUrl = () => {
+  const params = new URLSearchParams({
+    frequency: "repeated",
+    date: "2099-01-01",
+    lastDate: "2099-02-05",
+    weekday: "4",
+    start: "09:00",
+    end: "10:30",
+    rooms: "gym-id,room-2",
+  });
+  return `/rooms?${params.toString()}`;
 };
 
 const confirmableDraft = (overrides: Partial<RecurringSeriesDraftDetail> = {}): RecurringSeriesDraftDetail => ({
   id: DRAFT_ID,
   title: null,
   ministryId: null,
-  firstOccurrenceDate: "2026-08-20",
-  lastOccurrenceDate: "2026-09-24",
+  firstOccurrenceDate: "2099-01-01",
+  lastOccurrenceDate: "2099-02-05",
   localStartTime: "09:00:00",
   localEndTime: "10:30:00",
   isMissionAligned: false,
@@ -206,35 +233,19 @@ const createdSeries = () => ({
   occurrences: [],
 });
 
-const PreviewReadyTimetable = () => {
-  const navigate = useNavigate();
-  return (
-    <main>
-      <h1>Timetable</h1>
-      <button
-        onClick={() => {
-          void (async () => {
-            const payload = buildCreateRecurringSeriesDraftPayload(answers, new Date("2026-08-13T12:00:00"));
-            if (!payload) {
-              return;
-            }
-            const created = await mockFacility.createBookingSeriesDraft(payload);
-            navigate(repeatedBookingDetailsPath(created.id));
-          })();
-        }}
-        type="button"
-      >
-        Review Booking
-      </button>
-    </main>
-  );
-};
+const availabilityResponse = () => ({
+  rooms: [
+    { id: "gym-id", code: "gym", name: "Gym", capacity: 200, photoUrls: [], templates: [], cells: [] },
+    { id: "room-2", code: "room-2", name: "Room 2", capacity: 20, photoUrls: [], templates: [], cells: [] },
+  ],
+  maxBookingLines: 3,
+});
 
 const renderFlow = (initialEntry: string) => {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
       <Routes>
-        <Route element={<PreviewReadyTimetable />} path="/rooms" />
+        <Route element={<RoomFilterPage />} path="/rooms" />
         <Route element={<BookingDetailsPage />} path="/booking-details/repeated/:draftId" />
         <Route element={<PaymentPage />} path="/payment/repeated/:seriesId" />
         <Route element={<NotFoundPage />} path="*" />
@@ -243,49 +254,30 @@ const renderFlow = (initialEntry: string) => {
   );
 };
 
-describe("Repeated Review-to-Payment", () => {
+describe("Repeated Timetable cart to Booking Details", () => {
   let draft: RecurringSeriesDraftDetail;
 
   beforeEach(() => {
     draft = confirmableDraft();
-    mockFacility.createBookingSeriesDraft.mockResolvedValue({ id: DRAFT_ID });
+    mockFacility.createBookingSeriesDraft.mockImplementation(async (payload) => {
+      draft = { ...draft, title: payload.title ?? null, excludedDates: payload.excludedDates ?? [] };
+      return { id: DRAFT_ID };
+    });
     mockFacility.getBookingSeriesDraft.mockImplementation(async () => structuredClone(draft));
-    mockFacility.updateBookingSeriesDraft.mockImplementation(
-      async (_id: string, payload: CreateRecurringSeriesDraftPayload) => {
-        draft = {
-          ...draft,
-          title: payload.title ?? draft.title,
-          excludedDates: payload.excludedDates ?? draft.excludedDates,
-        };
-        return structuredClone(draft);
-      }
-    );
+    mockFacility.updateBookingSeriesDraft.mockImplementation(async (_id: string, payload) => {
+      draft = {
+        ...draft,
+        title: payload.title ?? draft.title,
+        excludedDates: payload.excludedDates ?? draft.excludedDates,
+      };
+      return structuredClone(draft);
+    });
     mockFacility.confirmBookingSeriesDraft.mockResolvedValue(createdSeries());
     mockFacility.getBookingSeries.mockResolvedValue(createdSeries());
     mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
-    mockFacility.getAvailability.mockResolvedValue({
-      rooms: [
-        {
-          id: "gym-id",
-          code: "gym",
-          name: "Gym",
-          capacity: 200,
-          photoUrls: [],
-          templates: [],
-          cells: [],
-        },
-        {
-          id: "room-2",
-          code: "room-2",
-          name: "Room 2",
-          capacity: 20,
-          photoUrls: [],
-          templates: [],
-          cells: [],
-        },
-      ],
-      maxBookingLines: 3,
-    });
+    mockFacility.getRecurringBookingWindowStatus.mockResolvedValue({ isOpen: true, nextOpeningDate: null });
+    mockFacility.previewBookingSeries.mockResolvedValue({ conflicts: [], quotedAmount: "150.00", currency: "CAD" });
+    mockFacility.getAvailability.mockResolvedValue(availabilityResponse());
   });
 
   afterEach(() => {
@@ -293,33 +285,76 @@ describe("Repeated Review-to-Payment", () => {
     vi.clearAllMocks();
   });
 
-  it("creates a Recurring Series Draft from Review Booking and confirms it to Repeated Payment", async () => {
+  it("gates Review & Confirm on a valid Title and a ready price preview, then creates the Series Draft", async () => {
     const user = userEvent.setup();
-    renderFlow("/rooms");
+    renderFlow(repeatedTimetableUrl());
 
-    await user.click(screen.getByRole("button", { name: "Review Booking" }));
+    expect(await screen.findByRole("button", { name: "Review & Confirm" })).toBeDisabled();
+
+    await waitFor(
+      () => {
+        expect(mockFacility.previewBookingSeries).toHaveBeenCalled();
+      },
+      { timeout: 2000 }
+    );
+    await waitFor(() => {
+      expect(screen.getByText(/150\.00/)).toBeTruthy();
+    });
+    expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
+
+    await user.type(screen.getByLabelText("Booking title"), "Weekly choir");
+
+    await waitFor(() => {
+      expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled();
+    });
+
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
 
     expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
     expect(mockFacility.createBookingSeriesDraft).toHaveBeenCalledTimes(1);
-    expect(screen.getByText("Repeated booking")).toBeTruthy();
-    expect(await screen.findByText("Gym")).toBeTruthy();
-    expect(
-      screen.getByText("This preview does not reserve any rooms. The series is created only after you confirm.")
-    ).toBeTruthy();
-    expect(screen.getAllByText(/150\.00/).length).toBeGreaterThan(0);
+    expect(mockFacility.createBookingSeriesDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Weekly choir" })
+    );
+    expect(screen.getByText("Weekly choir")).toBeTruthy();
+  });
 
-    const confirm = screen.getByRole("button", { name: "Confirm" });
-    expect(confirm).toBeDisabled();
+  it("updates the same Series Draft on a later Review & Confirm instead of creating another", async () => {
+    const user = userEvent.setup();
+    renderFlow(repeatedTimetableUrl());
 
+    await waitFor(() => expect(mockFacility.previewBookingSeries).toHaveBeenCalled(), { timeout: 2000 });
     await user.type(screen.getByLabelText("Booking title"), "Weekly choir");
-    await user.tab();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
 
-    await waitFor(() => {
-      expect(mockFacility.updateBookingSeriesDraft).toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
+
+    expect(await screen.findByRole("form", { name: "Search details" })).toBeTruthy();
+    expect(await screen.findByLabelText("Booking title")).toHaveValue("Weekly choir");
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled(), {
+      timeout: 2000,
     });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: "Confirm" })).not.toBeDisabled();
-    });
+
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(mockFacility.createBookingSeriesDraft).toHaveBeenCalledTimes(1);
+    expect(mockFacility.updateBookingSeriesDraft).toHaveBeenCalledWith(
+      DRAFT_ID,
+      expect.objectContaining({ title: "Weekly choir" })
+    );
+  });
+
+  it("confirms an existing Series Draft to Repeated Payment", async () => {
+    draft = confirmableDraft({ title: "Weekly choir" });
+    const user = userEvent.setup();
+    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(screen.getByText("Weekly choir")).toBeTruthy();
+    expect(await screen.findByText("Gym")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Confirm" }));
 
@@ -328,23 +363,6 @@ describe("Repeated Review-to-Payment", () => {
     expect(await screen.findByText(/150\.00/)).toBeTruthy();
     expect(screen.getByText("Hold deadline")).toBeTruthy();
     expect(mockFacility.getBookingSeries).toHaveBeenCalledWith(SERIES_ID);
-  });
-
-  it("keeps the Title after a Booking Details refresh", async () => {
-    const user = userEvent.setup();
-    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
-
-    expect(await screen.findByLabelText("Booking title")).toHaveValue("");
-    await user.type(screen.getByLabelText("Booking title"), "Weekly choir");
-    await user.tab();
-    await waitFor(() => {
-      expect(mockFacility.updateBookingSeriesDraft).toHaveBeenCalled();
-    });
-
-    cleanup();
-    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
-    expect(await screen.findByDisplayValue("Weekly choir")).toBeTruthy();
-    expect(mockFacility.getBookingSeriesDraft).toHaveBeenCalled();
   });
 
   it("does not show the stale proposal warning for a conflict-free Draft that only needs a Title", async () => {
@@ -379,10 +397,11 @@ describe("Repeated Review-to-Payment", () => {
     expect(screen.getByRole("button", { name: "Confirm" })).toBeDisabled();
 
     await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
-    expect(await screen.findByRole("heading", { name: "Timetable" })).toBeTruthy();
+    expect(await screen.findByRole("form", { name: "Search details" })).toBeTruthy();
   });
 
   it("shows the server's effective Recurring Discount label instead of a hardcoded Ministry label", async () => {
+    draft = confirmableDraft({ title: "Weekly choir" });
     mockFacility.getDiscountEligibility.mockResolvedValue({
       discountCode: "recurring_weekly_monthly",
       discountPercent: 20,

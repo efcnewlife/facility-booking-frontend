@@ -194,14 +194,17 @@
     "cart": {
       "title": "預訂購物車",
       "empty": "在時刻表確認時間後即可加入預訂項目。",
-      "emptyRepeated": "在時刻表確認時間後，即可把房間加入這次重複預訂。"
+      "emptyRepeated": "在時刻表確認時間後，即可把房間加入這次重複預訂。",
+      "roomCount_other": "{{count}} 間房間",
+      "ministry": "事工：{{name}}",
+      "estimatedTotal": "預估總額",
+      "priceUnavailable": "無法取得價格"
     },
     "available": "可預訂",
     "unavailable": "不可預訂",
     "closed": "關閉",
     "override": "優先占用",
-    "reviewBooking": "檢視預訂",
-    "reviewBookingCount": "檢視預訂 ({{count}})",
+    "reviewAndConfirm": "檢視並確認",
     "noMatchingResults": "沒有符合的結果",
     "capacity": "{{count}}",
     "success": "預訂已建立。",

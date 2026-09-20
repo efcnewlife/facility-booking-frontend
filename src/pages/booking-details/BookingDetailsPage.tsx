@@ -1,7 +1,7 @@
 import facilityService, { BookingDraftNotFoundError } from "@/api/services/facilityService";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
-import { bookingTitleFieldFeedback, validateBookingTitle } from "@/utils/bookingTitle";
+import { validateBookingTitle } from "@/utils/bookingTitle";
 import type { BookingCartDraft } from "@/utils/bookingCartDraft";
 import {
   allLinesCoverAvailability,
@@ -18,7 +18,7 @@ import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSum
 import { toRoomsSearchParams } from "@/utils/startBookingFlow";
 import { saveTimetableCart } from "@/utils/timetableCartStorage";
 import { MAX_BOOKING_LINES, type BookingInterval, type RoomDay } from "@/utils/timetableRules";
-import { Button, cn, Input, Spinner } from "@efcnewlife/newlife-ui";
+import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -78,8 +78,6 @@ const OneTimeBookingDetailsPage = () => {
   const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
-  const [title, setTitle] = useState("");
-  const [titleTouched, setTitleTouched] = useState(false);
 
   const loadDraftDetail = useCallback(async () => {
     if (!draftId) {
@@ -167,15 +165,12 @@ const OneTimeBookingDetailsPage = () => {
     return allLinesCoverAvailability(rooms, draft);
   }, [draft, rooms]);
 
-  const titleError = validateBookingTitle(title);
-  const titleFeedback = bookingTitleFieldFeedback(title, titleTouched, t);
-
   const canConfirm = useMemo(() => {
-    if (!draft || loading || confirming || updating || titleError) {
+    if (!draft || loading || confirming || updating || validateBookingTitle(draft.title ?? "")) {
       return false;
     }
     return linesAvailable;
-  }, [confirming, draft, linesAvailable, loading, titleError, updating]);
+  }, [confirming, draft, linesAvailable, loading, updating]);
 
   if (!draftId) {
     return <Navigate replace to="/" />;
@@ -202,10 +197,13 @@ const OneTimeBookingDetailsPage = () => {
   const goToTimetable = (nextDraft: BookingCartDraft | null) => {
     saveTimetableCart(window.localStorage, nextDraft);
     const target = nextDraft ?? draft;
-    navigate({
-      pathname: "/rooms",
-      search: toRoomsSearchParams({ date: target.date, ministryId: target.ministryId }).toString(),
-    });
+    navigate(
+      {
+        pathname: "/rooms",
+        search: toRoomsSearchParams({ date: target.date, ministryId: target.ministryId }).toString(),
+      },
+      { state: { draftId } }
+    );
   };
 
   const applyDraftUpdate = async (nextDraft: BookingCartDraft) => {
@@ -271,7 +269,7 @@ const OneTimeBookingDetailsPage = () => {
     setConfirming(true);
     setError(null);
     try {
-      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, title, draftId));
+      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, draft.title ?? "", draftId));
       navigate(`/payment/one-time/${created.id}`);
     } catch (err) {
       setError(messageFromUnknown(err, t("timetable.createError")));
@@ -320,21 +318,11 @@ const OneTimeBookingDetailsPage = () => {
               </p>
             ) : null}
             {loading ? <Spinner className="mb-4" showText size="sm" text={t("startBooking.loading")} /> : null}
-            <Input
-              error={titleFeedback.error}
-              hint={titleFeedback.hint}
-              id="booking-title"
-              label={t("bookingTitle.label")}
-              onChange={(event) => {
-                setTitleTouched(true);
-                setTitle(event.target.value);
-              }}
-              placeholder={t("bookingTitle.placeholder")}
-              required
-              value={title}
-              wrapperClassName="mb-6"
-            />
             <dl>
+              <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 py-4">
+                <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingTitle.label")}</dt>
+                <dd className="m-0 text-xl font-normal leading-[26px]">{draft.title}</dd>
+              </div>
               <div className="grid grid-cols-[90px_minmax(0,1fr)] items-start gap-4 border-t border-gray-300 py-4">
                 <dt className="m-0 text-base font-bold leading-[1.125]">{t("bookingDetails.date")}</dt>
                 <dd className="m-0 text-xl font-normal leading-[26px]">{formattedDate}</dd>

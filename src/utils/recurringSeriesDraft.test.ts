@@ -134,6 +134,7 @@ describe("repeatedCartFromDraft", () => {
       pinned: null,
       whenSeed: { start: "09:00", end: "10:30" },
       sharedTime: { start: "09:00", end: "10:30" },
+      title: "",
     });
   });
 });
