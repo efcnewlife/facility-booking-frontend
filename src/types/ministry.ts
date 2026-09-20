@@ -126,3 +126,30 @@ export interface CreateMinistryApplicationPayload {
     memberRole: "primary" | "secondary";
   }>;
 }
+
+export interface MinistryProfileSteward {
+  memberRole: string;
+  displayName?: string | null;
+  email?: string | null;
+}
+
+export interface MinistryProfileOwnerPosition {
+  name?: string | null;
+  incumbentDisplayName?: string | null;
+  incumbentEmail?: string | null;
+}
+
+export interface MinistryProfile {
+  id: string;
+  name?: string | null;
+  purpose?: string | null;
+  status: string;
+  hasPriorityBooking: boolean;
+  submittedAt?: string | null;
+  approvedAt?: string | null;
+  rejectedAt?: string | null;
+  rejectionReason?: string | null;
+  targetAudiences: MinistryCatalogRef[];
+  stewards: MinistryProfileSteward[];
+  ownerPosition?: MinistryProfileOwnerPosition | null;
+}

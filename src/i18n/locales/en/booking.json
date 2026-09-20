@@ -57,6 +57,7 @@
       "unnamed": "Untitled ministry",
       "rejectionReason": "Rejection reason",
       "startBooking": "Start booking",
+      "viewDetails": "View details",
       "status": {
         "pendingApproval": "Pending approval",
         "rejected": "Rejected",
@@ -117,6 +118,30 @@
         "reason": "Rejection reason",
         "reasonRequired": "A rejection reason is required.",
         "comment": "Comment (optional)"
+      }
+    },
+    "profile": {
+      "back": "Back to My applications",
+      "unnamed": "Untitled ministry",
+      "unnamedSteward": "Unnamed steward",
+      "summaryTitle": "Ministry summary",
+      "targetAudiences": "Target audiences",
+      "priorityBooking": "Priority booking",
+      "priorityBookingYes": "Yes",
+      "priorityBookingNo": "No",
+      "submittedAt": "Submitted",
+      "approvedAt": "Approved",
+      "rejectedAt": "Rejected",
+      "rejectionReason": "Rejection reason",
+      "purpose": "Purpose",
+      "stewardsTitle": "Stewards",
+      "noStewards": "No stewards listed.",
+      "ownerPositionTitle": "Owner Position",
+      "ownerPositionVacant": "This position is currently vacant.",
+      "startBooking": "Start booking",
+      "errors": {
+        "title": "Unable to load ministry profile",
+        "loadDetail": "Failed to load the ministry profile."
       }
     }
   },
@@ -471,7 +496,9 @@
       "sponsor": "Be sure you have a sponsoring church leader or staff.",
       "placeholder": "Select your ministry",
       "empty": "You do not have an active ministry yet.",
-      "createNew": "Create New"
+      "createNew": "Create New",
+      "autoSelectedTitle": "Ministry selected",
+      "autoSelectedNotice": "We selected this ministry for you from its Ministry Profile."
     },
     "createMinistry": {
       "title": "Create new ministry",

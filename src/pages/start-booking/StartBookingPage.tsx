@@ -5,6 +5,10 @@ import StartBookingProgress from "@/components/booking/StartBookingProgress";
 import { useAuth } from "@/context/AuthContext";
 import CreateMinistryModal from "@/pages/start-booking/CreateMinistryModal";
 import type { MinistryItem } from "@/types/ministry";
+import {
+  clearMinistryProfileHandoffParams,
+  readMinistryProfileHandoffMinistryId,
+} from "@/utils/ministryProfileHandoff";
 import { clearStartBookingState } from "@/utils/startBookingEntry";
 import {
   applyFirstOccurrenceDate,
@@ -69,7 +73,8 @@ const StartBookingPage = () => {
   const isMinistryBooking = ministryChoiceFromParam(searchParams.get(MINISTRY_QUERY_KEY));
 
   const [ministries, setMinistries] = useState<MinistryItem[]>([]);
-  const [ministryId, setMinistryId] = useState<string | null>(null);
+  const [ministryId, setMinistryId] = useState<string | null>(() => readMinistryProfileHandoffMinistryId(searchParams));
+  const [ministriesLoaded, setMinistriesLoaded] = useState(false);
   const [frequency, setFrequency] = useState<BookingFrequency | null>(null);
   const [dateValue, setDateValue] = useState<DatePickerValue>(null);
   const [startValue, setStartValue] = useState<TimePickerValue>(null);
@@ -170,6 +175,7 @@ const StartBookingPage = () => {
       setError(err instanceof Error ? err.message : t("startBooking.errors.loadMinistries"));
     } finally {
       setLoading(false);
+      setMinistriesLoaded(true);
     }
   }, [t]);
 
@@ -178,6 +184,23 @@ const StartBookingPage = () => {
       void loadMinistries();
     }
   }, [loadMinistries, step]);
+
+  useEffect(() => {
+    if (step !== "select_ministry" || !ministriesLoaded) {
+      return;
+    }
+    const handoffMinistryId = readMinistryProfileHandoffMinistryId(searchParams);
+    if (!handoffMinistryId) {
+      return;
+    }
+    if (handoffMinistryId !== ministryId) {
+      setSearchParams(clearMinistryProfileHandoffParams(searchParams), { replace: true });
+    }
+  }, [ministriesLoaded, ministryId, searchParams, setSearchParams, step]);
+
+  const handoffMinistryId = readMinistryProfileHandoffMinistryId(searchParams);
+  const showMinistryHandoffBanner =
+    ministriesLoaded && step === "select_ministry" && handoffMinistryId != null && handoffMinistryId === ministryId;
 
   useEffect(() => {
     void clearStartBookingState(
@@ -337,6 +360,15 @@ const StartBookingPage = () => {
           </h1>
           <p className="mt-3 text-center text-lg text-on-surface">{t("startBooking.selectMinistry.body")}</p>
           <p className="text-center text-lg text-on-surface">{t("startBooking.selectMinistry.sponsor")}</p>
+          {showMinistryHandoffBanner ? (
+            <Alert
+              className="mt-6 w-full"
+              message={t("startBooking.selectMinistry.autoSelectedNotice")}
+              title={t("startBooking.selectMinistry.autoSelectedTitle")}
+              variant="info"
+              width="full"
+            />
+          ) : null}
           <div className="mt-8 w-full">
             <Select
               id="start-booking-ministry"

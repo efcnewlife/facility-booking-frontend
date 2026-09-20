@@ -1,5 +1,6 @@
 import { isBookingDetailsPath } from "./bookingDetailsPath";
 import { isMinistryApprovalDetailPath } from "./ministryApprovalPath";
+import { isMinistryProfilePath } from "./ministryProfilePath";
 import { isPaymentPath } from "./paymentPage";
 import { extractTypedRouteId } from "./typedRoutePath";
 
@@ -54,6 +55,7 @@ export const visitAccess = ({ isAuthenticated, canAccessMyMinistry, pathname }: 
     !KNOWN_MEMBER_PATHS.has(path) &&
     !isPaymentPath(path) &&
     !isMinistryApprovalDetailPath(path) &&
+    !isMinistryProfilePath(path) &&
     !isBookingDetailsPath(path) &&
     !isMyBookingsDetailPath(path)
   ) {

@@ -57,6 +57,7 @@
       "unnamed": "未命名事工",
       "rejectionReason": "拒绝原因",
       "startBooking": "开始预订",
+      "viewDetails": "查看详情",
       "status": {
         "pendingApproval": "待审核",
         "rejected": "已拒绝",
@@ -117,6 +118,30 @@
         "reason": "拒绝原因",
         "reasonRequired": "必须填写拒绝原因。",
         "comment": "备注（选填）"
+      }
+    },
+    "profile": {
+      "back": "返回我的申请",
+      "unnamed": "未命名事工",
+      "unnamedSteward": "未命名同工",
+      "summaryTitle": "事工摘要",
+      "targetAudiences": "目标对象",
+      "priorityBooking": "优先预订",
+      "priorityBookingYes": "是",
+      "priorityBookingNo": "否",
+      "submittedAt": "提交日期",
+      "approvedAt": "核准日期",
+      "rejectedAt": "拒绝日期",
+      "rejectionReason": "拒绝原因",
+      "purpose": "目的",
+      "stewardsTitle": "同工",
+      "noStewards": "尚未列出同工。",
+      "ownerPositionTitle": "负责职位",
+      "ownerPositionVacant": "此职位目前空缺。",
+      "startBooking": "开始预订",
+      "errors": {
+        "title": "无法加载事工档案",
+        "loadDetail": "无法加载此事工档案。"
       }
     }
   },
@@ -470,7 +495,9 @@
       "sponsor": "请确认你有教会领袖或同工作为赞助人。",
       "placeholder": "选择你的事工",
       "empty": "你目前没有已核准的事工。",
-      "createNew": "创建新事工"
+      "createNew": "创建新事工",
+      "autoSelectedTitle": "已选择事工",
+      "autoSelectedNotice": "我们已根据事工档案为你自动选择此事工。"
     },
     "createMinistry": {
       "title": "创建新事工",

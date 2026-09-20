@@ -57,6 +57,7 @@
       "unnamed": "未命名事工",
       "rejectionReason": "拒絕原因",
       "startBooking": "開始預訂",
+      "viewDetails": "查看詳情",
       "status": {
         "pendingApproval": "待審核",
         "rejected": "已拒絕",
@@ -117,6 +118,30 @@
         "reason": "拒絕原因",
         "reasonRequired": "必須填寫拒絕原因。",
         "comment": "備註（選填）"
+      }
+    },
+    "profile": {
+      "back": "返回我的申請",
+      "unnamed": "未命名事工",
+      "unnamedSteward": "未命名同工",
+      "summaryTitle": "事工摘要",
+      "targetAudiences": "目標對象",
+      "priorityBooking": "優先預訂",
+      "priorityBookingYes": "是",
+      "priorityBookingNo": "否",
+      "submittedAt": "提交日期",
+      "approvedAt": "核准日期",
+      "rejectedAt": "拒絕日期",
+      "rejectionReason": "拒絕原因",
+      "purpose": "目的",
+      "stewardsTitle": "同工",
+      "noStewards": "尚未列出同工。",
+      "ownerPositionTitle": "負責職位",
+      "ownerPositionVacant": "此職位目前出缺。",
+      "startBooking": "開始預訂",
+      "errors": {
+        "title": "無法載入事工檔案",
+        "loadDetail": "無法載入此事工檔案。"
       }
     }
   },
@@ -470,7 +495,9 @@
       "sponsor": "請確認你有教會領袖或同工作為贊助人。",
       "placeholder": "選擇你的事工",
       "empty": "你目前沒有已核准的事工。",
-      "createNew": "建立新事工"
+      "createNew": "建立新事工",
+      "autoSelectedTitle": "已選擇事工",
+      "autoSelectedNotice": "我們已依照事工檔案為你自動選擇此事工。"
     },
     "createMinistry": {
       "title": "建立新事工",

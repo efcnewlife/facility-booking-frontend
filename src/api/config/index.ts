@@ -12,6 +12,7 @@ export const API_ENDPOINTS = {
   },
   MINISTRY: {
     MINE: `${BOOKING_API_PREFIX}/ministry/ministries/mine`,
+    PROFILE: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/ministries/mine/${ministryId}`,
     APPLICATIONS: `${BOOKING_API_PREFIX}/ministry/applications`,
     APPLICATION: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/applications/${ministryId}`,
     RESUBMIT_APPLICATION: (ministryId: string) => `${BOOKING_API_PREFIX}/ministry/applications/${ministryId}/submit`,

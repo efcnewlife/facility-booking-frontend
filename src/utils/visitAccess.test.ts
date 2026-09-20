@@ -75,6 +75,26 @@ describe("visitAccess", () => {
     ).toBe("not-found");
   });
 
+  it("allows an authenticated member to open a Ministry Profile path", () => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        canAccessMyMinistry: false,
+        pathname: "/my-ministry/3fa85f64-5717-4562-b3fc-2c963f66afa6",
+      })
+    ).toBe("allow");
+  });
+
+  it("shows Not Found for an invalid Ministry Profile path", () => {
+    expect(
+      visitAccess({
+        isAuthenticated: true,
+        canAccessMyMinistry: false,
+        pathname: "/my-ministry/not-a-uuid",
+      })
+    ).toBe("not-found");
+  });
+
   it.each([
     "/",
     "/start-booking",

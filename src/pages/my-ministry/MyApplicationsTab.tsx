@@ -2,6 +2,7 @@ import ministryService from "@/api/services/ministryService";
 import ResubmitMinistryModal from "@/pages/my-ministry/ResubmitMinistryModal";
 import { useAuth } from "@/context/AuthContext";
 import type { MinistryItem } from "@/types/ministry";
+import { ministryProfilePath } from "@/utils/ministryProfilePath";
 import {
   getMinistryStatusBadgeColor,
   isActiveMinistryStatus,
@@ -115,7 +116,9 @@ const MyApplicationsTab = () => {
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="min-w-0 space-y-1">
                   <h3 className="text-lg font-semibold text-on-surface">
-                    {application.name?.trim() || t("myMinistry.applications.unnamed")}
+                    <Link className="hover:underline" to={ministryProfilePath(application.id)}>
+                      {application.name?.trim() || t("myMinistry.applications.unnamed")}
+                    </Link>
                   </h3>
                 </div>
                 <Badge color={statusColor} variant="light">
@@ -133,6 +136,11 @@ const MyApplicationsTab = () => {
               ) : null}
 
               <div className="mt-4 flex flex-wrap gap-3">
+                <Link to={ministryProfilePath(application.id)}>
+                  <Button size="sm" variant="outline">
+                    {t("myMinistry.applications.viewDetails")}
+                  </Button>
+                </Link>
                 {isRejectedMinistryStatus(application.status) ? (
                   <Button onClick={() => setResubmitMinistryId(application.id)} size="sm" variant="primary">
                     {t("myMinistry.applications.resubmit.action")}

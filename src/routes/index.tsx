@@ -11,6 +11,7 @@ import MyBookingsPage from "@/pages/my-bookings/MyBookingsPage";
 import RecurringSeriesDetailPage from "@/pages/my-bookings/RecurringSeriesDetailPage";
 import MyMinistryPage from "@/pages/my-ministry/MyMinistryPage";
 import MinistryApprovalDetailPage from "@/pages/my-ministry/MinistryApprovalDetailPage";
+import MinistryProfilePage from "@/pages/my-ministry/MinistryProfilePage";
 import MyProfilePage from "@/pages/my-profile/MyProfilePage";
 import PaymentPage from "@/pages/payment/PaymentPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
@@ -79,6 +80,10 @@ export const router = createBrowserRouter([
           {
             path: "/my-ministry/approvals/:ministryId",
             element: <MinistryApprovalDetailPage />,
+          },
+          {
+            path: "/my-ministry/:ministryId",
+            element: <MinistryProfilePage />,
           },
           {
             path: "*",
