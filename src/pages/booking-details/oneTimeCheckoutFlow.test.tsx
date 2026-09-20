@@ -144,6 +144,7 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
 });
 
 import "@/i18n";
+import ministryService from "@/api/services/ministryService";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
@@ -306,6 +307,8 @@ describe("One-time Timetable cart to Booking Details", () => {
 
     await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
     await waitFor(() => expect(screen.getAllByText(/75\.00/).length).toBeGreaterThan(0));
+    expect(screen.getByText("1 room")).toBeTruthy();
+    expect(screen.getByText("Estimated Total")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
 
     await user.type(screen.getByLabelText("Booking title"), "Choir practice");
@@ -348,5 +351,28 @@ describe("One-time Timetable cart to Booking Details", () => {
       DRAFT_ID,
       expect.objectContaining({ title: "Choir practice" })
     );
+  });
+
+  it("shows the selected Ministry's name in the summary, and only when a Ministry is selected", async () => {
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    window.localStorage.clear();
+    saveTimetableCart(window.localStorage, {
+      date: "2026-09-01",
+      ministryId: "ministry-1",
+      lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+  });
+
+  it("shows no Ministry row for a non-Ministry proposal", async () => {
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    expect(screen.queryByText(/^Ministry:/)).toBeNull();
   });
 });

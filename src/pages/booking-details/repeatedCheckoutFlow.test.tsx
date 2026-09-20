@@ -300,6 +300,9 @@ describe("Repeated Timetable cart to Booking Details", () => {
     await waitFor(() => {
       expect(screen.getByText(/150\.00/)).toBeTruthy();
     });
+    expect(screen.getByText("2 rooms")).toBeTruthy();
+    expect(screen.getByText("Estimated Total")).toBeTruthy();
+    expect(screen.getAllByText("6 weekly occurrences").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
 
     await user.type(screen.getByLabelText("Booking title"), "Weekly choir");

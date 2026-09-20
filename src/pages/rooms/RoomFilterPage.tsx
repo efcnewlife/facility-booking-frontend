@@ -44,6 +44,7 @@ import {
   addCartLine,
   applyRepeatedTimeReplacement,
   blockActionForInterval,
+  canReviewCart,
   cartPointerAction,
   clockToMinutes,
   confirmBookingTimePrefillForCart,
@@ -880,7 +881,7 @@ const RoomFilterPage = () => {
       return;
     }
     if (
-      cartState.lines.length === 0 ||
+      !canReviewCart(cartState) ||
       !appliedDate ||
       validateBookingTitle(cartState.title ?? "") ||
       oneTimeQuote.key !== oneTimeLinesKey ||
@@ -942,7 +943,7 @@ const RoomFilterPage = () => {
     cartState.lines.length > 0 && (!isOneTimeQuoteCurrent || oneTimeQuote.status === "loading");
   const oneTimePriceUnavailable = isOneTimeQuoteCurrent && oneTimeQuote.status === "error";
   const oneTimeReviewDisabled =
-    cartState.lines.length === 0 ||
+    !canReviewCart(cartState) ||
     Boolean(validateBookingTitle(cartState.title ?? "")) ||
     !isOneTimeQuoteCurrent ||
     oneTimeQuote.status !== "ready";
