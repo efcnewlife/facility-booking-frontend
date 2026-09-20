@@ -1,4 +1,4 @@
-import { API_ENDPOINTS } from "@/api/config";
+import { API_ENDPOINTS, HTTP_STATUS } from "@/api/config";
 import type { ApiError } from "@/types/api";
 import type {
   ApproveMinistryApplicationPayload,
@@ -10,11 +10,19 @@ import type {
   MinistryCatalogListResponse,
   MinistryDetail,
   MinistryListResponse,
+  MinistryProfile,
   OrgUserSearchListResponse,
   RejectMinistryApplicationPayload,
   UpdateMinistryApplicationPayload,
 } from "@/types/ministry";
 import { httpClient } from "./httpClient";
+
+export class MinistryProfileNotFoundError extends Error {
+  constructor() {
+    super("Ministry profile not found");
+    this.name = "MinistryProfileNotFoundError";
+  }
+}
 
 interface LocaleApiItem {
   id: string;
@@ -107,6 +115,25 @@ class MinistryService {
     return {
       items: response.data.items || [],
     };
+  }
+
+  async getProfile(ministryId: string): Promise<MinistryProfile> {
+    try {
+      const response = await httpClient.get<MinistryProfile>(API_ENDPOINTS.MINISTRY.PROFILE(ministryId));
+      if (!response.success || !response.data) {
+        throw new Error(response.message || "Failed to load ministry profile");
+      }
+      return {
+        ...response.data,
+        targetAudiences: response.data.targetAudiences || [],
+        stewards: response.data.stewards || [],
+      };
+    } catch (error) {
+      if (isApiError(error) && (error.code === HTTP_STATUS.NOT_FOUND || error.code === HTTP_STATUS.FORBIDDEN)) {
+        throw new MinistryProfileNotFoundError();
+      }
+      throw error instanceof Error ? error : new Error("Failed to load ministry profile");
+    }
   }
 
   async getApplicationDetail(ministryId: string): Promise<MinistryDetail> {
