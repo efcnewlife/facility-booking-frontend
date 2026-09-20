@@ -21,6 +21,20 @@ const { mockFacility, BookingDraftNotFoundError } = vi.hoisted(() => {
       clear: () => store.clear(),
     },
   });
+  Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: (query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => false,
+    }),
+  });
+  Element.prototype.scrollTo = () => {};
   class BookingDraftNotFoundError extends Error {
     constructor() {
       super("Booking draft not found");
@@ -138,6 +152,29 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
       ),
     Select: ({ id, label }: LabeledProps) =>
       React.createElement("div", null, label ? React.createElement("label", { htmlFor: id }, label) : null),
+    Modal: ({
+      isOpen,
+      title,
+      children,
+      footer,
+      onClose,
+    }: {
+      isOpen: boolean;
+      title?: string;
+      children?: React.ReactNode;
+      footer?: React.ReactNode;
+      onClose?: () => void;
+    }) =>
+      isOpen
+        ? React.createElement(
+            "div",
+            { role: "dialog", "aria-label": title },
+            title ? React.createElement("h2", null, title) : null,
+            children,
+            footer,
+            onClose ? React.createElement("button", { onClick: onClose, type: "button" }, "Close dialog") : null
+          )
+        : null,
     Spinner: ({ text }: { text?: string }) => React.createElement("div", null, text ?? "Loading"),
     cn: (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" "),
   };
@@ -148,7 +185,7 @@ import ministryService from "@/api/services/ministryService";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
-import { saveTimetableCart } from "@/utils/timetableCartStorage";
+import { loadTimetableCart, saveTimetableCart } from "@/utils/timetableCartStorage";
 
 const availability = () => ({
   rooms: [
@@ -239,11 +276,21 @@ describe("One-time Booking Details discount eligibility", () => {
   });
 });
 
-// Empty cells so the grid has no bookable interval, avoiding the timetable's scroll-into-view effect
-// (which calls window.matchMedia, unavailable in this jsdom test environment) — irrelevant here since
-// this suite never interacts with the grid, only the cart built from lines seeded via localStorage.
-const timetableAvailability = () => ({
-  rooms: [{ id: "gym-id", code: "gym", name: "Gym", capacity: 200, photoUrls: [], templates: [], cells: [] }],
+const timetableAvailability = (overrides: { cellsAvailable?: boolean } = {}) => ({
+  rooms: [
+    {
+      id: "gym-id",
+      code: "gym",
+      name: "Gym",
+      capacity: 200,
+      photoUrls: [],
+      templates: overrides.cellsAvailable === false ? [] : [{ start: "10:00", end: "11:00", slotDurationMinutes: 60 }],
+      cells:
+        overrides.cellsAvailable === false
+          ? [{ start: "10:00", end: "11:00", state: "unavailable" as const }]
+          : [{ start: "10:00", end: "11:00", state: "available" as const }],
+    },
+  ],
   maxBookingLines: 3,
 });
 
@@ -353,7 +400,176 @@ describe("One-time Timetable cart to Booking Details", () => {
     );
   });
 
-  it("shows the selected Ministry's name in the summary, and only when a Ministry is selected", async () => {
+  it("shows Personal booking in the Cart and keeps Ministry off the Search Bar", async () => {
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    expect(await screen.findByText("Personal booking")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Switch to a ministry booking" })).toBeTruthy();
+    expect(screen.queryByLabelText("Ministry")).toBeNull();
+  });
+
+  it("applies a Ministry from the Cart chooser, refreshes quote, and sends it on the Draft", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    window.localStorage.clear();
+    saveTimetableCart(window.localStorage, {
+      date: "2026-09-01",
+      ministryId: undefined,
+      title: "Choir practice",
+      lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+    });
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    expect(await screen.findByLabelText("Booking title")).toHaveValue("Choir practice");
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    mockFacility.previewQuote.mockClear();
+    mockFacility.getAvailability.mockClear();
+
+    await user.click(screen.getByRole("button", { name: "Switch to a ministry booking" }));
+    await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
+
+    await waitFor(() => {
+      expect(mockFacility.getAvailability).toHaveBeenCalledWith("2026-09-01", "ministry-1");
+    });
+    await waitFor(() => {
+      expect(mockFacility.previewQuote).toHaveBeenCalledWith(expect.objectContaining({ ministryId: "ministry-1" }));
+    });
+    expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+    expect(screen.getByLabelText("Booking title")).toHaveValue("Choir practice");
+    expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(mockFacility.createBookingDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Choir practice", ministryId: "ministry-1" })
+    );
+  });
+
+  it("updates the same Booking Draft after changing association on return from Booking Details", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    await user.type(screen.getByLabelText("Booking title"), "Choir practice");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+    await screen.findByRole("heading", { name: "Booking Details" });
+
+    await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
+    expect(await screen.findByText("Personal booking")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Switch to a ministry booking" }));
+    await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
+
+    expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled(), {
+      timeout: 2000,
+    });
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(mockFacility.createBookingDraft).toHaveBeenCalledTimes(1);
+    expect(mockFacility.updateBookingDraft).toHaveBeenCalledWith(
+      DRAFT_ID,
+      expect.objectContaining({ title: "Choir practice", ministryId: "ministry-1" })
+    );
+  });
+
+  it("switches back to Personal from the Cart and creates a non-Ministry Draft", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    window.localStorage.clear();
+    saveTimetableCart(window.localStorage, {
+      date: "2026-09-01",
+      ministryId: "ministry-1",
+      title: "Choir practice",
+      lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Switch to a personal booking" }));
+
+    expect(await screen.findByText("Personal booking")).toBeTruthy();
+    await waitFor(() => {
+      expect(mockFacility.previewQuote).toHaveBeenCalledWith(expect.objectContaining({ ministryId: null }));
+    });
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(mockFacility.createBookingDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Choir practice", ministryId: null })
+    );
+  });
+
+  it("keeps an invalid retained room visible and blocks Review after a Ministry change", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    mockFacility.getAvailability.mockImplementation(async (_date: string, ministryId?: string) => {
+      return timetableAvailability({ cellsAvailable: ministryId !== "ministry-1" });
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01");
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    await user.type(screen.getByLabelText("Booking title"), "Choir practice");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+
+    await user.click(screen.getByRole("button", { name: "Switch to a ministry booking" }));
+    await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
+
+    expect(await screen.findByText("This selection is no longer available. Edit or remove it.")).toBeTruthy();
+    expect(screen.getByText("Gym")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
+  });
+
+  it("overwrites the One-time Cart snapshot when the association changes", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    window.localStorage.clear();
+    saveTimetableCart(window.localStorage, {
+      date: "2026-09-01",
+      ministryId: undefined,
+      title: "Choir practice",
+      lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01");
+    expect(await screen.findByLabelText("Booking title")).toHaveValue("Choir practice");
+
+    await user.click(screen.getByRole("button", { name: "Switch to a ministry booking" }));
+    await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
+
+    await waitFor(() => {
+      expect(loadTimetableCart(window.localStorage, "2026-09-01", "ministry-1")).toEqual(
+        expect.objectContaining({
+          ministryId: "ministry-1",
+          title: "Choir practice",
+          lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+        })
+      );
+    });
+    expect(loadTimetableCart(window.localStorage, "2026-09-01", undefined)).toBeNull();
+  });
+
+  it("shows the selected Ministry's name and Cart actions when a Ministry is selected", async () => {
     vi.mocked(ministryService.listMine).mockResolvedValue({
       items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
     });
@@ -367,12 +583,16 @@ describe("One-time Timetable cart to Booking Details", () => {
     renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
 
     expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Change ministry" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Switch to a personal booking" })).toBeTruthy();
+    expect(screen.queryByLabelText("Ministry")).toBeNull();
   });
 
-  it("shows no Ministry row for a non-Ministry proposal", async () => {
+  it("hides switch-to-Ministry when the member has no bookable Active Ministry", async () => {
+    vi.mocked(ministryService.listMine).mockResolvedValue({ items: [] });
     renderTimetableFlow("/rooms?date=2026-09-01");
 
-    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
-    expect(screen.queryByText(/^Ministry:/)).toBeNull();
+    expect(await screen.findByText("Personal booking")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Switch to a ministry booking" })).toBeNull();
   });
 });

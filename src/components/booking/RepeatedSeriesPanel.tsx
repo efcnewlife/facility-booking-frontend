@@ -3,13 +3,21 @@ import { canReviewAndConfirm, type RecurringSeriesReviewSnapshot } from "@/utils
 import type { BookingLine, RoomDay, TimeRange } from "@/utils/timetableRules";
 import { useTranslation } from "react-i18next";
 
+interface CartMinistryOption {
+  id: string;
+  name: string;
+}
+
 interface RepeatedSeriesPanelProps {
   reviewState: RecurringSeriesReviewSnapshot;
   lines: BookingLine[];
   rooms: RoomDay[];
   sharedTime: TimeRange | null;
   occurrenceCount: number;
+  ministryId?: string | null;
   ministryName?: string | null;
+  bookableMinistries?: CartMinistryOption[];
+  onMinistryAssociationChange?: (ministryId: string | null) => void;
   titleTouched: boolean;
   onTitleChange: (title: string) => void;
   onTitleTouch: () => void;
@@ -24,7 +32,10 @@ const RepeatedSeriesPanel = ({
   rooms,
   sharedTime,
   occurrenceCount,
+  ministryId,
   ministryName,
+  bookableMinistries,
+  onMinistryAssociationChange,
   titleTouched,
   onTitleChange,
   onTitleTouch,
@@ -43,6 +54,7 @@ const RepeatedSeriesPanel = ({
 
   return (
     <BookingCartPanel
+      bookableMinistries={bookableMinistries}
       estimatedTotal={
         reviewState.previewStatus === "ready" && reviewState.quotedAmount != null && reviewState.currency
           ? { quotedAmount: reviewState.quotedAmount, currency: reviewState.currency }
@@ -52,9 +64,11 @@ const RepeatedSeriesPanel = ({
       isChecking={isChecking}
       isPriceLoading={isChecking}
       lines={lines}
+      ministryId={ministryId}
       ministryName={ministryName}
       mode="repeated"
       occurrenceCount={occurrenceCount}
+      onMinistryAssociationChange={onMinistryAssociationChange}
       onRemove={onRemove}
       onReview={onReview}
       onTitleChange={onTitleChange}

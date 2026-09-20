@@ -111,4 +111,17 @@ describe("loadTimetableCart", () => {
     });
     expect(loadTimetableCart(storage, "2026-09-14", "m-1")?.lines).toHaveLength(4);
   });
+
+  it("overwrites a stored draft when a new association is saved for the same date", () => {
+    const storage = createFakeStorage({ [TIMETABLE_CART_STORAGE_KEY]: JSON.stringify(draft) });
+    const next: BookingCartDraft = {
+      date: "2026-09-14",
+      ministryId: "m-2",
+      title: "Choir practice",
+      lines: [{ sequence: 1, facilityId: "room-a", start: "10:00", end: "11:00" }],
+    };
+    saveTimetableCart(storage, next);
+    expect(loadTimetableCart(storage, "2026-09-14", "m-2")).toEqual(next);
+    expect(loadTimetableCart(storage, "2026-09-14", "m-1")).toBeNull();
+  });
 });

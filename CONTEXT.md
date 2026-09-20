@@ -65,7 +65,7 @@ Optional atomic catalog labels on booking create (multi-select). When present, `
 _Avoid_: merged poster phrases as one code, requiring audience for every ministry type
 
 **Ministry Application**:
-A Ministry in the pending-approval lifecycle after the member submits from booking. A Ministry Approver decides it; approving makes that Ministry Active so it can appear in Start booking / Search Bar Ministry.
+A Ministry in the pending-approval lifecycle after the member submits from booking. A Ministry Approver decides it; approving makes that Ministry Active so it can appear in Start booking and the Booking cart Ministry chooser.
 _Avoid_: Application as a synonym for an Active Ministry, treating Approval as the Application itself
 
 **Ministry Approver**:
@@ -240,7 +240,7 @@ A person listed on a ministry as primary or secondary steward. Pending, rejected
 _Avoid_: church member, attendee, Owner, treating a pending applicant as a different kind of person
 
 **Owner position**:
-The church Org Position that owns a ministry (`owner_position`). It is a leadership seat, not a Ministry member row. Holding it does not by itself make someone a Ministry member or show Search Bar Ministry.
+The church Org Position that owns a ministry (`owner_position`). It is a leadership seat, not a Ministry member row. Holding it does not by itself make someone a Ministry member or show the Booking cart switch-to-Ministry action.
 _Avoid_: Owner as a synonym for Ministry member, owner as the booking's user
 
 **Ministry booking**:
