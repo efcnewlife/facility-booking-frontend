@@ -1053,11 +1053,6 @@ const RoomFilterPage = () => {
                   ))}
                 </div>
               </FormField>
-              {recurringOccurrenceCount > 0 ? (
-                <p className="m-0 mb-2 text-sm text-booking-light-grey">
-                  {t("startBooking.recurringWhen.occurrenceCount", { count: recurringOccurrenceCount })}
-                </p>
-              ) : null}
             </>
           ) : null}
         </div>
