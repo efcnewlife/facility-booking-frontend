@@ -553,7 +553,7 @@ export const displayBlocksForCart = (
   }
 
   const pinned = pinnedIntervalForRoom(state, room.id);
-  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && !pinned) {
+  if (isWhenSeedEligible(room, state.whenSeed) && state.whenSeed && !pinned && committedLines.length === 0) {
     overlays.push({
       start: state.whenSeed.start,
       end: state.whenSeed.end,
