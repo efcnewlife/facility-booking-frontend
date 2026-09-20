@@ -264,7 +264,7 @@ export interface RecurringSeriesDraftDetail {
   surchargeAmount: string | number | null;
   currency: string | null;
   occurrenceCount: number;
-  pendingPaymentHoldHours: number;
+  pendingPaymentHoldDays: number;
   paymentHoldExpiresAt: string | null;
 }
 
@@ -366,8 +366,8 @@ interface ApiRecurringSeriesDraftDetail {
   currency?: string | null;
   occurrenceCount?: number;
   occurrence_count?: number;
-  pendingPaymentHoldHours?: number;
-  pending_payment_hold_hours?: number;
+  pendingPaymentHoldDays?: number;
+  pending_payment_hold_days?: number;
   paymentHoldExpiresAt?: string | null;
   payment_hold_expires_at?: string | null;
 }
@@ -409,7 +409,7 @@ const mapRecurringSeriesDraftDetail = (
   surchargeAmount: data.surchargeAmount ?? data.surcharge_amount ?? null,
   currency: data.currency ?? null,
   occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
-  pendingPaymentHoldHours: Number(data.pendingPaymentHoldHours ?? data.pending_payment_hold_hours ?? 0),
+  pendingPaymentHoldDays: Number(data.pendingPaymentHoldDays ?? data.pending_payment_hold_days ?? 0),
   paymentHoldExpiresAt: data.paymentHoldExpiresAt ?? data.payment_hold_expires_at ?? null,
 });
 
