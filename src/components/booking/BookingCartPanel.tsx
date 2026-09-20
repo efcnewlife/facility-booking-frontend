@@ -1,13 +1,19 @@
 import { bookingTitleFieldFeedback } from "@/utils/bookingTitle";
 import { repeatedCartLineTime, type BookingLine, type RoomDay, type TimeRange } from "@/utils/timetableRules";
 import { formatQuotedAmount } from "@/utils/paymentSummary";
-import { Button, cn, Input, Spinner } from "@efcnewlife/newlife-ui";
+import { Button, cn, Input, Modal, Spinner } from "@efcnewlife/newlife-ui";
+import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { MdPhoto } from "react-icons/md";
 
 export interface EstimatedTotal {
   quotedAmount: string | number;
   currency: string;
+}
+
+export interface CartMinistryOption {
+  id: string;
+  name: string;
 }
 
 interface BookingCartPanelProps {
@@ -19,7 +25,11 @@ interface BookingCartPanelProps {
   onTitleChange: (title: string) => void;
   titleTouched: boolean;
   onTitleTouch: () => void;
+  ministryId?: string | null;
   ministryName?: string | null;
+  bookableMinistries?: CartMinistryOption[];
+  onMinistryAssociationChange?: (ministryId: string | null) => void;
+  invalidLineSequences?: number[];
   occurrenceCount?: number;
   estimatedTotal: EstimatedTotal | null;
   isPriceLoading?: boolean;
@@ -43,7 +53,11 @@ const BookingCartPanel = ({
   onTitleChange,
   titleTouched,
   onTitleTouch,
+  ministryId = null,
   ministryName,
+  bookableMinistries = [],
+  onMinistryAssociationChange,
+  invalidLineSequences = [],
   occurrenceCount,
   estimatedTotal,
   isPriceLoading = false,
@@ -60,9 +74,17 @@ const BookingCartPanel = ({
   const { t, i18n } = useTranslation("booking");
   const isRepeated = mode === "repeated";
   const titleFeedback = bookingTitleFieldFeedback(title, titleTouched, t);
+  const [chooserOpen, setChooserOpen] = useState(false);
+  const invalidSequences = new Set(invalidLineSequences);
+  const canChooseMinistry = bookableMinistries.length > 0 && Boolean(onMinistryAssociationChange);
 
   const roomForLine = (facilityId: string): RoomDay | undefined => {
     return rooms.find((room) => room.id === facilityId);
+  };
+
+  const applyMinistry = (nextMinistryId: string | null) => {
+    onMinistryAssociationChange?.(nextMinistryId);
+    setChooserOpen(false);
   };
 
   return (
@@ -86,11 +108,48 @@ const BookingCartPanel = ({
         <p className="m-0 text-sm font-medium text-booking-primary">
           {t("timetable.cart.roomCount", { count: lines.length })}
         </p>
-        {ministryName ? (
-          <p className="m-0 text-sm font-medium text-booking-primary">
-            {t("timetable.cart.ministry", { name: ministryName })}
-          </p>
-        ) : null}
+        <div className="flex flex-col gap-1">
+          {ministryId ? (
+            <>
+              <p className="m-0 text-sm font-medium text-booking-primary">
+                {t("timetable.cart.ministry", { name: ministryName || ministryId })}
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {canChooseMinistry ? (
+                  <button
+                    className="m-0 border-0 bg-transparent p-0 text-xs font-semibold text-booking-primary underline"
+                    onClick={() => setChooserOpen(true)}
+                    type="button"
+                  >
+                    {t("timetable.cart.changeMinistry")}
+                  </button>
+                ) : null}
+                {onMinistryAssociationChange ? (
+                  <button
+                    className="m-0 border-0 bg-transparent p-0 text-xs font-semibold text-booking-primary underline"
+                    onClick={() => applyMinistry(null)}
+                    type="button"
+                  >
+                    {t("timetable.cart.switchToPersonal")}
+                  </button>
+                ) : null}
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="m-0 text-sm font-medium text-booking-primary">{t("timetable.cart.personalBooking")}</p>
+              {canChooseMinistry ? (
+                <button
+                  className="m-0 w-fit border-0 bg-transparent p-0 text-xs font-semibold text-booking-primary underline"
+                  onClick={() => setChooserOpen(true)}
+                  type="button"
+                >
+                  {t("timetable.cart.switchToMinistry")}
+                </button>
+              ) : null}
+            </>
+          )}
+        </div>
         {isRepeated && sharedTime ? (
           <p className="m-0 text-sm font-medium text-booking-primary">
             {formatClock(sharedTime.start)} – {formatClock(sharedTime.end)}
@@ -141,9 +200,13 @@ const BookingCartPanel = ({
               const displayTime = isRepeated
                 ? repeatedCartLineTime({ lines, pinned: null, whenSeed: null, sharedTime, title: "" }, line)
                 : line;
+              const isInvalid = invalidSequences.has(line.sequence);
               return (
                 <li
-                  className="flex flex-col gap-2 rounded-lg border border-outline-variant bg-surface-container p-3"
+                  className={cn(
+                    "flex flex-col gap-2 rounded-lg border bg-surface-container p-3",
+                    isInvalid ? "border-error" : "border-outline-variant"
+                  )}
                   key={line.sequence}
                 >
                   <div className="flex gap-3">
@@ -168,6 +231,11 @@ const BookingCartPanel = ({
                           {formatQuotedAmount(line.lineSubtotal, line.currency, i18n.language)}
                         </p>
                       )}
+                      {isInvalid ? (
+                        <p className="m-0 mt-1 text-xs font-medium text-error" role="status">
+                          {t("timetable.cart.lineUnavailable")}
+                        </p>
+                      ) : null}
                     </div>
                   </div>
                   <div className="flex gap-2">
@@ -206,6 +274,36 @@ const BookingCartPanel = ({
           {t("timetable.reviewAndConfirm")}
         </Button>
       </div>
+
+      <Modal
+        className="mx-4 w-full max-w-md p-6"
+        footer={
+          <Button onClick={() => setChooserOpen(false)} size="sm" variant="outline">
+            {t("timetable.cart.ministryChooserClose")}
+          </Button>
+        }
+        isOpen={chooserOpen}
+        onClose={() => setChooserOpen(false)}
+        title={t("timetable.cart.ministryChooserTitle")}
+      >
+        <ul className="m-0 flex list-none flex-col gap-2 p-0">
+          {bookableMinistries.map((ministry) => (
+            <li key={ministry.id}>
+              <button
+                className={cn(
+                  "w-full rounded-md border border-outline px-3 py-2 text-left text-sm font-semibold text-booking-primary",
+                  "hover:bg-surface-container",
+                  ministry.id === ministryId ? "border-primary bg-surface-container" : null
+                )}
+                onClick={() => applyMinistry(ministry.id)}
+                type="button"
+              >
+                {ministry.name || ministry.id}
+              </button>
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </aside>
   );
 };

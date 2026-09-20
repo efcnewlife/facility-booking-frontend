@@ -159,12 +159,36 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
       ),
     Select: ({ id, label }: LabeledProps) =>
       React.createElement("div", null, label ? React.createElement("label", { htmlFor: id }, label) : null),
+    Modal: ({
+      isOpen,
+      title,
+      children,
+      footer,
+      onClose,
+    }: {
+      isOpen: boolean;
+      title?: string;
+      children?: React.ReactNode;
+      footer?: React.ReactNode;
+      onClose?: () => void;
+    }) =>
+      isOpen
+        ? React.createElement(
+            "div",
+            { role: "dialog", "aria-label": title },
+            title ? React.createElement("h2", null, title) : null,
+            children,
+            footer,
+            onClose ? React.createElement("button", { onClick: onClose, type: "button" }, "Close dialog") : null
+          )
+        : null,
     Spinner: ({ text }: { text?: string }) => React.createElement("div", null, text ?? "Loading"),
     cn: (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" "),
   };
 });
 
 import "@/i18n";
+import ministryService from "@/api/services/ministryService";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
@@ -310,7 +334,12 @@ describe("Repeated Timetable cart to Booking Details", () => {
   beforeEach(() => {
     draft = confirmableDraft();
     mockFacility.createBookingSeriesDraft.mockImplementation(async (payload) => {
-      draft = { ...draft, title: payload.title ?? null, excludedDates: payload.excludedDates ?? [] };
+      draft = {
+        ...draft,
+        title: payload.title ?? null,
+        ministryId: payload.ministryId ?? null,
+        excludedDates: payload.excludedDates ?? [],
+      };
       return { id: DRAFT_ID };
     });
     mockFacility.getBookingSeriesDraft.mockImplementation(async () => structuredClone(draft));
@@ -318,6 +347,7 @@ describe("Repeated Timetable cart to Booking Details", () => {
       draft = {
         ...draft,
         title: payload.title ?? draft.title,
+        ministryId: payload.ministryId !== undefined ? payload.ministryId : draft.ministryId,
         excludedDates: payload.excludedDates ?? draft.excludedDates,
       };
       return structuredClone(draft);
@@ -479,5 +509,68 @@ describe("Repeated Timetable cart to Booking Details", () => {
     renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
 
     expect(await screen.findByRole("heading", { name: "Page not found" })).toBeTruthy();
+  });
+
+  it("applies a Ministry from the Cart and updates the same Series Draft on return", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    renderFlow(repeatedTimetableUrl());
+
+    expect(await screen.findByText("Personal booking")).toBeTruthy();
+    expect(screen.queryByLabelText("Ministry")).toBeNull();
+
+    await waitFor(() => expect(mockFacility.previewBookingSeries).toHaveBeenCalled(), { timeout: 2000 });
+    mockFacility.previewBookingSeries.mockClear();
+
+    await user.click(screen.getByRole("button", { name: "Switch to a ministry booking" }));
+    await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
+
+    await waitFor(() => {
+      expect(mockFacility.getAvailability).toHaveBeenCalledWith("2099-01-01", "ministry-1");
+    });
+    await waitFor(
+      () => {
+        expect(mockFacility.previewBookingSeries).toHaveBeenCalledWith(
+          expect.objectContaining({ ministryId: "ministry-1" })
+        );
+      },
+      { timeout: 2000 }
+    );
+    expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+    expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Room 2").length).toBeGreaterThan(0);
+
+    await user.type(screen.getByLabelText("Booking title"), "Weekly choir");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled(), {
+      timeout: 2000,
+    });
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(mockFacility.createBookingSeriesDraft).toHaveBeenCalledWith(
+      expect.objectContaining({ title: "Weekly choir", ministryId: "ministry-1" })
+    );
+
+    await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
+    expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Change ministry" }));
+    // Only one ministry — chooser still opens; applying same ministry is fine. Switch to personal then back
+    // isn't needed; change ministry with one option re-applies it.
+    await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
+
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled(), {
+      timeout: 2000,
+    });
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Booking Details" })).toBeTruthy();
+    expect(mockFacility.createBookingSeriesDraft).toHaveBeenCalledTimes(1);
+    expect(mockFacility.updateBookingSeriesDraft).toHaveBeenCalledWith(
+      DRAFT_ID,
+      expect.objectContaining({ ministryId: "ministry-1" })
+    );
   });
 });

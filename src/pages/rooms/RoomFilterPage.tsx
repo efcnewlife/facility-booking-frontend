@@ -8,7 +8,7 @@ import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeMo
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
 import { oneTimeBookingDetailsPath, repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
-import { buildCreateBookingDraftPayload } from "@/utils/bookingDetailsDraft";
+import { buildCreateBookingDraftPayload, lineCoversAvailability } from "@/utils/bookingDetailsDraft";
 import { validateBookingTitle } from "@/utils/bookingTitle";
 import { applyCartAggregateQuote, fetchCartAggregateQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
@@ -258,7 +258,6 @@ const RoomFilterPage = () => {
   const [draftWeekday, setDraftWeekday] = useState<number | null>(
     appliedQuery?.weekday ?? weekdayForDate(appliedQuery?.date ?? "") ?? null
   );
-  const [draftMinistryId, setDraftMinistryId] = useState(appliedQuery?.ministryId ?? "");
   const [view, setView] = useState<TimetableView>("available");
   const [capacityBand, setCapacityBand] = useState<CapacityBand | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
@@ -373,7 +372,6 @@ const RoomFilterPage = () => {
     !recurringUsePeriodMismatch
       ? weeklyOccurrenceDates(scheduleFirstDate, scheduleLastDate).length
       : 0;
-  const showMinistryField = bookableMinistries.length > 0;
   const minDate = moment().format("YYYY-MM-DD");
   const maxDate = moment().add(1, "year").format("YYYY-MM-DD");
   const selectLabels = {
@@ -463,20 +461,20 @@ const RoomFilterPage = () => {
     seriesPreviewControllerRef.current?.setProposal(repeatedProposalKey && repeatedAnswers ? repeatedAnswers : null);
   }, [isRepeated, repeatedAnswers, repeatedProposalKey]);
 
-  const appliedKey = `${appliedDate}|${appliedMinistryId ?? ""}|${whenSeed?.start ?? ""}|${whenSeed?.end ?? ""}`;
-  const prevAppliedKeyRef = useRef(appliedKey);
+  const scheduleKey = `${appliedDate}|${whenSeed?.start ?? ""}|${whenSeed?.end ?? ""}`;
+  const prevScheduleKeyRef = useRef(scheduleKey);
 
   useEffect(() => {
-    if (prevAppliedKeyRef.current === appliedKey) {
+    if (prevScheduleKeyRef.current === scheduleKey) {
       return;
     }
-    prevAppliedKeyRef.current = appliedKey;
+    prevScheduleKeyRef.current = scheduleKey;
     setCartState((current) => emptyCartState(whenSeed, current.title));
     setHover(null);
     setConfirmRoom(null);
     setEditingSequence(undefined);
     setPendingReplacement(null);
-  }, [appliedKey, whenSeed]);
+  }, [scheduleKey, whenSeed]);
 
   const listedRooms = useMemo(
     () => visibleRooms(rooms, view, whenSeed, capacityBand),
@@ -568,10 +566,9 @@ const RoomFilterPage = () => {
       return;
     }
     const dateChanged = draftDate !== appliedDate;
-    const ministryChanged = draftMinistryId !== (appliedMinistryId ?? "");
     const lastDateChanged = isRepeated && draftLastDate !== (appliedQuery?.lastDate ?? "");
     const weekdayChanged = isRepeated && draftWeekday !== (appliedQuery?.weekday ?? null);
-    if (!dateChanged && !ministryChanged && !lastDateChanged && !weekdayChanged) {
+    if (!dateChanged && !lastDateChanged && !weekdayChanged) {
       return;
     }
     if (isRepeated && appliedQuery) {
@@ -590,8 +587,8 @@ const RoomFilterPage = () => {
       } else {
         delete next.lastDate;
       }
-      if (draftMinistryId) {
-        next.ministryId = draftMinistryId;
+      if (appliedMinistryId) {
+        next.ministryId = appliedMinistryId;
       } else {
         delete next.ministryId;
       }
@@ -604,8 +601,8 @@ const RoomFilterPage = () => {
       return;
     }
     const next: RoomsSearchQuery = { date: draftDate };
-    if (draftMinistryId) {
-      next.ministryId = draftMinistryId;
+    if (appliedMinistryId) {
+      next.ministryId = appliedMinistryId;
     }
     if (!dateChanged && appliedQuery?.start && appliedQuery?.end) {
       next.start = appliedQuery.start;
@@ -620,7 +617,6 @@ const RoomFilterPage = () => {
     appliedQuery,
     draftDate,
     draftLastDate,
-    draftMinistryId,
     draftWeekday,
     isRepeated,
     loading,
@@ -669,6 +665,13 @@ const RoomFilterPage = () => {
       cancelled = true;
     };
   }, [appliedQuery?.date, isRepeated]);
+
+  const invalidLineSequences = useMemo(() => {
+    if (isRepeated || loading || rooms.length === 0) {
+      return [];
+    }
+    return cartState.lines.filter((line) => !lineCoversAvailability(rooms, line)).map((line) => line.sequence);
+  }, [cartState.lines, isRepeated, loading, rooms]);
 
   if (!appliedQuery || (!isRepeated && !appliedQuery.date)) {
     return <Navigate replace to="/" />;
@@ -724,8 +727,8 @@ const RoomFilterPage = () => {
       return;
     }
     const next = toRepeatedRoomsQuery(appliedQuery, nextWhen);
-    if (draftMinistryId) {
-      next.ministryId = draftMinistryId;
+    if (appliedMinistryId) {
+      next.ministryId = appliedMinistryId;
     } else {
       delete next.ministryId;
     }
@@ -733,6 +736,34 @@ const RoomFilterPage = () => {
     if (appliedQuery.lastDate !== next.lastDate) {
       setSearchParams(toRoomsSearchParams(next), { replace: true });
     }
+  };
+
+  const handleMinistryAssociationChange = (ministryId: string | null) => {
+    if (!appliedQuery) {
+      return;
+    }
+    if ((appliedMinistryId ?? null) === ministryId) {
+      return;
+    }
+    if (!isRepeated && appliedDate) {
+      saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, ministryId || undefined, cartState));
+    }
+    const next: RoomsSearchQuery = { ...appliedQuery };
+    if (ministryId) {
+      next.ministryId = ministryId;
+    } else {
+      delete next.ministryId;
+    }
+    if (isRepeated && cartState.lines.length > 0) {
+      const roomIds = cartState.lines.map((line) => line.facilityId);
+      const params = toRoomsSearchParams(next);
+      if (roomIds.length > 0) {
+        params.set("rooms", roomIds.join(","));
+      }
+      setSearchParams(params, { replace: true });
+      return;
+    }
+    setSearchParams(toRoomsSearchParams(next), { replace: true });
   };
 
   const handleConfirmBookingTime = (interval: BookingInterval) => {
@@ -886,7 +917,9 @@ const RoomFilterPage = () => {
       !appliedDate ||
       validateBookingTitle(cartState.title ?? "") ||
       oneTimeQuote.key !== oneTimeLinesKey ||
-      oneTimeQuote.status !== "ready"
+      oneTimeQuote.status !== "ready" ||
+      loading ||
+      cartState.lines.some((line) => !lineCoversAvailability(rooms, line))
     ) {
       return;
     }
@@ -931,6 +964,10 @@ const RoomFilterPage = () => {
   const ministryName = appliedMinistryId
     ? (bookableMinistries.find((ministry) => ministry.id === appliedMinistryId)?.name ?? null)
     : null;
+  const cartMinistryOptions = bookableMinistries.map((ministry) => ({
+    id: ministry.id,
+    name: ministry.name || ministry.id,
+  }));
 
   const isOneTimeQuoteCurrent = oneTimeQuote.key === oneTimeLinesKey;
   const oneTimeEstimatedTotal =
@@ -941,13 +978,15 @@ const RoomFilterPage = () => {
       ? { quotedAmount: oneTimeQuote.quotedAmount, currency: oneTimeQuote.currency }
       : null;
   const oneTimePriceLoading =
-    cartState.lines.length > 0 && (!isOneTimeQuoteCurrent || oneTimeQuote.status === "loading");
+    cartState.lines.length > 0 && (loading || !isOneTimeQuoteCurrent || oneTimeQuote.status === "loading");
   const oneTimePriceUnavailable = isOneTimeQuoteCurrent && oneTimeQuote.status === "error";
   const oneTimeReviewDisabled =
     !canReviewCart(cartState) ||
     Boolean(validateBookingTitle(cartState.title ?? "")) ||
     !isOneTimeQuoteCurrent ||
-    oneTimeQuote.status !== "ready";
+    oneTimeQuote.status !== "ready" ||
+    loading ||
+    invalidLineSequences.length > 0;
 
   return (
     <main className="mx-auto flex min-h-0 w-full max-w-[1600px] flex-1 flex-col overflow-hidden px-4 py-4 sm:px-6 lg:px-12">
@@ -962,25 +1001,6 @@ const RoomFilterPage = () => {
         }}
       >
         <div className="flex min-w-0 flex-wrap items-end gap-2.5">
-          {showMinistryField ? (
-            <Select
-              className={SEARCH_CONTROL_CLASS}
-              clearable
-              id="timetable-ministry"
-              label={t("timetable.ministry")}
-              labelClassName={SEARCH_LABEL_CLASS}
-              labels={selectLabels}
-              onChange={(value) => setDraftMinistryId(typeof value === "string" ? value : "")}
-              options={bookableMinistries.map((ministry) => ({
-                value: ministry.id,
-                label: ministry.name || ministry.id,
-              }))}
-              placeholder={t("timetable.ministryNone")}
-              size="sm"
-              value={draftMinistryId || null}
-              wrapperClassName="w-[240px] shrink-0"
-            />
-          ) : null}
           <Select
             className={cn("opacity-100", SEARCH_CONTROL_CLASS)}
             clearable={false}
@@ -1340,10 +1360,13 @@ const RoomFilterPage = () => {
 
         {isRepeated ? (
           <RepeatedSeriesPanel
+            bookableMinistries={cartMinistryOptions}
             formatClock={formatClockForLocale}
             lines={cartState.lines}
+            ministryId={appliedMinistryId ?? null}
             ministryName={ministryName}
             occurrenceCount={recurringOccurrenceCount}
+            onMinistryAssociationChange={handleMinistryAssociationChange}
             onRemove={(sequence) => {
               setCartState((current) => removeRepeatedCartLine(current, sequence));
             }}
@@ -1357,10 +1380,13 @@ const RoomFilterPage = () => {
           />
         ) : (
           <BookingCartPanel
+            bookableMinistries={cartMinistryOptions}
             estimatedTotal={oneTimeEstimatedTotal}
             formatClock={formatClockForLocale}
+            invalidLineSequences={invalidLineSequences}
             isPriceLoading={oneTimePriceLoading}
             lines={cartState.lines}
+            ministryId={appliedMinistryId ?? null}
             ministryName={ministryName}
             onEdit={(sequence) => {
               const line = cartState.lines.find((item) => item.sequence === sequence);
@@ -1369,6 +1395,7 @@ const RoomFilterPage = () => {
                 handleOpenConfirmBookingTime(room, line.start, sequence);
               }
             }}
+            onMinistryAssociationChange={handleMinistryAssociationChange}
             onRemove={(sequence) => {
               setCartState((current) => {
                 const next = removeCartLine(current, sequence);
