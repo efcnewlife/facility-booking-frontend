@@ -112,10 +112,22 @@ const LoginPage = () => {
           )}
 
           {IS_SHOW_MOCK_LOGIN && (
-            <details className={cn("w-full", IS_MICROSOFT_LOGIN_ENABLED && "mt-[30px]")}>
-              <summary className="cursor-pointer text-center text-[15px] font-medium text-on-surface-variant">
-                {t("auth:mockLoginSection")}
-              </summary>
+            <div className={cn("w-full", IS_MICROSOFT_LOGIN_ENABLED && "mt-[30px]")}>
+              {IS_MICROSOFT_LOGIN_ENABLED && (
+                <div className="mb-[30px] flex w-full items-center gap-4">
+                  <span className="h-px flex-1 bg-outline-variant" />
+                  <span className="shrink-0 text-[13px] font-medium text-on-surface-variant">
+                    {t("auth:mockLoginSection")}
+                  </span>
+                  <span className="h-px flex-1 bg-outline-variant" />
+                </div>
+              )}
+
+              {!IS_MICROSOFT_LOGIN_ENABLED && (
+                <p className="text-center text-[15px] font-medium text-on-surface-variant">
+                  {t("auth:mockLoginSection")}
+                </p>
+              )}
 
               <div className="mt-5">
                 <p className="mb-5 text-center text-[17.5px] font-medium text-on-surface-variant">
@@ -141,7 +153,7 @@ const LoginPage = () => {
 
                   <Button
                     btnType="submit"
-                    className="w-full"
+                    className="w-full !border-warning !bg-warning !text-on-warning hover:!brightness-95"
                     disabled={isLoading || !isMockEmailValid}
                     size="md"
                     variant="outline"
@@ -150,7 +162,7 @@ const LoginPage = () => {
                   </Button>
                 </form>
               </div>
-            </details>
+            </div>
           )}
         </div>
 
