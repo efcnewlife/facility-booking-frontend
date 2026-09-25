@@ -40,6 +40,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "flow",
+          server: { deps: { inline: ["@efcnewlife/newlife-ui"] } },
           environment: "jsdom",
           include: ["src/**/*.test.tsx"],
         },
