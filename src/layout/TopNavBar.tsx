@@ -85,7 +85,12 @@ const TopNavBar = () => {
             ))}
           </nav>
 
-          <div className="relative" ref={menuRef}>
+          <div
+            className="relative"
+            ref={menuRef}
+            // React portal events bubble here even when Select options are outside the menu DOM.
+            onMouseDown={(event) => event.stopPropagation()}
+          >
             <button
               aria-expanded={isMenuOpen}
               aria-haspopup="menu"
