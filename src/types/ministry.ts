@@ -90,8 +90,10 @@ export interface AssignablePositionListResponse {
 export interface LocaleItem {
   id: string;
   languageCode?: string;
+  scriptCode?: string | null;
   regionCode?: string | null;
   isDefault?: boolean;
+  isActive?: boolean;
 }
 
 export interface LocaleListResponse {

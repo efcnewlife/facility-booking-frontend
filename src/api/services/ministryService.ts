@@ -28,17 +28,23 @@ interface LocaleApiItem {
   id: string;
   languageCode?: string;
   language_code?: string;
+  scriptCode?: string | null;
+  script_code?: string | null;
   regionCode?: string | null;
   region_code?: string | null;
   isDefault?: boolean;
   is_default?: boolean;
+  isActive?: boolean;
+  is_active?: boolean;
 }
 
 const mapLocaleItem = (item: LocaleApiItem): LocaleItem => ({
   id: item.id,
   languageCode: item.languageCode || item.language_code,
+  scriptCode: item.scriptCode ?? item.script_code ?? null,
   regionCode: item.regionCode ?? item.region_code ?? null,
   isDefault: item.isDefault ?? item.is_default ?? false,
+  isActive: item.isActive ?? item.is_active ?? true,
 });
 
 const isApiError = (error: unknown): error is ApiError => {

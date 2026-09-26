@@ -1,7 +1,8 @@
-import { ensureMsalReady, MSAL_LOGIN_SCOPES } from "@/auth/msalInstance";
 import { authService } from "@/api/services/authService";
+import { ensureMsalReady, MSAL_LOGIN_SCOPES } from "@/auth/msalInstance";
 import i18n from "@/i18n";
 import type { AuthState, MockLoginCredentials, User } from "@/types/auth";
+import { applyAccountLanguagePreference } from "@/utils/accountLanguage";
 import { createContext, type ReactNode, useContext, useEffect, useReducer } from "react";
 
 type AuthAction =
@@ -9,13 +10,15 @@ type AuthAction =
   | { type: "AUTH_SUCCESS"; payload: { user: User; token: string } }
   | { type: "AUTH_FAILURE"; payload: string }
   | { type: "AUTH_LOGOUT" }
-  | { type: "AUTH_CLEAR_ERROR" };
+  | { type: "AUTH_CLEAR_ERROR" }
+  | { type: "AUTH_SET_PREFERRED_LOCALE"; payload: string };
 
 interface AuthContextType extends AuthState {
   loginWithMicrosoft: (rememberMe: boolean) => Promise<void>;
   loginAsMockUser: (credentials: MockLoginCredentials) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
+  setPreferredLocaleId: (preferredLocaleId: string) => void;
 }
 
 const initialState: AuthState = {
@@ -59,6 +62,14 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       };
     case "AUTH_CLEAR_ERROR":
       return { ...state, error: null };
+    case "AUTH_SET_PREFERRED_LOCALE":
+      if (!state.user) {
+        return state;
+      }
+      return {
+        ...state,
+        user: { ...state.user, preferredLocaleId: action.payload },
+      };
     default:
       return state;
   }
@@ -90,6 +101,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         const response = await authService.getCurrentUser();
         if (response.success && response.data) {
           const token = authService.getToken();
+          await applyAccountLanguagePreference(response.data.preferredLocaleId);
           dispatch({
             type: "AUTH_SUCCESS",
             payload: { user: response.data, token: token || "" },
@@ -128,6 +140,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await authService.loginWithMicrosoft(idToken, rememberMe);
       if (response.success && response.data) {
         const token = authService.getToken();
+        await applyAccountLanguagePreference(response.data.user.preferredLocaleId);
         dispatch({
           type: "AUTH_SUCCESS",
           payload: { user: response.data.user, token: token || "" },
@@ -153,6 +166,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       if (response.success && response.data) {
         const token = authService.getToken();
+        await applyAccountLanguagePreference(response.data.user.preferredLocaleId);
         dispatch({
           type: "AUTH_SUCCESS",
           payload: { user: response.data.user, token: token || "" },
@@ -185,12 +199,17 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     dispatch({ type: "AUTH_CLEAR_ERROR" });
   };
 
+  const setPreferredLocaleId = (preferredLocaleId: string) => {
+    dispatch({ type: "AUTH_SET_PREFERRED_LOCALE", payload: preferredLocaleId });
+  };
+
   const value: AuthContextType = {
     ...state,
     loginWithMicrosoft,
     loginAsMockUser,
     logout,
     clearError,
+    setPreferredLocaleId,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

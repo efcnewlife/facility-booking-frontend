@@ -9,6 +9,7 @@ export const API_ENDPOINTS = {
     LOGOUT: `${BOOKING_API_PREFIX}/auth/logout`,
     REFRESH: `${BOOKING_API_PREFIX}/auth/refresh`,
     PROFILE: `${BOOKING_API_PREFIX}/auth/me`,
+    PREFERRED_LANGUAGE: `${BOOKING_API_PREFIX}/auth/me/preferred-language`,
   },
   MINISTRY: {
     MINE: `${BOOKING_API_PREFIX}/ministry/ministries/mine`,

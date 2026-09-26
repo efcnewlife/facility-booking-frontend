@@ -1,4 +1,6 @@
-import { change_app_language, normalize_locale_code, type AppLocale } from "@/i18n";
+import { useAuth } from "@/context/AuthContext";
+import { normalize_locale_code, type AppLocale } from "@/i18n";
+import { persistAccountLanguagePreference } from "@/utils/accountLanguage";
 import { APP_LOCALE_OPTIONS } from "@/utils/localeOptions";
 import { cn, Select, type SelectOptionType } from "@efcnewlife/newlife-ui";
 import { useMemo } from "react";
@@ -19,6 +21,7 @@ interface AppLocaleSelectProps {
 const AppLocaleSelect = ({ id, className, showLabel = false }: AppLocaleSelectProps) => {
   const { i18n, t } = useTranslation();
   const { t: tLanguage } = useTranslation("language");
+  const { setPreferredLocaleId } = useAuth();
 
   const options: SelectOptionType[] = useMemo(
     () =>
@@ -48,8 +51,16 @@ const AppLocaleSelect = ({ id, className, showLabel = false }: AppLocaleSelectPr
         options={options}
         value={selectedLocale}
         onChange={async (value) => {
-          if (typeof value === "string") {
-            await change_app_language(value);
+          if (typeof value !== "string") {
+            return;
+          }
+          try {
+            const preferredLocaleId = await persistAccountLanguagePreference(value);
+            if (preferredLocaleId) {
+              setPreferredLocaleId(preferredLocaleId);
+            }
+          } catch {
+            // Keep the current-session language. Do not notify or queue a retry.
           }
         }}
       />
