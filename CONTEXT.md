@@ -17,8 +17,8 @@ Passwordless sign-in for Facility Booking in development and staging only. The m
 _Avoid_: dev login, fake local session, frontend-only token, treating mock login as Microsoft, creating testing accounts from the Sign in page
 
 **Booking account language preference**:
-The signed-in Booker's selected system locale, stored on that account. Choosing a supported language changes the current session immediately and asks the account to remember it. When the Booker returns, the stored preference overrides any browser-local language. A failed save keeps the current-session language, shows no failure notice, and is not retried. An unauthenticated visitor's language stays in the browser and is not stored on an account.
-_Avoid_: treating browser-local language as the account preference, a failure notice on language save, retrying a failed language save, writing the visitor language onto the account at sign-in
+The signed-in Booker's selected system locale, stored on that account. Choosing a supported language changes the current session immediately and asks the account to remember it. Sign-in saves the language already in use when it differs from the stored preference, and keeps that language active. When the Booker returns with an existing session, the stored preference overrides any browser-local language. A failed save keeps the current-session language, shows no failure notice, and is not retried. An unauthenticated visitor's language stays in the browser until they sign in.
+_Avoid_: treating an unauthenticated selection as already stored, a failure notice on language save, retrying a failed language save, replacing the sign-in language with an older account preference
 
 **Support**:
 The member-facing help page for special requests.

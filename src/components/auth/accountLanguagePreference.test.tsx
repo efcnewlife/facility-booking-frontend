@@ -307,25 +307,31 @@ describe("Booking account language preference", () => {
     );
   });
 
-  it("applies the account language when signing in and does not write the browser language", async () => {
-    vi.spyOn(httpClient, "request").mockResolvedValue({
-      success: true,
-      code: 200,
-      data: {
-        member: {
-          id: "user-1",
-          email: "qa@test.local",
-          first_name: "QA",
-          roles: ["member"],
-          preferredLocaleId: ZH_TW_LOCALE_ID,
+  it("saves the language in use when signing in and keeps that language active", async () => {
+    await change_app_language("zh-TW");
+    vi.spyOn(httpClient, "request").mockImplementation(async (config) => {
+      if (config.url === API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE) {
+        return { success: true, data: undefined, code: 204 };
+      }
+      return {
+        success: true,
+        code: 200,
+        data: {
+          member: {
+            id: "user-1",
+            email: "qa@test.local",
+            first_name: "QA",
+            roles: ["member"],
+            preferredLocaleId: EN_LOCALE_ID,
+          },
+          token: {
+            accessToken: "access-token",
+            refreshToken: "refresh-token",
+            tokenType: "bearer",
+            expiresIn: 3600,
+          },
         },
-        token: {
-          accessToken: "access-token",
-          refreshToken: "refresh-token",
-          tokenType: "bearer",
-          expiresIn: 3600,
-        },
-      },
+      };
     });
     renderHarness();
     await waitUntilReady();
@@ -333,12 +339,98 @@ describe("Booking account language preference", () => {
     await userEvent.click(screen.getByRole("button", { name: "Mock sign in" }));
 
     await waitFor(() => {
-      expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
+      expect(preferenceWriteCalls()).toEqual([
+        [
+          expect.objectContaining({
+            method: "PUT",
+            url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE,
+            data: { preferredLocaleId: ZH_TW_LOCALE_ID },
+            skipRetry: true,
+          }),
+        ],
+      ]);
     });
+    expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     expect(screen.getByTestId("preference")).toHaveTextContent(ZH_TW_LOCALE_ID);
-    expect(httpClient.request).not.toHaveBeenCalledWith(
-      expect.objectContaining({ url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE })
-    );
+  });
+
+  it("does not write the account language when sign-in already matches the language in use", async () => {
+    await change_app_language("zh-TW");
+    vi.spyOn(httpClient, "request").mockImplementation(async (config) => {
+      if (config.url === API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE) {
+        return { success: true, data: undefined, code: 204 };
+      }
+      return {
+        success: true,
+        code: 200,
+        data: {
+          member: {
+            id: "user-1",
+            email: "qa@test.local",
+            first_name: "QA",
+            roles: ["member"],
+            preferredLocaleId: ZH_TW_LOCALE_ID,
+          },
+          token: {
+            accessToken: "access-token",
+            refreshToken: "refresh-token",
+            tokenType: "bearer",
+            expiresIn: 3600,
+          },
+        },
+      };
+    });
+    renderHarness();
+    await waitUntilReady();
+
+    await userEvent.click(screen.getByRole("button", { name: "Mock sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("preference")).toHaveTextContent(ZH_TW_LOCALE_ID);
+    });
+    expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
+    expect(preferenceWriteCalls()).toHaveLength(0);
+  });
+
+  it("keeps the sign-in language when saving the account preference fails", async () => {
+    await change_app_language("zh-TW");
+    vi.spyOn(httpClient, "request").mockImplementation(async (config) => {
+      if (config.url === API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE) {
+        throw { code: 500, message: "language save failed" };
+      }
+      return {
+        success: true,
+        code: 200,
+        data: {
+          member: {
+            id: "user-1",
+            email: "qa@test.local",
+            first_name: "QA",
+            roles: ["member"],
+            preferredLocaleId: EN_LOCALE_ID,
+          },
+          token: {
+            accessToken: "access-token",
+            refreshToken: "refresh-token",
+            tokenType: "bearer",
+            expiresIn: 3600,
+          },
+        },
+      };
+    });
+    renderHarness();
+    await waitUntilReady();
+
+    await userEvent.click(screen.getByRole("button", { name: "Mock sign in" }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId("auth-state")).toHaveTextContent("ready");
+      expect(preferenceWriteCalls()).toHaveLength(1);
+    });
+    expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
+    expect(screen.getByTestId("preference")).toHaveTextContent(EN_LOCALE_ID);
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.queryByText("language save failed")).not.toBeInTheDocument();
   });
 
   it("keeps a newer language selection when an earlier account preference is still loading", async () => {
