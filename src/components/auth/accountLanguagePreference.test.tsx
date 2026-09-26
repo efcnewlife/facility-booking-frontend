@@ -21,10 +21,10 @@ vi.hoisted(() => {
   });
 });
 
-import "@/i18n";
 import { API_ENDPOINTS } from "@/api/config";
 import { httpClient } from "@/api/services/httpClient";
 import AppLocaleSelect from "@/components/auth/AppLocaleSelect";
+import "@/i18n";
 vi.mock("@efcnewlife/newlife-ui", async () => {
   const React = await import("react");
   return {
