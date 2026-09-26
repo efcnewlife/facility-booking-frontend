@@ -2,7 +2,7 @@ import { authService } from "@/api/services/authService";
 import { ensureMsalReady, MSAL_LOGIN_SCOPES } from "@/auth/msalInstance";
 import i18n from "@/i18n";
 import type { AuthState, MockLoginCredentials, User } from "@/types/auth";
-import { applyAccountLanguagePreference } from "@/utils/accountLanguage";
+import { applyAccountLanguagePreference, persistAccountLanguagePreference } from "@/utils/accountLanguage";
 import { createContext, type ReactNode, useContext, useEffect, useReducer } from "react";
 
 type AuthAction =
@@ -92,6 +92,22 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
     });
   };
 
+  const signInWithCurrentLanguage = async (user: User, token: string) => {
+    let nextUser = user;
+    try {
+      const preferredLocaleId = await persistAccountLanguagePreference(i18n.language, user.preferredLocaleId);
+      if (preferredLocaleId) {
+        nextUser = { ...user, preferredLocaleId };
+      }
+    } catch {
+      // Keep the current-session language. Do not notify or queue a retry.
+    }
+    dispatch({
+      type: "AUTH_SUCCESS",
+      payload: { user: nextUser, token },
+    });
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       if (!authService.isAuthenticated()) {
@@ -142,7 +158,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       const response = await authService.loginWithMicrosoft(idToken, rememberMe);
       if (response.success && response.data) {
-        await acceptAuthenticatedUser(response.data.user, authService.getToken() || "");
+        await signInWithCurrentLanguage(response.data.user, authService.getToken() || "");
       } else {
         dispatch({
           type: "AUTH_FAILURE",
@@ -163,7 +179,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await authService.loginAsMockUser(credentials);
 
       if (response.success && response.data) {
-        await acceptAuthenticatedUser(response.data.user, authService.getToken() || "");
+        await signInWithCurrentLanguage(response.data.user, authService.getToken() || "");
       } else {
         dispatch({
           type: "AUTH_FAILURE",

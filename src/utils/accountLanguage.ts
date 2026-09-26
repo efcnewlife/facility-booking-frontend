@@ -46,7 +46,10 @@ export const applyAccountLanguagePreference = async (preferredLocaleId: string |
   }
 };
 
-export const persistAccountLanguagePreference = async (localeCode: string): Promise<string | null> => {
+export const persistAccountLanguagePreference = async (
+  localeCode: string,
+  storedLocaleId?: string | null
+): Promise<string | null> => {
   const revision = ++accountLanguageRevision;
   const switched = await change_app_language(localeCode);
   if (!switched || !authService.getToken()) {
@@ -63,6 +66,9 @@ export const persistAccountLanguagePreference = async (localeCode: string): Prom
   const localeId = resolveLocaleIdForAppLanguage(locales.items, appLocale);
   if (!localeId) {
     return null;
+  }
+  if (storedLocaleId && localeId === storedLocaleId) {
+    return localeId;
   }
   await authService.updatePreferredLanguage(localeId);
   if (revision !== accountLanguageRevision) {
