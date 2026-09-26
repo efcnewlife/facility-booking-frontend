@@ -136,8 +136,11 @@ class AuthService {
   }
 
   async updatePreferredLanguage(preferredLocaleId: string): Promise<void> {
-    const response = await httpClient.put<void>(API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE, {
-      preferredLocaleId,
+    const response = await httpClient.request<void>({
+      method: "PUT",
+      url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE,
+      data: { preferredLocaleId },
+      skipRetry: true,
     });
     if (!response.success) {
       throw new Error(response.message || "Failed to update preferred language");

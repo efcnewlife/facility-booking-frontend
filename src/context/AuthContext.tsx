@@ -84,6 +84,14 @@ interface AuthProviderProps {
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
 
+  const acceptAuthenticatedUser = async (user: User, token: string) => {
+    await applyAccountLanguagePreference(user.preferredLocaleId);
+    dispatch({
+      type: "AUTH_SUCCESS",
+      payload: { user, token },
+    });
+  };
+
   useEffect(() => {
     const initializeAuth = async () => {
       if (!authService.isAuthenticated()) {
@@ -100,12 +108,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
         dispatch({ type: "AUTH_START" });
         const response = await authService.getCurrentUser();
         if (response.success && response.data) {
-          const token = authService.getToken();
-          await applyAccountLanguagePreference(response.data.preferredLocaleId);
-          dispatch({
-            type: "AUTH_SUCCESS",
-            payload: { user: response.data, token: token || "" },
-          });
+          await acceptAuthenticatedUser(response.data, authService.getToken() || "");
         } else {
           dispatch({ type: "AUTH_FAILURE", payload: "" });
         }
@@ -139,12 +142,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
 
       const response = await authService.loginWithMicrosoft(idToken, rememberMe);
       if (response.success && response.data) {
-        const token = authService.getToken();
-        await applyAccountLanguagePreference(response.data.user.preferredLocaleId);
-        dispatch({
-          type: "AUTH_SUCCESS",
-          payload: { user: response.data.user, token: token || "" },
-        });
+        await acceptAuthenticatedUser(response.data.user, authService.getToken() || "");
       } else {
         dispatch({
           type: "AUTH_FAILURE",
@@ -165,12 +163,7 @@ export const AuthProvider = ({ children }: AuthProviderProps) => {
       const response = await authService.loginAsMockUser(credentials);
 
       if (response.success && response.data) {
-        const token = authService.getToken();
-        await applyAccountLanguagePreference(response.data.user.preferredLocaleId);
-        dispatch({
-          type: "AUTH_SUCCESS",
-          payload: { user: response.data.user, token: token || "" },
-        });
+        await acceptAuthenticatedUser(response.data.user, authService.getToken() || "");
       } else {
         dispatch({
           type: "AUTH_FAILURE",

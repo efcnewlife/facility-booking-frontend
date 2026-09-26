@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useTranslation } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -140,6 +140,12 @@ const waitUntilReady = async () => {
   });
 };
 
+const preferenceWriteCalls = () => {
+  return vi
+    .mocked(httpClient.request)
+    .mock.calls.filter(([config]) => config.url === API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE);
+};
+
 const seedSignedInSession = () => {
   sessionStorage.setItem("auth_token", "access-token");
   sessionStorage.setItem(
@@ -158,7 +164,7 @@ const seedSignedInSession = () => {
 
 const chooseTraditionalChinese = async () => {
   const user = userEvent.setup();
-  await user.selectOptions(screen.getByRole("combobox", { name: "Language" }), "zh-TW");
+  await user.selectOptions(screen.getByRole("combobox"), "zh-TW");
 };
 
 describe("Booking account language preference", () => {
@@ -175,8 +181,12 @@ describe("Booking account language preference", () => {
       }
       throw new Error(`Unexpected GET ${url}`);
     });
-    vi.spyOn(httpClient, "put").mockResolvedValue({ success: true, data: undefined, code: 204 });
-    vi.spyOn(httpClient, "request").mockResolvedValue({ success: false, data: undefined, code: 500 });
+    vi.spyOn(httpClient, "request").mockImplementation(async (config) => {
+      if (config.url === API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE) {
+        return { success: true, data: undefined, code: 204 };
+      }
+      return { success: false, data: undefined, code: 500 };
+    });
     await change_app_language("en");
   });
 
@@ -195,7 +205,7 @@ describe("Booking account language preference", () => {
       expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     });
     expect(httpClient.get).not.toHaveBeenCalled();
-    expect(httpClient.put).not.toHaveBeenCalled();
+    expect(preferenceWriteCalls()).toHaveLength(0);
     expect(screen.getByTestId("preference")).toHaveTextContent("none");
   });
 
@@ -221,14 +231,21 @@ describe("Booking account language preference", () => {
     await waitFor(() => {
       expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     });
-    expect(httpClient.put).not.toHaveBeenCalled();
+    expect(preferenceWriteCalls()).toHaveLength(0);
 
     releaseLocales(localesResponse());
 
     await waitFor(() => {
-      expect(httpClient.put).toHaveBeenCalledWith(API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE, {
-        preferredLocaleId: ZH_TW_LOCALE_ID,
-      });
+      expect(preferenceWriteCalls()).toEqual([
+        [
+          expect.objectContaining({
+            method: "PUT",
+            url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE,
+            data: { preferredLocaleId: ZH_TW_LOCALE_ID },
+            skipRetry: true,
+          }),
+        ],
+      ]);
     });
     await waitFor(() => {
       expect(screen.getByTestId("preference")).toHaveTextContent(ZH_TW_LOCALE_ID);
@@ -237,7 +254,12 @@ describe("Booking account language preference", () => {
   });
 
   it("keeps the session language when the preference update fails, with no notice and no retry", async () => {
-    vi.spyOn(httpClient, "put").mockRejectedValue({ code: 500, message: "language save failed" });
+    vi.spyOn(httpClient, "request").mockImplementation(async (config) => {
+      if (config.url === API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE) {
+        throw { code: 500, message: "language save failed" };
+      }
+      return { success: false, data: undefined, code: 500 };
+    });
     seedSignedInSession();
     renderHarness();
     await waitUntilReady();
@@ -245,11 +267,11 @@ describe("Booking account language preference", () => {
     await chooseTraditionalChinese();
 
     await waitFor(() => {
-      expect(httpClient.put).toHaveBeenCalledTimes(1);
+      expect(preferenceWriteCalls()).toHaveLength(1);
     });
     await new Promise((resolve) => setTimeout(resolve, 20));
 
-    expect(httpClient.put).toHaveBeenCalledTimes(1);
+    expect(preferenceWriteCalls()).toHaveLength(1);
     expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     expect(screen.getByTestId("preference")).toHaveTextContent("none");
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
@@ -266,7 +288,9 @@ describe("Booking account language preference", () => {
       expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     });
     expect(screen.getByTestId("preference")).toHaveTextContent(ZH_TW_LOCALE_ID);
-    expect(httpClient.put).not.toHaveBeenCalled();
+    expect(httpClient.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE })
+    );
   });
 
   it("keeps the browser language when the returning account has no stored preference", async () => {
@@ -278,7 +302,9 @@ describe("Booking account language preference", () => {
 
     expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     expect(httpClient.get).not.toHaveBeenCalledWith(API_ENDPOINTS.ORG.LOCALES);
-    expect(httpClient.put).not.toHaveBeenCalled();
+    expect(httpClient.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE })
+    );
   });
 
   it("applies the account language when signing in and does not write the browser language", async () => {
@@ -310,6 +336,60 @@ describe("Booking account language preference", () => {
       expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
     });
     expect(screen.getByTestId("preference")).toHaveTextContent(ZH_TW_LOCALE_ID);
-    expect(httpClient.put).not.toHaveBeenCalled();
+    expect(httpClient.request).not.toHaveBeenCalledWith(
+      expect.objectContaining({ url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE })
+    );
+  });
+
+  it("keeps a newer language selection when an earlier account preference is still loading", async () => {
+    const pendingLocales: Array<(value: ReturnType<typeof localesResponse>) => void> = [];
+    profilePreferredLocaleId = EN_LOCALE_ID;
+    vi.spyOn(httpClient, "get").mockImplementation(async (url: string) => {
+      if (url === API_ENDPOINTS.AUTH.PROFILE) {
+        return profileResponse();
+      }
+      if (url === API_ENDPOINTS.ORG.LOCALES) {
+        return new Promise((resolve) => {
+          pendingLocales.push(resolve);
+        });
+      }
+      throw new Error(`Unexpected GET ${url}`);
+    });
+    seedSignedInSession();
+    await change_app_language("zh-CN");
+    renderHarness();
+
+    await waitFor(() => {
+      expect(pendingLocales).toHaveLength(1);
+    });
+
+    await chooseTraditionalChinese();
+
+    await waitFor(() => {
+      expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
+      expect(pendingLocales).toHaveLength(2);
+    });
+
+    await act(async () => {
+      pendingLocales[0]?.(localesResponse());
+    });
+
+    expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
+
+    await act(async () => {
+      pendingLocales[1]?.(localesResponse());
+    });
+
+    await waitFor(() => {
+      expect(preferenceWriteCalls()).toEqual([
+        [
+          expect.objectContaining({
+            data: { preferredLocaleId: ZH_TW_LOCALE_ID },
+            skipRetry: true,
+          }),
+        ],
+      ]);
+    });
+    expect(screen.getByTestId("language")).toHaveTextContent("zh-TW");
   });
 });
