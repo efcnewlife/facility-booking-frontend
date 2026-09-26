@@ -12,6 +12,8 @@ interface MemberInfoResponse {
   last_name?: string | null;
   preferred_name?: string | null;
   preferredName?: string | null;
+  preferred_locale_id?: string | null;
+  preferredLocaleId?: string | null;
   roles?: string[];
   last_login_at?: string;
 }
@@ -36,6 +38,7 @@ const mapMemberToUser = (member: MemberInfoResponse): User => {
     firstName: member.first_name || undefined,
     lastName: member.last_name || undefined,
     preferredName: member.preferred_name || member.preferredName || undefined,
+    preferredLocaleId: member.preferredLocaleId ?? member.preferred_locale_id ?? null,
     status: "active",
     roles: member.roles || [],
     createdAt: nowIso,
@@ -129,6 +132,22 @@ class AuthService {
       };
     } catch (error) {
       throw this.handleAuthError(error);
+    }
+  }
+
+  async updatePreferredLanguage(preferredLocaleId: string): Promise<void> {
+    const response = await httpClient.request<void>({
+      method: "PUT",
+      url: API_ENDPOINTS.AUTH.PREFERRED_LANGUAGE,
+      data: { preferredLocaleId },
+      skipRetry: true,
+    });
+    if (!response.success) {
+      throw new Error(response.message || "Failed to update preferred language");
+    }
+    const user = this.getUser();
+    if (user) {
+      this.setUser({ ...user, preferredLocaleId });
     }
   }
 

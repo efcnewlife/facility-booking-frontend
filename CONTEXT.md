@@ -16,6 +16,10 @@ _Avoid_: Landing as the product name, email/password as production auth, Support
 Passwordless sign-in for Facility Booking in development and staging only. The member enters the email of a testing account; the app obtains a real backend session without Microsoft. Testing accounts use the `@test.local` email domain and are provisioned only by operator scripts, not self-registration or the admin portal. Each testing account keeps its own ministry and booking relationships in the database — mock login does not grant superuser bypass. Not production auth.
 _Avoid_: dev login, fake local session, frontend-only token, treating mock login as Microsoft, creating testing accounts from the Sign in page
 
+**Booking account language preference**:
+The signed-in Booker's selected system locale, stored on that account. Choosing a supported language changes the current session immediately and asks the account to remember it. When the Booker returns, the stored preference overrides any browser-local language. A failed save keeps the current-session language, shows no failure notice, and is not retried. An unauthenticated visitor's language stays in the browser and is not stored on an account.
+_Avoid_: treating browser-local language as the account preference, a failure notice on language save, retrying a failed language save, writing the visitor language onto the account at sign-in
+
 **Support**:
 The member-facing help page for special requests.
 _Avoid_: Contact as the canonical nav name

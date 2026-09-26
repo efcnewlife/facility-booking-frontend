@@ -16,6 +16,10 @@ type RequestInterceptor = (config: AxiosRequestConfig) => AxiosRequestConfig | P
 type ResponseInterceptor = (response: AxiosResponse) => AxiosResponse | Promise<AxiosResponse>;
 type ErrorInterceptor = (error: ApiError) => ApiError | Promise<ApiError>;
 
+interface HttpRequestConfig extends AxiosRequestConfig {
+  skipRetry?: boolean;
+}
+
 class HttpClient {
   private axiosInstance: AxiosInstance;
   private requestInterceptors: RequestInterceptor[] = [];
@@ -137,7 +141,7 @@ class HttpClient {
     };
   }
 
-  private async retryRequest(config: AxiosRequestConfig, attempt = 1): Promise<AxiosResponse> {
+  private async retryRequest(config: HttpRequestConfig, attempt = 1): Promise<AxiosResponse> {
     try {
       return await this.axiosInstance.request(config);
     } catch (error) {
@@ -145,7 +149,8 @@ class HttpClient {
       const status = axiosError.response?.status;
       const isTimeout = axiosError.code === "ECONNABORTED";
       const isNetworkError = !axiosError.response;
-      const shouldRetry = isNetworkError || isTimeout || (typeof status === "number" && status >= 500);
+      const shouldRetry =
+        !config.skipRetry && (isNetworkError || isTimeout || (typeof status === "number" && status >= 500));
 
       if (shouldRetry && attempt < REQUEST_CONFIG.RETRY_ATTEMPTS) {
         await new Promise((resolve) => setTimeout(resolve, REQUEST_CONFIG.RETRY_DELAY));
@@ -155,7 +160,7 @@ class HttpClient {
     }
   }
 
-  async request<T = unknown>(config: AxiosRequestConfig): Promise<ApiResponse<T>> {
+  async request<T = unknown>(config: HttpRequestConfig): Promise<ApiResponse<T>> {
     try {
       const processedConfig = await this.executeRequestInterceptors(config);
       const response = await this.retryRequest(processedConfig);

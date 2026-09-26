@@ -8,6 +8,7 @@ export interface User {
   avatar?: string;
   status: "active" | "inactive" | "suspended";
   roles: string[];
+  preferredLocaleId?: string | null;
   createdAt: string;
   updatedAt: string;
 }
