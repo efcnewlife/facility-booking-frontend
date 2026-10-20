@@ -384,32 +384,32 @@ describe("visibleRooms", () => {
   const rooms = [gym(), chapel(), sanctuary()];
   const interval: BookingInterval = { start: "10:00", end: "11:00" };
 
-  it("defaults Available rooms to rooms that can be booked for the interval", () => {
+  it("hides rooms a Personal requested interval cannot cover", () => {
     const occupiedGym = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
-    const list = visibleRooms([occupiedGym, chapel()], "available", interval, null);
+    const list = visibleRooms([occupiedGym, chapel()], interval, null, true);
     expect(list.map((room) => room.id)).toEqual(["chapel-id"]);
   });
 
-  it("keeps All rooms columns with no Available block", () => {
+  it("keeps occupied rooms when the proposal does not apply the requested interval", () => {
     const occupiedGym = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
-    const list = visibleRooms([occupiedGym, chapel()], "all", interval, null);
+    const list = visibleRooms([occupiedGym, chapel()], interval, null, false);
     expect(list.map((room) => room.id)).toEqual(["gym-id", "chapel-id"]);
   });
 
   it("filters by capacity band", () => {
-    expect(visibleRooms(rooms, "all", interval, "1-10").map((room) => room.code)).toEqual(["chapel"]);
+    expect(visibleRooms(rooms, interval, "1-10").map((room) => room.code)).toEqual(["chapel"]);
   });
 });
 
 describe("hasNoMatchingResults", () => {
-  it("is true on Available rooms when nothing can be booked", () => {
+  it("is true when a Personal requested interval matches no room", () => {
     const occupied = gym({ cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }) });
-    expect(hasNoMatchingResults([occupied], "available", { start: "10:00", end: "11:00" }, null)).toBe(true);
-    expect(hasNoMatchingResults([occupied], "all", { start: "10:00", end: "11:00" }, null)).toBe(false);
+    expect(hasNoMatchingResults([occupied], { start: "10:00", end: "11:00" }, null, true)).toBe(true);
+    expect(hasNoMatchingResults([occupied], { start: "10:00", end: "11:00" }, null, false)).toBe(false);
   });
 
   it("is true when availability has not loaded yet", () => {
-    expect(hasNoMatchingResults([], "available", null, null)).toBe(true);
+    expect(hasNoMatchingResults([], null, null)).toBe(true);
   });
 });
 

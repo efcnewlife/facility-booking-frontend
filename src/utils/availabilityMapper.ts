@@ -1,10 +1,10 @@
 import {
   MAX_BOOKING_LINES,
   SLOT_MINUTES,
-  clockToMinutes,
   minutesToClock,
   type CellState,
   type RoomDay,
+  type RoomOccupancyEvent,
   type RoomTemplateWindow,
   type TimeCell,
 } from "./timetableRules";
@@ -27,6 +27,21 @@ interface ApiTimeWindow {
   end: string;
 }
 
+interface ApiOccupancyEvent {
+  start: string;
+  end: string;
+  occupancyKind?: string;
+  occupancy_kind?: string;
+  isOverridable?: boolean;
+  is_overridable?: boolean;
+  ministryName?: string | null;
+  ministry_name?: string | null;
+  contactDisplayName?: string | null;
+  contact_display_name?: string | null;
+  contactEmail?: string | null;
+  contact_email?: string | null;
+}
+
 interface ApiRoomAvailabilityItem {
   id: string;
   code: string;
@@ -36,6 +51,7 @@ interface ApiRoomAvailabilityItem {
   photo_urls?: string[];
   templates?: ApiTemplateWindow[];
   cells?: ApiTimeCell[];
+  events?: ApiOccupancyEvent[];
   availability?: {
     am?: ApiTimeWindow[];
     pm?: ApiTimeWindow[];
@@ -72,67 +88,6 @@ const closedDayCells = (): RoomDay["cells"] => {
   return cells;
 };
 
-const amPmSlots = (item: ApiRoomAvailabilityItem): ApiTimeWindow[] => {
-  return [...(item.availability?.am || []), ...(item.availability?.pm || [])];
-};
-
-const expandWindowsToAvailableCells = (windows: ApiTimeWindow[]): Map<string, TimeCell> => {
-  const byStart = new Map<string, TimeCell>();
-  for (const window of windows) {
-    let start = clockToMinutes(window.start);
-    const end = clockToMinutes(window.end);
-    while (start < end) {
-      const next = start + SLOT_MINUTES;
-      byStart.set(minutesToClock(start), {
-        start: minutesToClock(start),
-        end: minutesToClock(next),
-        state: "available",
-      });
-      start = next;
-    }
-  }
-  return byStart;
-};
-
-const cellsAndTemplatesFromAmPm = (
-  slots: ApiTimeWindow[]
-): { cells: Map<string, TimeCell>; templates: RoomTemplateWindow[] } => {
-  const available = expandWindowsToAvailableCells(slots);
-  if (slots.length === 0) {
-    return { cells: available, templates: [] };
-  }
-  const sorted = [...slots].sort((left, right) => clockToMinutes(left.start) - clockToMinutes(right.start));
-  const first = sorted[0];
-  if (!first) {
-    return { cells: available, templates: [] };
-  }
-  const open_start = clockToMinutes(first.start);
-  const open_end = Math.max(...sorted.map((slot) => clockToMinutes(slot.end)));
-  const duration = Math.max(SLOT_MINUTES, clockToMinutes(first.end) - clockToMinutes(first.start));
-  const cells = new Map<string, TimeCell>();
-  for (let start = open_start; start < open_end; start += SLOT_MINUTES) {
-    const clock = minutesToClock(start);
-    cells.set(
-      clock,
-      available.get(clock) ?? {
-        start: clock,
-        end: minutesToClock(start + SLOT_MINUTES),
-        state: "unavailable",
-      }
-    );
-  }
-  return {
-    cells,
-    templates: [
-      {
-        start: minutesToClock(open_start),
-        end: minutesToClock(open_end),
-        slotDurationMinutes: duration,
-      },
-    ],
-  };
-};
-
 const templatesFromApi = (windows: ApiTemplateWindow[] | undefined): RoomTemplateWindow[] => {
   return (windows || []).map((window) => ({
     start: window.start,
@@ -141,6 +96,27 @@ const templatesFromApi = (windows: ApiTemplateWindow[] | undefined): RoomTemplat
   }));
 };
 
+const eventsFromApi = (events: ApiOccupancyEvent[] | undefined): RoomOccupancyEvent[] => {
+  const mapped: RoomOccupancyEvent[] = [];
+  for (const event of events || []) {
+    const kind = event.occupancyKind ?? event.occupancy_kind;
+    if (kind !== "ministry" && kind !== "rental") {
+      continue;
+    }
+    mapped.push({
+      start: event.start,
+      end: event.end,
+      occupancyKind: kind,
+      isOverridable: Boolean(event.isOverridable ?? event.is_overridable),
+      ministryName: event.ministryName ?? event.ministry_name ?? null,
+      contactDisplayName: event.contactDisplayName ?? event.contact_display_name ?? null,
+      contactEmail: event.contactEmail ?? event.contact_email ?? null,
+    });
+  }
+  return mapped;
+};
+
+// Clock strings are facility-local. Do not shift them into the browser timezone.
 export const mapAvailabilityToRoomDays = (payload: ApiRoomAvailabilityList): RoomDay[] => {
   return (payload.items || []).map((item) => {
     const byStart = new Map<string, TimeCell>();
@@ -150,17 +126,7 @@ export const mapAvailabilityToRoomDays = (payload: ApiRoomAvailabilityList): Roo
       }
       byStart.set(cell.start, { start: cell.start, end: cell.end, state: cell.state });
     }
-    const slots = amPmSlots(item);
-    let templates = templatesFromApi(item.templates);
-    if (byStart.size === 0 && slots.length > 0) {
-      const inferred = cellsAndTemplatesFromAmPm(slots);
-      inferred.cells.forEach((cell, start) => {
-        byStart.set(start, cell);
-      });
-      if (templates.length === 0) {
-        templates = inferred.templates;
-      }
-    }
+    const templates = templatesFromApi(item.templates);
     return {
       id: item.id,
       code: item.code,
@@ -169,6 +135,7 @@ export const mapAvailabilityToRoomDays = (payload: ApiRoomAvailabilityList): Roo
       photoUrls: (item.photoUrls ?? item.photo_urls ?? []).filter((url) => url.length > 0),
       templates,
       cells: closedDayCells().map((cell) => byStart.get(cell.start) ?? cell),
+      events: eventsFromApi(item.events),
     };
   });
 };

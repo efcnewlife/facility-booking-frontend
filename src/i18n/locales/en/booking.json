@@ -237,6 +237,18 @@
     "unavailable": "Unavailable",
     "closed": "Closed",
     "override": "Override",
+    "ministryBooking": "Ministry Booking",
+    "viewContact": "View contact",
+    "viewContactFor": "View contact for {{room}}, {{start}} - {{end}}",
+    "contact": {
+      "title": "Conflict",
+      "close": "Close",
+      "room": "Room",
+      "time": "Time",
+      "ministry": "Ministry",
+      "name": "Name",
+      "email": "Email"
+    },
     "reviewAndConfirm": "Review & Confirm",
     "noMatchingResults": "No matching results",
     "capacity": "{{count}}",
