@@ -180,8 +180,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
   };
 });
 
-import { change_app_language } from "@/i18n";
 import ministryService from "@/api/services/ministryService";
+import { change_app_language } from "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
