@@ -22,6 +22,16 @@ export interface RoomTemplateWindow extends TimeRange {
   slotDurationMinutes: number;
 }
 
+export type OccupancyKind = "ministry" | "rental";
+
+export interface RoomOccupancyEvent extends TimeRange {
+  occupancyKind: OccupancyKind;
+  isOverridable: boolean;
+  ministryName?: string | null;
+  contactDisplayName?: string | null;
+  contactEmail?: string | null;
+}
+
 export interface RoomDay {
   id: string;
   code: string;
@@ -30,6 +40,7 @@ export interface RoomDay {
   photoUrls: string[];
   templates: RoomTemplateWindow[];
   cells: TimeCell[];
+  events?: RoomOccupancyEvent[];
 }
 
 export type BookingInterval = TimeRange;
@@ -401,12 +412,12 @@ export const matchesCapacityBand = (room: RoomDay, band: CapacityBand | null): b
 
 export const visibleRooms = (
   rooms: RoomDay[],
-  view: TimetableView,
   interval: BookingInterval | null,
-  band: CapacityBand | null
+  band: CapacityBand | null,
+  applyRequestedInterval = false
 ): RoomDay[] => {
   const filtered = rooms.filter((room) => matchesCapacityBand(room, band));
-  if (view === "all") {
+  if (!applyRequestedInterval || !interval) {
     return filtered;
   }
   return filtered.filter((room) => isRoomAvailable(room, interval));
@@ -414,11 +425,11 @@ export const visibleRooms = (
 
 export const hasNoMatchingResults = (
   rooms: RoomDay[],
-  view: TimetableView,
   interval: BookingInterval | null,
-  band: CapacityBand | null
+  band: CapacityBand | null,
+  applyRequestedInterval = false
 ): boolean => {
-  return view === "available" && visibleRooms(rooms, view, interval, band).length === 0;
+  return visibleRooms(rooms, interval, band, applyRequestedInterval).length === 0;
 };
 
 export const isTimetableInitialLoad = (loading: boolean, roomCount: number): boolean => {
@@ -500,8 +511,18 @@ export interface CellBlock extends TimeRange {
 
 export type AvailableOverlayKind = "whenSeed" | "pinned" | "hover" | "committed";
 
+export type BlockPresentation = "generic" | "ministry" | "rentalContact" | "override";
+
+export interface TimetableContact {
+  ministryName: string | null;
+  displayName: string | null;
+  email: string | null;
+}
+
 export interface TimetableDisplayBlock extends CellBlock {
   overlayKind?: AvailableOverlayKind;
+  presentation?: BlockPresentation;
+  contact?: TimetableContact;
 }
 
 export const contiguousBlocks = (room: RoomDay): CellBlock[] => {
@@ -537,14 +558,149 @@ export const displayBlocks = (
   return occupied;
 };
 
+const rangesOverlap = (left: TimeRange, right: TimeRange): boolean => {
+  return (
+    clockToMinutes(left.start) < clockToMinutes(right.end) && clockToMinutes(right.start) < clockToMinutes(left.end)
+  );
+};
+
+const subtractRanges = (block: TimeRange, cuts: TimeRange[]): TimeRange[] => {
+  let pieces: TimeRange[] = [block];
+  for (const cut of cuts) {
+    const next: TimeRange[] = [];
+    for (const piece of pieces) {
+      if (!rangesOverlap(piece, cut)) {
+        next.push(piece);
+        continue;
+      }
+      if (clockToMinutes(piece.start) < clockToMinutes(cut.start)) {
+        next.push({ start: piece.start, end: cut.start });
+      }
+      if (clockToMinutes(cut.end) < clockToMinutes(piece.end)) {
+        next.push({ start: cut.end, end: piece.end });
+      }
+    }
+    pieces = next;
+  }
+  return pieces.filter((piece) => clockToMinutes(piece.end) > clockToMinutes(piece.start));
+};
+
+const contactForEvent = (event: RoomOccupancyEvent): TimetableContact => ({
+  ministryName: event.ministryName ?? null,
+  displayName: event.contactDisplayName ?? null,
+  email: event.contactEmail ?? null,
+});
+
+const clipRangeToOpenCells = (range: TimeRange, room: RoomDay): TimeRange[] => {
+  const openCells = room.cells
+    .filter((cell) => cell.state !== "closed")
+    .slice()
+    .sort((left, right) => clockToMinutes(left.start) - clockToMinutes(right.start));
+  const pieces: TimeRange[] = [];
+  const rangeStart = clockToMinutes(range.start);
+  const rangeEnd = clockToMinutes(range.end);
+  for (const cell of openCells) {
+    const start = Math.max(rangeStart, clockToMinutes(cell.start));
+    const end = Math.min(rangeEnd, clockToMinutes(cell.end));
+    if (end <= start) {
+      continue;
+    }
+    const last = pieces[pieces.length - 1];
+    if (last && clockToMinutes(last.end) === start) {
+      last.end = minutesToClock(end);
+    } else {
+      pieces.push({ start: minutesToClock(start), end: minutesToClock(end) });
+    }
+  }
+  return pieces;
+};
+
+const eventDisplayBlock = (
+  event: RoomOccupancyEvent,
+  piece: TimeRange,
+  allowRentalContact: boolean
+): TimetableDisplayBlock => {
+  if (event.occupancyKind === "ministry") {
+    return {
+      start: piece.start,
+      end: piece.end,
+      state: "unavailable",
+      presentation: "ministry",
+      contact: contactForEvent(event),
+    };
+  }
+  if (event.isOverridable) {
+    return {
+      start: piece.start,
+      end: piece.end,
+      state: "override",
+      presentation: "override",
+    };
+  }
+  if (allowRentalContact) {
+    return {
+      start: piece.start,
+      end: piece.end,
+      state: "unavailable",
+      presentation: "rentalContact",
+      contact: contactForEvent(event),
+    };
+  }
+  return {
+    start: piece.start,
+    end: piece.end,
+    state: "unavailable",
+    presentation: "generic",
+  };
+};
+
+export const occupancyDisplayBlocks = (
+  room: RoomDay,
+  revealContacts: boolean,
+  allowRentalContact: boolean
+): TimetableDisplayBlock[] => {
+  const cellBlocks = contiguousBlocks(room).filter(
+    (block) => block.state === "unavailable" || block.state === "override"
+  );
+  if (!revealContacts) {
+    return cellBlocks.map((block) => ({
+      start: block.start,
+      end: block.end,
+      state: "unavailable" as const,
+      presentation: "generic" as const,
+    }));
+  }
+
+  const events = room.events ?? [];
+  if (events.length === 0) {
+    return cellBlocks.map((block) => ({
+      ...block,
+      presentation: block.state === "override" ? "override" : "generic",
+    }));
+  }
+
+  const fromEvents = events.flatMap((event) =>
+    clipRangeToOpenCells(event, room).map((piece) => eventDisplayBlock(event, piece, allowRentalContact))
+  );
+  const uncovered = cellBlocks.flatMap((block) =>
+    subtractRanges(block, fromEvents).map((piece) => ({
+      start: piece.start,
+      end: piece.end,
+      state: block.state,
+      presentation: block.state === "override" ? ("override" as const) : ("generic" as const),
+    }))
+  );
+  return [...fromEvents, ...uncovered];
+};
+
 export const displayBlocksForCart = (
   room: RoomDay,
   state: TimetableCartState,
-  hover: HoverPreview | null = null
+  hover: HoverPreview | null = null,
+  revealContacts = false,
+  allowRentalContact = false
 ): TimetableDisplayBlock[] => {
-  const occupied = contiguousBlocks(room).filter(
-    (block) => block.state === "unavailable" || block.state === "override"
-  );
+  const occupied = occupancyDisplayBlocks(room, revealContacts, allowRentalContact);
   const overlays: TimetableDisplayBlock[] = [];
 
   const committedLines = state.lines.filter((line) => line.facilityId === room.id);

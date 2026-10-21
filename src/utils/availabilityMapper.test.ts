@@ -68,7 +68,7 @@ describe("mapAvailabilityToRoomDays", () => {
     expect(rooms[2]?.photoUrls).toEqual([]);
   });
 
-  it("expands availability.am/pm hour windows into available 30-minute cells", () => {
+  it("does not infer opening windows or template duration from AM/PM free lists", () => {
     const rooms = mapAvailabilityToRoomDays({
       date: "2026-08-26",
       items: [
@@ -88,40 +88,65 @@ describe("mapAvailabilityToRoomDays", () => {
       ],
     });
 
-    expect(rooms[0]?.templates).toEqual([{ start: "08:00", end: "13:00", slotDurationMinutes: 60 }]);
-    expect(rooms[0]?.cells.find((cell) => cell.start === "08:00")?.state).toBe("available");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "08:30")?.state).toBe("available");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "07:30")?.state).toBe("closed");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "11:00")?.state).toBe("unavailable");
-    expect(rooms[0]?.cells.filter((cell) => cell.state === "available")).toHaveLength(6);
-    expect(rooms[0]?.cells.filter((cell) => cell.state === "unavailable")).toHaveLength(4);
+    expect(rooms[0]?.templates).toEqual([]);
+    expect(rooms[0]?.cells.every((cell) => cell.state === "closed")).toBe(true);
   });
 
-  it("marks gaps inside am/pm open hours as unavailable, not closed", () => {
+  it("keeps authoritative cells, templates, and events when AM/PM free lists disagree", () => {
     const rooms = mapAvailabilityToRoomDays({
       date: "2026-08-26",
       items: [
         {
+          id: "hall-id",
+          code: "hall",
+          name: "Hall",
+          capacity: 40,
+          templates: [{ start: "09:00", end: "12:00", slotDurationMinutes: 90 }],
+          cells: [
+            { start: "10:00", end: "10:30", state: "override" },
+            { start: "10:30", end: "11:00", state: "unavailable" },
+          ],
+          events: [
+            {
+              start: "10:00",
+              end: "11:00",
+              occupancyKind: "ministry",
+              isOverridable: false,
+              ministryName: "Choir",
+              contactDisplayName: "Ada Steward",
+              contactEmail: "ada@efcnewlife.org",
+            },
+          ],
+          availability: {
+            am: [{ start: "10:00", end: "11:00" }],
+          },
+        },
+        {
           id: "gym-id",
           code: "gym",
           name: "Gym",
-          capacity: 390,
-          availability: {
-            am: [{ start: "08:00", end: "09:00" }],
-            pm: [
-              { start: "13:00", end: "14:00" },
-              { start: "16:00", end: "17:00" },
-            ],
-          },
+          capacity: 80,
+          cells: [{ start: "09:00", end: "09:30", state: "unavailable" }],
         },
       ],
     });
 
-    expect(rooms[0]?.cells.find((cell) => cell.start === "14:00")?.state).toBe("unavailable");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "15:30")?.state).toBe("unavailable");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "16:00")?.state).toBe("available");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "07:30")?.state).toBe("closed");
-    expect(rooms[0]?.cells.find((cell) => cell.start === "17:00")?.state).toBe("closed");
+    expect(rooms[0]?.templates).toEqual([{ start: "09:00", end: "12:00", slotDurationMinutes: 90 }]);
+    expect(rooms[0]?.cells.find((cell) => cell.start === "10:00")?.state).toBe("override");
+    expect(rooms[0]?.cells.find((cell) => cell.start === "10:30")?.state).toBe("unavailable");
+    expect(rooms[0]?.cells.find((cell) => cell.start === "09:00")?.state).toBe("closed");
+    expect(rooms[0]?.events).toEqual([
+      {
+        start: "10:00",
+        end: "11:00",
+        occupancyKind: "ministry",
+        isOverridable: false,
+        ministryName: "Choir",
+        contactDisplayName: "Ada Steward",
+        contactEmail: "ada@efcnewlife.org",
+      },
+    ]);
+    expect(rooms[1]?.events).toEqual([]);
   });
 });
 

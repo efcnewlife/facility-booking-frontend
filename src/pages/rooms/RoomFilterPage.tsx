@@ -5,15 +5,17 @@ import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
 import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
 import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
+import TimetableContactDialog, { type TimetableContactTarget } from "@/components/booking/TimetableContactDialog";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
-import { oneTimeBookingDetailsPath, repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
 import { buildCreateBookingDraftPayload, lineCoversAvailability } from "@/utils/bookingDetailsDraft";
+import { oneTimeBookingDetailsPath, repeatedBookingDetailsPath } from "@/utils/bookingDetailsPath";
 import { validateBookingTitle } from "@/utils/bookingTitle";
 import { applyCartAggregateQuote, fetchCartAggregateQuote } from "@/utils/cartLineQuote";
 import { canOpenImagePreview } from "@/utils/imagePreview";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
 import { buildCreateRecurringSeriesDraftPayload } from "@/utils/recurringBookingSeries";
+import { parseRepeatedRoomIds } from "@/utils/recurringSeriesDraft";
 import {
   canReviewAndConfirm,
   createRecurringSeriesPreviewController,
@@ -22,7 +24,6 @@ import {
   proposalKeyForAnswers,
   type RecurringSeriesReviewSnapshot,
 } from "@/utils/recurringSeriesReview";
-import { parseRepeatedRoomIds } from "@/utils/recurringSeriesDraft";
 import {
   applyFirstOccurrenceDate,
   applyWeekday,
@@ -66,6 +67,7 @@ import {
   updateCartLine,
   visibleRooms,
   type AvailableOverlayKind,
+  type BlockPresentation,
   type BookingInterval,
   type BookingLine,
   type CapacityBand,
@@ -75,7 +77,6 @@ import {
   type RoomDay,
   type TimeCell,
   type TimetableCartState,
-  type TimetableView,
 } from "@/utils/timetableRules";
 import {
   Alert,
@@ -190,7 +191,11 @@ const cellUnderlayClassName = (cell: TimeCell | undefined): string => {
   return "";
 };
 
-const eventClassName = (state: CellState, overlayKind?: AvailableOverlayKind): string => {
+const eventClassName = (
+  state: CellState,
+  overlayKind?: AvailableOverlayKind,
+  presentation?: BlockPresentation
+): string => {
   return cn(
     "pointer-events-none flex min-h-0 items-start justify-between overflow-hidden py-2.5 pr-2.5 pl-[18px]",
     overlayKind === "hover" ? "z-[2]" : "z-[1]",
@@ -200,8 +205,11 @@ const eventClassName = (state: CellState, overlayKind?: AvailableOverlayKind): s
     state === "available" &&
       overlayKind !== "hover" &&
       cn("border border-black border-l-[5px] border-l-booking-green text-booking-primary", TIMETABLE_PINNED_BLOCK_BG),
-    state === "unavailable" && "border-l-[5px] border-l-gray-500 bg-gray-300 text-white",
-    state === "override" && "border-l-[5px] border-l-error bg-error-container text-booking-primary"
+    presentation === "ministry" &&
+      "border border-warning-700 border-l-[5px] border-l-warning-700 bg-warning-100 text-booking-primary",
+    state === "unavailable" && presentation !== "ministry" && "border-l-[5px] border-l-gray-500 bg-gray-300 text-white",
+    (state === "override" || presentation === "override") &&
+      "border-l-[5px] border-l-error bg-error-container text-booking-primary"
   );
 };
 
@@ -258,7 +266,6 @@ const RoomFilterPage = () => {
   const [draftWeekday, setDraftWeekday] = useState<number | null>(
     appliedQuery?.weekday ?? weekdayForDate(appliedQuery?.date ?? "") ?? null
   );
-  const [view, setView] = useState<TimetableView>("available");
   const [capacityBand, setCapacityBand] = useState<CapacityBand | null>(null);
   const [pageIndex, setPageIndex] = useState(0);
   const [rooms, setRooms] = useState<RoomDay[]>([]);
@@ -297,6 +304,7 @@ const RoomFilterPage = () => {
     null
   );
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
+  const [contactTarget, setContactTarget] = useState<TimetableContactTarget | null>(null);
   const [reviewState, setReviewState] = useState<RecurringSeriesReviewSnapshot>(emptyRecurringSeriesReviewSnapshot);
   const [repeatedWindowOpen, setRepeatedWindowOpen] = useState<boolean | null>(isRepeated ? null : true);
   const navigationState = location.state as { draftId?: string; seriesDraftId?: string; title?: string } | null;
@@ -305,6 +313,7 @@ const RoomFilterPage = () => {
   const [titleTouched, setTitleTouched] = useState(false);
   const [oneTimeQuote, setOneTimeQuote] = useState<OneTimeQuoteState>(() => idleOneTimeQuote(""));
   const gridScrollRef = useRef<HTMLDivElement>(null);
+  const availabilityGenerationRef = useRef(0);
   const seriesPreviewControllerRef = useRef<ReturnType<typeof createRecurringSeriesPreviewController> | null>(null);
 
   const appliedDate = appliedQuery?.date ?? "";
@@ -388,6 +397,7 @@ const RoomFilterPage = () => {
       setLoading(false);
       return;
     }
+    const generation = ++availabilityGenerationRef.current;
     setLoading(true);
     setError(null);
     try {
@@ -395,12 +405,21 @@ const RoomFilterPage = () => {
         appliedDate,
         appliedMinistryId
       );
+      if (generation !== availabilityGenerationRef.current) {
+        return;
+      }
       setRooms(items);
       setMaxBookingLines(cap);
+      setContactTarget(null);
     } catch (err) {
+      if (generation !== availabilityGenerationRef.current) {
+        return;
+      }
       setError(err instanceof Error ? err.message : t("timetable.loadError"));
     } finally {
-      setLoading(false);
+      if (generation === availabilityGenerationRef.current) {
+        setLoading(false);
+      }
     }
   }, [appliedDate, appliedMinistryId, t]);
 
@@ -476,11 +495,12 @@ const RoomFilterPage = () => {
     setPendingReplacement(null);
   }, [scheduleKey, whenSeed]);
 
+  const applyRequestedInterval = !appliedMinistryId && whenSeed != null;
   const listedRooms = useMemo(
-    () => visibleRooms(rooms, view, whenSeed, capacityBand),
-    [capacityBand, rooms, view, whenSeed]
+    () => visibleRooms(rooms, whenSeed, capacityBand, applyRequestedInterval),
+    [applyRequestedInterval, capacityBand, rooms, whenSeed]
   );
-  const noMatching = hasNoMatchingResults(rooms, view, whenSeed, capacityBand);
+  const noMatching = hasNoMatchingResults(rooms, whenSeed, capacityBand, applyRequestedInterval);
   const isInitialLoad = isTimetableInitialLoad(loading, rooms.length);
   const showNoMatching = noMatching && !isInitialLoad && Boolean(appliedDate);
   const pageCount = Math.max(1, Math.ceil(listedRooms.length / ROOMS_PER_PAGE));
@@ -493,16 +513,16 @@ const RoomFilterPage = () => {
 
   useEffect(() => {
     setPageIndex(0);
-  }, [view, capacityBand, appliedDate, listedRooms.length]);
+  }, [capacityBand, appliedDate, listedRooms.length]);
 
   useEffect(() => {
     if (loading || rooms.length === 0) {
       return;
     }
-    if (hasNoMatchingResults(rooms, view, whenSeed, capacityBand)) {
+    if (hasNoMatchingResults(rooms, whenSeed, capacityBand, applyRequestedInterval)) {
       return;
     }
-    const roomsForScroll = visibleRooms(rooms, view, whenSeed, capacityBand);
+    const roomsForScroll = visibleRooms(rooms, whenSeed, capacityBand, applyRequestedInterval);
     const scroller = gridScrollRef.current;
     if (!scroller) {
       return;
@@ -514,7 +534,7 @@ const RoomFilterPage = () => {
       top,
       behavior: prefersReducedMotion ? "auto" : "smooth",
     });
-  }, [appliedDate, capacityBand, loading, rooms, view, whenSeed]);
+  }, [appliedDate, applyRequestedInterval, capacityBand, loading, rooms, whenSeed]);
 
   const oneTimeLinesKey = oneTimeLineSignature(cartState.lines);
 
@@ -745,6 +765,12 @@ const RoomFilterPage = () => {
     if ((appliedMinistryId ?? null) === ministryId) {
       return;
     }
+    availabilityGenerationRef.current += 1;
+    setContactTarget(null);
+    setHover(null);
+    setConfirmRoom(null);
+    setRooms((current) => current.map((room) => ({ ...room, events: [] })));
+    setLoading(true);
     if (!isRepeated && appliedDate) {
       saveTimetableCart(window.localStorage, cartStateToDraft(appliedDate, ministryId || undefined, cartState));
     }
@@ -961,9 +987,11 @@ const RoomFilterPage = () => {
 
   const formatClockForLocale = (clock: string) => formatClock(clock, i18nInstance.language);
 
-  const ministryName = appliedMinistryId
-    ? (bookableMinistries.find((ministry) => ministry.id === appliedMinistryId)?.name ?? null)
-    : null;
+  const appliedMinistry = appliedMinistryId
+    ? bookableMinistries.find((ministry) => ministry.id === appliedMinistryId)
+    : undefined;
+  const ministryName = appliedMinistry?.name ?? null;
+  const allowRentalContact = appliedMinistry != null && appliedMinistry.hasPriorityBooking !== true;
   const cartMinistryOptions = bookableMinistries.map((ministry) => ({
     id: ministry.id,
     name: ministry.name || ministry.id,
@@ -1098,49 +1126,29 @@ const RoomFilterPage = () => {
       <div className="mt-4 flex min-h-0 w-full flex-1 gap-4 overflow-hidden">
         <section className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-[10px] bg-surface px-4 py-5 xl:px-[42px] xl:pt-7 xl:pb-4">
           <div className="flex shrink-0 items-center justify-between gap-6 bg-surface pb-3">
-            <div className="flex flex-wrap items-center gap-[52px]">
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
-                  {t("timetable.filterByView")}
-                </span>
-                {(["available", "all"] as TimetableView[]).map((option) => (
-                  <button
-                    aria-pressed={view === option}
-                    className="cursor-pointer border-0 bg-transparent p-0 leading-none"
-                    key={option}
-                    onClick={() => setView(option)}
-                    type="button"
-                  >
-                    <Badge color="primary" variant={view === option ? "solid" : "light"}>
-                      {option === "available" ? t("timetable.availableRooms") : t("timetable.allRooms")}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
-              <div className="flex flex-wrap items-center gap-2.5">
-                <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
-                  {t("timetable.filterByCapacity")}
-                </span>
-                {CAPACITY_BANDS.map((band) => (
-                  <button
-                    aria-pressed={capacityBand === band}
-                    className="cursor-pointer border-0 bg-transparent p-0 leading-none"
-                    key={band}
-                    onClick={() => setCapacityBand((current) => (current === band ? null : band))}
-                    type="button"
-                  >
-                    <Badge color="primary" variant={capacityBand === band ? "solid" : "light"}>
-                      {band === "1-10"
-                        ? t("timetable.capacity1to10")
-                        : band === "10-25"
-                          ? t("timetable.capacity10to25")
-                          : band === "25-50"
-                            ? t("timetable.capacity25to50")
-                            : t("timetable.capacity50plus")}
-                    </Badge>
-                  </button>
-                ))}
-              </div>
+            <div className="flex flex-wrap items-center gap-2.5">
+              <span className="whitespace-nowrap text-sm font-semibold leading-none text-booking-primary">
+                {t("timetable.filterByCapacity")}
+              </span>
+              {CAPACITY_BANDS.map((band) => (
+                <button
+                  aria-pressed={capacityBand === band}
+                  className="cursor-pointer border-0 bg-transparent p-0 leading-none"
+                  key={band}
+                  onClick={() => setCapacityBand((current) => (current === band ? null : band))}
+                  type="button"
+                >
+                  <Badge color="primary" variant={capacityBand === band ? "solid" : "light"}>
+                    {band === "1-10"
+                      ? t("timetable.capacity1to10")
+                      : band === "10-25"
+                        ? t("timetable.capacity10to25")
+                        : band === "25-50"
+                          ? t("timetable.capacity25to50")
+                          : t("timetable.capacity50plus")}
+                  </Badge>
+                </button>
+              ))}
             </div>
             <div className="flex shrink-0 gap-3">
               <Button
@@ -1299,7 +1307,13 @@ const RoomFilterPage = () => {
                           })
                         )}
                         {pagedRooms.map((room, roomIndex) =>
-                          displayBlocksForCart(room, cartState, hover).map((block) => {
+                          displayBlocksForCart(
+                            room,
+                            cartState,
+                            hover,
+                            Boolean(appliedMinistryId),
+                            allowRentalContact
+                          ).map((block) => {
                             const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                             const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
                             const isPinnedOverlay = block.overlayKind === "pinned";
@@ -1312,20 +1326,50 @@ const RoomFilterPage = () => {
                               (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
                                 ? blockActionForInterval(cartState.lines, room.id, block)
                                 : null;
+                            const showContact =
+                              block.presentation === "ministry" || block.presentation === "rentalContact";
+                            const startLabel = formatClockForLocale(block.start);
+                            const endLabel = formatClockForLocale(block.end);
                             return (
                               <article
-                                className={eventClassName(block.state, block.overlayKind)}
-                                key={`${room.id}-${block.start}-${block.state}-${block.overlayKind ?? "occupied"}`}
+                                className={eventClassName(block.state, block.overlayKind, block.presentation)}
+                                key={`${room.id}-${block.start}-${block.end}-${block.presentation ?? block.state}-${block.overlayKind ?? "occupied"}`}
                                 style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
                               >
                                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                                   <p className="m-0 text-base font-bold leading-normal">
-                                    {t(`timetable.${block.state}`)}
+                                    {block.presentation === "ministry"
+                                      ? t("timetable.contact.title")
+                                      : t(`timetable.${block.state}`)}
                                   </p>
                                   <p className="m-0 text-xs font-medium leading-none">
-                                    {formatClockForLocale(block.start)} – {formatClockForLocale(block.end)}
+                                    {startLabel} – {endLabel}
                                   </p>
                                 </div>
+                                {showContact ? (
+                                  <button
+                                    aria-label={t("timetable.viewContactFor", {
+                                      room: room.name,
+                                      start: startLabel,
+                                      end: endLabel,
+                                    })}
+                                    className="pointer-events-auto inline-flex h-[30px] items-center justify-center rounded-[3px] bg-white px-2 text-[11.5px] font-bold text-booking-primary"
+                                    onClick={() => {
+                                      setContactTarget({
+                                        roomName: room.name,
+                                        start: block.start,
+                                        end: block.end,
+                                        presentation: block.presentation === "ministry" ? "ministry" : "rentalContact",
+                                        ministryName: block.contact?.ministryName ?? null,
+                                        displayName: block.contact?.displayName ?? null,
+                                        email: block.contact?.email ?? null,
+                                      });
+                                    }}
+                                    type="button"
+                                  >
+                                    {t("timetable.viewContact")}
+                                  </button>
+                                ) : null}
                                 {block.state === "available" && bookableStart && blockAction === "add" ? (
                                   <button
                                     className="pointer-events-auto inline-flex h-[30px] w-[51px] min-w-[51px] items-center justify-center rounded-[3px] bg-booking-secondary p-0 text-[11.5px] font-bold text-white"
@@ -1443,6 +1487,11 @@ const RoomFilterPage = () => {
         <ReplaceRepeatedTimeModal isOpen onCancel={handleCancelReplacement} onConfirm={handleConfirmReplacement} />
       ) : null}
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
+      <TimetableContactDialog
+        formatClock={formatClockForLocale}
+        onClose={() => setContactTarget(null)}
+        target={contactTarget}
+      />
     </main>
   );
 };

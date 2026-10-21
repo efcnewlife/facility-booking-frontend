@@ -1,6 +1,6 @@
 import type { RecurringSeriesDraftDetail } from "@/api/services/facilityService";
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -187,8 +187,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
   };
 });
 
-import "@/i18n";
 import ministryService from "@/api/services/ministryService";
+import "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
@@ -572,5 +572,84 @@ describe("Repeated Timetable cart to Booking Details", () => {
       DRAFT_ID,
       expect.objectContaining({ ministryId: "ministry-1" })
     );
+  });
+
+  it("keeps a protected First occurrence visible for contact and leaves Override unselectable", async () => {
+    const user = userEvent.setup();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [
+        {
+          id: "hall-id",
+          code: "hall",
+          name: "Hall",
+          capacity: 40,
+          photoUrls: [],
+          templates: sharedWindowTemplates(),
+          cells: sharedWindowCells().map((cell) => ({ ...cell, state: "unavailable" as const })),
+          events: [
+            {
+              start: "09:00",
+              end: "10:30",
+              occupancyKind: "ministry" as const,
+              isOverridable: false,
+              ministryName: "Choir",
+              contactDisplayName: "Ada Steward",
+              contactEmail: "ada@efcnewlife.org",
+            },
+          ],
+        },
+        {
+          id: "chapel-id",
+          code: "chapel",
+          name: "Chapel",
+          capacity: 20,
+          photoUrls: [],
+          templates: sharedWindowTemplates(),
+          cells: sharedWindowCells().map((cell) => ({ ...cell, state: "override" as const })),
+          events: [
+            {
+              start: "09:00",
+              end: "10:30",
+              occupancyKind: "rental" as const,
+              isOverridable: true,
+              ministryName: null,
+              contactDisplayName: "Cara Renter",
+              contactEmail: "cara@example.com",
+            },
+          ],
+        },
+      ],
+      maxBookingLines: 3,
+    });
+
+    const params = new URLSearchParams({
+      frequency: "repeated",
+      date: "2099-01-01",
+      lastDate: "2099-02-05",
+      weekday: "4",
+      start: "09:00",
+      end: "10:30",
+      ministryId: "ministry-1",
+    });
+    renderFlow(`/rooms?${params.toString()}`);
+
+    expect(await screen.findByText("Hall")).toBeTruthy();
+    expect(screen.getByText("Chapel")).toBeTruthy();
+    expect(screen.getByText("Conflict")).toBeTruthy();
+    expect(screen.getByText("Override")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Available rooms" })).toBeNull();
+
+    const contact = screen.getByRole("button", { name: /View contact for Hall/ });
+    expect(screen.queryByRole("button", { name: /View contact for Chapel/ })).toBeNull();
+    await user.click(contact);
+    const dialog = await screen.findByRole("dialog", { name: "Conflict" });
+    expect(within(dialog).getByText("Ada Steward")).toBeTruthy();
+    expect(within(dialog).queryByText(/skip the date/i)).toBeNull();
+    await user.click(within(dialog).getByRole("button", { name: /^Close$/ }));
+    expect(screen.queryByRole("heading", { name: "Confirm Booking Time" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "ADD" })).toBeNull();
   });
 });

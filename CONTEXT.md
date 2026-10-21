@@ -190,30 +190,36 @@ The overlay that enlarges Room photos, with thumbs and previous/next when there 
 _Avoid_: Gallery modal as the product name, a separate route for the photos
 
 **Unavailable**:
-A Timetable block that is inside open hours but cannot be booked because another booking holds it. Not Closed, not Override.
-_Avoid_: using Unavailable for Closed hours or blackouts
+A Timetable block inside open hours that cannot be booked. A Personal proposal shows it as generic Unavailable, with the time and no occupant kind, contact, or Ministry name. A Non-priority Ministry proposal shows the same gray Unavailable treatment for Rental occupancy, plus View contact. Not Closed, and not Override.
+_Avoid_: using Unavailable for Closed hours or blackouts, disclosing Ministry occupancy to a Personal proposal
 
 **Closed**:
-A Timetable block that cannot be booked because the room is not open: outside that room's template hours, or a blackout. Shown with a gray background, including overnight on the 00:00–24:00 axis. Not omitted.
-_Avoid_: outside hours, not open, gray as the name of the state, treating blackout as Unavailable
+A Timetable block that cannot be booked because the room is not open: outside that room's template hours, or a blackout. Shown with a gray background and no reservation content, including overnight on the 00:00–24:00 axis. Not omitted.
+_Avoid_: outside hours, not open, gray as the name of the state, treating blackout as Unavailable, painting a booking label on Closed time
 
 **Override**:
-A Timetable block where this search is a Ministry booking with Ministry priority, and a Non-ministry booking holds the slot. Shown as its own state. This slice is display-only: no ADD, no VIEW, no Confirm and notify.
-_Avoid_: painting Override as Unavailable, showing Override on a Non-ministry search, treating VIEW as required to show the state
+A Timetable block where this proposal is a Priority Ministry booking and a future Rental booking holds the slot. Shown in red with the Override label and time. It stays unselectable until the reviewed checkout flow exists: no ADD, no View contact, and no Confirm and notify.
+_Avoid_: painting Override as Unavailable, showing Override on a Personal or Non-priority search, opening View contact on Override
 
-**Available rooms**:
-A Timetable view: rooms that still have at least one Available block that day.
+**Ministry Booking**:
+Protected Ministry occupancy on a Ministry proposal. Shown with a light orange background, darker orange border, dark text, the Conflict label, the time, and View contact. It cannot be selected.
+_Avoid_: showing this treatment to a Personal proposal, using it for Rental occupancy, putting the Ministry name or steward on the block itself
 
-**All rooms**:
-A Timetable view: every room offered that day, including columns with no Available block. Those columns stay on the grid as Unavailable, Closed, and/or Override. The availability API must return those rooms, not omit them.
+**View contact**:
+The Timetable action on a Ministry Booking block, and on a Non-priority Ministry's Rental Unavailable block. It opens a Conflict dialog for that one event: room, time, and the authorized contact only. Ministry occupancy shows the Ministry name plus the current primary steward's name and church login email. Rental occupancy shows the Booker's name and email. The dialog can only be closed. Adjacent events keep separate actions and separate contacts.
+_Avoid_: phone numbers, Booking Title, Skip the date, adding the interval to the Cart, one contact for two adjacent events, leaving the dialog open after the Cart's Ministry association changes
+
+**Room list**:
+The Timetable columns for the current proposal. There is no Available rooms / All rooms switch. Capacity filter still applies. Personal proposals with a requested interval keep only rooms that can cover that interval. Ministry proposals keep occupied rooms the availability response includes, even when a time seed is present. Opening hours, template duration, and occupancy come from cells, templates, and events. Clock times stay in the facility timezone.
+_Avoid_: inferring occupancy or template duration from AM/PM free lists, hiding a Ministry occupied room because of a time seed, a second room-list toggle
+
+**No matching results**:
+The Timetable state when capacity filtering, or a Personal requested interval, leaves no room column.
+_Avoid_: sending the member to Home, treating this as the whole building missing, BOOK
 
 **Capacity filter**:
 Timetable chips 1–10, 10–25, 25–50, 50+. Default is no chip (any capacity). A room whose max capacity is exactly 10 counts as 1–10.
 _Avoid_: defaulting to 1–10, a free-form capacity box as the member Timetable control
-
-**No matching results**:
-The Available rooms view when no room shows a bookable Available block under the current date, ministry, Template duration rule, and Capacity filter. All rooms still shows Closed / Unavailable / Override columns.
-_Avoid_: sending the member to Home, treating this as the whole building missing, BOOK
 
 **One-time window**:
 The allowed One-time date range: from today through one year ahead (rolling, not calendar year-end).

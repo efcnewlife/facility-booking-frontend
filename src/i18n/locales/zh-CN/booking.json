@@ -236,6 +236,17 @@
     "unavailable": "不可预订",
     "closed": "关闭",
     "override": "优先占用",
+    "viewContact": "查看联系人",
+    "viewContactFor": "查看联系人：{{room}}，{{start}} - {{end}}",
+    "contact": {
+      "title": "冲突",
+      "close": "关闭",
+      "room": "房间",
+      "time": "时间",
+      "ministry": "事工",
+      "name": "姓名",
+      "email": "电子邮件"
+    },
     "reviewAndConfirm": "查看并确认",
     "noMatchingResults": "没有符合的结果",
     "capacity": "{{count}}",

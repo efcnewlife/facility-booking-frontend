@@ -1,5 +1,5 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -180,8 +180,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
   };
 });
 
-import "@/i18n";
 import ministryService from "@/api/services/ministryService";
+import { change_app_language } from "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
@@ -534,7 +534,7 @@ describe("One-time Timetable cart to Booking Details", () => {
     await user.click(screen.getByRole("button", { name: "Youth Ministry" }));
 
     expect(await screen.findByText("This selection is no longer available. Edit or remove it.")).toBeTruthy();
-    expect(screen.getByText("Gym")).toBeTruthy();
+    expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
     expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
   });
 
@@ -594,5 +594,369 @@ describe("One-time Timetable cart to Booking Details", () => {
 
     expect(await screen.findByText("Personal booking")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Switch to a ministry booking" })).toBeNull();
+  });
+});
+
+const openCells = (start: string, end: string, state: "available" | "unavailable" | "override" | "closed") => {
+  const [startHour, startMinute] = start.split(":").map((part) => Number.parseInt(part, 10));
+  const [endHour, endMinute] = end.split(":").map((part) => Number.parseInt(part, 10));
+  const cells = [];
+  let cursor = startHour * 60 + startMinute;
+  const endMinutes = endHour * 60 + endMinute;
+  while (cursor < endMinutes) {
+    const next = cursor + 30;
+    const clock = (minutes: number) => {
+      const hours = Math.floor(minutes / 60);
+      const mins = minutes % 60;
+      return `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
+    };
+    cells.push({ start: clock(cursor), end: clock(next), state });
+    cursor = next;
+  }
+  return cells;
+};
+
+const gymRoom = () => ({
+  id: "gym-id",
+  code: "gym",
+  name: "Gym",
+  capacity: 200,
+  photoUrls: ["https://cdn.example/gym.jpg"],
+  templates: [{ start: "09:00", end: "17:00", slotDurationMinutes: 60 }],
+  cells: openCells("10:00", "11:00", "available"),
+  events: [],
+});
+
+const hallRoom = () => ({
+  id: "hall-id",
+  code: "hall",
+  name: "Hall",
+  capacity: 40,
+  photoUrls: [],
+  templates: [{ start: "09:00", end: "12:00", slotDurationMinutes: 60 }],
+  cells: [...openCells("10:00", "11:00", "unavailable"), ...openCells("11:00", "12:00", "unavailable")],
+  events: [
+    {
+      start: "10:00",
+      end: "11:00",
+      occupancyKind: "ministry" as const,
+      isOverridable: false,
+      ministryName: "Choir",
+      contactDisplayName: "Ada Steward",
+      contactEmail: "ada@efcnewlife.org",
+    },
+    {
+      start: "11:00",
+      end: "12:00",
+      occupancyKind: "rental" as const,
+      isOverridable: false,
+      ministryName: null,
+      contactDisplayName: "Ben Booker",
+      contactEmail: "ben@example.com",
+    },
+  ],
+});
+
+const overrideRoom = () => ({
+  id: "chapel-id",
+  code: "chapel",
+  name: "Chapel",
+  capacity: 20,
+  photoUrls: [],
+  templates: [{ start: "09:00", end: "12:00", slotDurationMinutes: 60 }],
+  cells: openCells("10:00", "11:00", "override"),
+  events: [
+    {
+      start: "10:00",
+      end: "11:00",
+      occupancyKind: "rental" as const,
+      isOverridable: true,
+      ministryName: null,
+      contactDisplayName: "Cara Renter",
+      contactEmail: "cara@example.com",
+    },
+  ],
+});
+
+describe("One-time Timetable states and contacts", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    mockFacility.previewQuote.mockResolvedValue({
+      subtotalAmount: "75.00",
+      discountAmount: "0.00",
+      surchargeAmount: "0.00",
+      quotedAmount: "75.00",
+      currency: "CAD",
+      roomLines: [],
+    });
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    await change_app_language("en");
+  });
+
+  it("drops Available rooms / All rooms and keeps capacity filtering plus the full-day grid", async () => {
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [gymRoom(), hallRoom()],
+      maxBookingLines: 3,
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&start=10:00&end=11:00");
+
+    expect(await screen.findByText("Gym")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Available rooms" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "All rooms" })).toBeNull();
+    expect(screen.queryByText("Filter by view:")).toBeNull();
+    expect(screen.getByText("Filter by capacity:")).toBeTruthy();
+    expect(screen.getByText("12:00 am")).toBeTruthy();
+    expect(screen.getByText("11:00 pm")).toBeTruthy();
+  });
+
+  it("keeps a Personal time seed from hiding only bookable rooms, and keeps Ministry occupied rooms", async () => {
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [gymRoom(), hallRoom()],
+      maxBookingLines: 3,
+    });
+
+    const personal = renderTimetableFlow("/rooms?date=2026-09-01&start=10:00&end=11:00");
+    expect(await screen.findByText("Gym")).toBeTruthy();
+    expect(screen.queryByText("Hall")).toBeNull();
+    personal.unmount();
+
+    renderTimetableFlow("/rooms?date=2026-09-01&start=10:00&end=11:00&ministryId=ministry-1");
+    expect(await screen.findByText("Hall")).toBeTruthy();
+    expect(screen.getByText("Gym")).toBeTruthy();
+  });
+
+  it("shows authorized contacts for distinct Ministry and Rental blocks and closes without cart admission", async () => {
+    const user = userEvent.setup();
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [hallRoom(), overrideRoom()],
+      maxBookingLines: 3,
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    expect(await screen.findByText("Conflict")).toBeTruthy();
+    expect(screen.getByText("Unavailable")).toBeTruthy();
+    expect(screen.getByText("Override")).toBeTruthy();
+    expect(screen.queryByText("Choir")).toBeNull();
+    expect(screen.queryByText("Ada Steward")).toBeNull();
+    expect(screen.queryByText("Cara Renter")).toBeNull();
+
+    const choirContact = await screen.findByRole("button", { name: /View contact for Hall, 10:00 am/ });
+    const rentalContact = await screen.findByRole("button", { name: /View contact for Hall, 11:00 am/ });
+    expect(screen.queryByRole("button", { name: /View contact for Chapel/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "ADD" })).toBeNull();
+
+    await user.click(choirContact);
+    const dialog = await screen.findByRole("dialog", { name: "Conflict" });
+    expect(within(dialog).getByText("Hall")).toBeTruthy();
+    expect(within(dialog).getByText(/10:00 am/)).toBeTruthy();
+    expect(within(dialog).getByText("Choir")).toBeTruthy();
+    expect(within(dialog).getByText("Ada Steward")).toBeTruthy();
+    expect(within(dialog).getByText("ada@efcnewlife.org")).toBeTruthy();
+    expect(within(dialog).queryByText("Ben Booker")).toBeNull();
+    expect(within(dialog).queryByText(/phone/i)).toBeNull();
+    expect(within(dialog).queryByText(/title/i)).toBeNull();
+    expect(within(dialog).queryByText(/skip the date/i)).toBeNull();
+    expect(within(dialog).queryByRole("button", { name: "ADD" })).toBeNull();
+    expect(within(dialog).getByRole("button", { name: /^Close$/ })).toHaveFocus();
+
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(choirContact).toHaveFocus();
+
+    await user.click(rentalContact);
+    const rentalDialog = await screen.findByRole("dialog", { name: "Conflict" });
+    expect(within(rentalDialog).getByText("Ben Booker")).toBeTruthy();
+    expect(within(rentalDialog).getByText("ben@example.com")).toBeTruthy();
+    expect(within(rentalDialog).queryByText("Choir")).toBeNull();
+    await user.click(within(rentalDialog).getByRole("button", { name: /^Close$/ }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Confirm Booking Time" })).toBeNull();
+  });
+
+  it("never offers contact or an occupant kind for a Personal occupied block", async () => {
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [
+        {
+          ...hallRoom(),
+          events: [],
+          cells: openCells("10:00", "12:00", "unavailable"),
+        },
+        gymRoom(),
+      ],
+      maxBookingLines: 3,
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    expect(await screen.findByText("Unavailable")).toBeTruthy();
+    expect(screen.queryByText("Conflict")).toBeNull();
+    expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
+    expect(screen.queryByText("Choir")).toBeNull();
+    expect(screen.queryByText("Ada Steward")).toBeNull();
+  });
+
+  it("renders a Personal override cell as generic Unavailable", async () => {
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [overrideRoom(), gymRoom()],
+      maxBookingLines: 3,
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    expect(await screen.findByText("Unavailable")).toBeTruthy();
+    expect(screen.queryByText("Override")).toBeNull();
+    expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
+  });
+
+  it("hides Rental contact on a Priority Ministry proposal and keeps Ministry contact", async () => {
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [
+        {
+          id: "ministry-1",
+          name: "Youth Ministry",
+          status: "active",
+          isActive: true,
+          hasPriorityBooking: true,
+        },
+      ],
+    });
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [hallRoom(), overrideRoom()],
+      maxBookingLines: 3,
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    expect(await screen.findByRole("button", { name: /View contact for Hall, 10:00 am/ })).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.queryByRole("button", { name: /View contact for Hall, 11:00 am/ })).toBeNull();
+    });
+    expect(screen.getByText("Override")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /View contact for Chapel/ })).toBeNull();
+    expect(screen.getByText("Unavailable")).toBeTruthy();
+  });
+
+  it("does not paint reservation content on Closed time that an event overlaps", async () => {
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [
+        {
+          id: "studio-id",
+          code: "studio",
+          name: "Studio",
+          capacity: 10,
+          photoUrls: [],
+          templates: [{ start: "09:00", end: "12:00", slotDurationMinutes: 60 }],
+          cells: [...openCells("09:00", "10:00", "closed"), ...openCells("10:00", "11:00", "unavailable")],
+          events: [
+            {
+              start: "09:00",
+              end: "11:00",
+              occupancyKind: "ministry" as const,
+              isOverridable: false,
+              ministryName: "Choir",
+              contactDisplayName: "Ada Steward",
+              contactEmail: "ada@efcnewlife.org",
+            },
+          ],
+        },
+      ],
+      maxBookingLines: 3,
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    expect(await screen.findByRole("button", { name: /View contact for Studio, 10:00 am/ })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /View contact for Studio, 9:00 am/ })).toBeNull();
+  });
+
+  it("clears privileged contacts and blocks Review until the new availability resolves", async () => {
+    const user = userEvent.setup();
+    saveTimetableCart(window.localStorage, {
+      date: "2026-09-01",
+      ministryId: "ministry-1",
+      title: "Choir practice",
+      lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+    });
+    let releasePersonal: (value: { rooms: unknown[]; maxBookingLines: number }) => void = () => {};
+    mockFacility.getAvailability.mockImplementation(async (_date: string, ministryId?: string) => {
+      if (ministryId) {
+        return { rooms: [gymRoom(), hallRoom()], maxBookingLines: 3 };
+      }
+      return new Promise((resolve) => {
+        releasePersonal = resolve;
+      });
+    });
+
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+    expect(await screen.findByText("Conflict")).toBeTruthy();
+    await user.type(screen.getByLabelText("Booking title"), "Choir practice");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+
+    await user.click(screen.getByRole("button", { name: "Switch to a personal booking" }));
+
+    expect(screen.queryByText("Conflict")).toBeNull();
+    expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
+    expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
+
+    releasePersonal({
+      rooms: [
+        { ...gymRoom(), cells: openCells("10:00", "11:00", "unavailable") },
+        { ...hallRoom(), events: [], cells: openCells("10:00", "12:00", "unavailable") },
+      ],
+      maxBookingLines: 3,
+    });
+
+    await waitFor(() =>
+      expect(mockFacility.previewQuote).toHaveBeenCalledWith(expect.objectContaining({ ministryId: null }))
+    );
+    expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
+    expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Conflict")).toBeNull();
+    expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
+  });
+
+  it("uses the same contact copy in English, Traditional Chinese, and Simplified Chinese", async () => {
+    const user = userEvent.setup();
+    mockFacility.getAvailability.mockResolvedValue({
+      rooms: [hallRoom()],
+      maxBookingLines: 3,
+    });
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    expect(await screen.findByText("Conflict")).toBeTruthy();
+    await waitFor(() => {
+      expect(screen.getAllByRole("button", { name: /View contact for Hall/ })).toHaveLength(2);
+    });
+    const englishContacts = screen.getAllByRole("button", { name: /View contact for Hall/ });
+    await user.click(englishContacts[0]);
+    expect(await screen.findByRole("dialog", { name: "Conflict" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+
+    await change_app_language("zh-TW");
+    expect(await screen.findByText("衝突")).toBeTruthy();
+    const traditionalContacts = screen.getAllByRole("button", { name: /查看聯絡人/ });
+    expect(traditionalContacts).toHaveLength(2);
+    await user.click(traditionalContacts[0]);
+    expect(await screen.findByRole("dialog", { name: "衝突" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+
+    await change_app_language("zh-CN");
+    expect(await screen.findByText("冲突")).toBeTruthy();
+    const simplifiedContacts = screen.getAllByRole("button", { name: /查看联系人/ });
+    expect(simplifiedContacts).toHaveLength(2);
+    await user.click(simplifiedContacts[0]);
+    expect(await screen.findByRole("dialog", { name: "冲突" })).toBeTruthy();
   });
 });
