@@ -202,7 +202,7 @@ A Timetable block where this proposal is a Priority Ministry booking and a futur
 _Avoid_: painting Override as Unavailable, showing Override on a Personal or Non-priority search, opening View contact on Override
 
 **Ministry Booking**:
-Protected Ministry occupancy on a Ministry proposal. Shown with a light orange background, darker orange border, dark text, the Ministry Booking label, the time, and View contact. It cannot be selected.
+Protected Ministry occupancy on a Ministry proposal. Shown with a light orange background, darker orange border, dark text, the Conflict label, the time, and View contact. It cannot be selected.
 _Avoid_: showing this treatment to a Personal proposal, using it for Rental occupancy, putting the Ministry name or steward on the block itself
 
 **View contact**:

@@ -236,7 +236,6 @@
     "unavailable": "不可预订",
     "closed": "关闭",
     "override": "优先占用",
-    "ministryBooking": "事工预订",
     "viewContact": "查看联系人",
     "viewContactFor": "查看联系人：{{room}}，{{start}} - {{end}}",
     "contact": {

@@ -744,7 +744,7 @@ describe("One-time Timetable states and contacts", () => {
 
     renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
 
-    expect(await screen.findByText("Ministry Booking")).toBeTruthy();
+    expect(await screen.findByText("Conflict")).toBeTruthy();
     expect(screen.getByText("Unavailable")).toBeTruthy();
     expect(screen.getByText("Override")).toBeTruthy();
     expect(screen.queryByText("Choir")).toBeNull();
@@ -800,7 +800,7 @@ describe("One-time Timetable states and contacts", () => {
     renderTimetableFlow("/rooms?date=2026-09-01");
 
     expect(await screen.findByText("Unavailable")).toBeTruthy();
-    expect(screen.queryByText("Ministry Booking")).toBeNull();
+    expect(screen.queryByText("Conflict")).toBeNull();
     expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
     expect(screen.queryByText("Choir")).toBeNull();
     expect(screen.queryByText("Ada Steward")).toBeNull();
@@ -899,13 +899,13 @@ describe("One-time Timetable states and contacts", () => {
     });
 
     renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
-    expect(await screen.findByText("Ministry Booking")).toBeTruthy();
+    expect(await screen.findByText("Conflict")).toBeTruthy();
     await user.type(screen.getByLabelText("Booking title"), "Choir practice");
     await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
 
     await user.click(screen.getByRole("button", { name: "Switch to a personal booking" }));
 
-    expect(screen.queryByText("Ministry Booking")).toBeNull();
+    expect(screen.queryByText("Conflict")).toBeNull();
     expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
     expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
     expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
@@ -923,7 +923,7 @@ describe("One-time Timetable states and contacts", () => {
     );
     expect(screen.getByRole("button", { name: "Review & Confirm" })).toBeDisabled();
     expect(screen.getAllByText("Gym").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Ministry Booking")).toBeNull();
+    expect(screen.queryByText("Conflict")).toBeNull();
     expect(screen.queryByRole("button", { name: /View contact/ })).toBeNull();
   });
 
@@ -935,7 +935,7 @@ describe("One-time Timetable states and contacts", () => {
     });
     renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
 
-    expect(await screen.findByText("Ministry Booking")).toBeTruthy();
+    expect(await screen.findByText("Conflict")).toBeTruthy();
     await waitFor(() => {
       expect(screen.getAllByRole("button", { name: /View contact for Hall/ })).toHaveLength(2);
     });
@@ -945,7 +945,7 @@ describe("One-time Timetable states and contacts", () => {
     await user.keyboard("{Escape}");
 
     await change_app_language("zh-TW");
-    expect(await screen.findByText("事工預訂")).toBeTruthy();
+    expect(await screen.findByText("衝突")).toBeTruthy();
     const traditionalContacts = screen.getAllByRole("button", { name: /查看聯絡人/ });
     expect(traditionalContacts).toHaveLength(2);
     await user.click(traditionalContacts[0]);
@@ -953,7 +953,7 @@ describe("One-time Timetable states and contacts", () => {
     await user.keyboard("{Escape}");
 
     await change_app_language("zh-CN");
-    expect(await screen.findByText("事工预订")).toBeTruthy();
+    expect(await screen.findByText("冲突")).toBeTruthy();
     const simplifiedContacts = screen.getAllByRole("button", { name: /查看联系人/ });
     expect(simplifiedContacts).toHaveLength(2);
     await user.click(simplifiedContacts[0]);

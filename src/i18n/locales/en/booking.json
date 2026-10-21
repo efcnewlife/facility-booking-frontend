@@ -237,7 +237,6 @@
     "unavailable": "Unavailable",
     "closed": "Closed",
     "override": "Override",
-    "ministryBooking": "Ministry Booking",
     "viewContact": "View contact",
     "viewContactFor": "View contact for {{room}}, {{start}} - {{end}}",
     "contact": {

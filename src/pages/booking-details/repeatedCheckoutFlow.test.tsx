@@ -187,8 +187,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
   };
 });
 
-import "@/i18n";
 import ministryService from "@/api/services/ministryService";
+import "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
@@ -638,7 +638,7 @@ describe("Repeated Timetable cart to Booking Details", () => {
 
     expect(await screen.findByText("Hall")).toBeTruthy();
     expect(screen.getByText("Chapel")).toBeTruthy();
-    expect(screen.getByText("Ministry Booking")).toBeTruthy();
+    expect(screen.getByText("Conflict")).toBeTruthy();
     expect(screen.getByText("Override")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Available rooms" })).toBeNull();
 

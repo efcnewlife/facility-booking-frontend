@@ -1339,7 +1339,7 @@ const RoomFilterPage = () => {
                                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">
                                   <p className="m-0 text-base font-bold leading-normal">
                                     {block.presentation === "ministry"
-                                      ? t("timetable.ministryBooking")
+                                      ? t("timetable.contact.title")
                                       : t(`timetable.${block.state}`)}
                                   </p>
                                   <p className="m-0 text-xs font-medium leading-none">
