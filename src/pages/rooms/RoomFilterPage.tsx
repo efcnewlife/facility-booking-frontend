@@ -3,6 +3,7 @@ import ministryService from "@/api/services/ministryService";
 import BookingCartPanel from "@/components/booking/BookingCartPanel";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import ImagePreview from "@/components/booking/ImagePreview";
+import OverrideSelectionDialog from "@/components/booking/OverrideSelectionDialog";
 import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
 import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
 import TimetableContactDialog, { type TimetableContactTarget } from "@/components/booking/TimetableContactDialog";
@@ -54,6 +55,7 @@ import {
   emptyCartState,
   emptyTimeBookInterval,
   hasNoMatchingResults,
+  intervalIncludesOverride,
   intervalsOverlap,
   isBookableCellForCart,
   isTimetableInitialLoad,
@@ -200,11 +202,14 @@ const eventClassName = (
     "pointer-events-none flex min-h-0 items-start justify-between overflow-hidden py-2.5 pr-2.5 pl-[18px]",
     overlayKind === "hover" ? "z-[2]" : "z-[1]",
     state === "available" &&
+      presentation !== "override" &&
       overlayKind === "hover" &&
       cn("border border-black border-l-[5px] border-l-booking-green text-booking-primary", TIMETABLE_HOVER_BLOCK_BG),
     state === "available" &&
+      presentation !== "override" &&
       overlayKind !== "hover" &&
       cn("border border-black border-l-[5px] border-l-booking-green text-booking-primary", TIMETABLE_PINNED_BLOCK_BG),
+    state === "available" && presentation === "override" && "border border-black",
     presentation === "ministry" &&
       "border border-warning-700 border-l-[5px] border-l-warning-700 bg-warning-100 text-booking-primary",
     state === "unavailable" && presentation !== "ministry" && "border-l-[5px] border-l-gray-500 bg-gray-300 text-white",
@@ -303,6 +308,11 @@ const RoomFilterPage = () => {
   const [pendingReplacement, setPendingReplacement] = useState<{ room: RoomDay; interval: BookingInterval } | null>(
     null
   );
+  const [pendingOverride, setPendingOverride] = useState<{
+    room: RoomDay;
+    interval: BookingInterval;
+    editingSequence?: number;
+  } | null>(null);
   const [previewUrls, setPreviewUrls] = useState<string[] | null>(null);
   const [contactTarget, setContactTarget] = useState<TimetableContactTarget | null>(null);
   const [reviewState, setReviewState] = useState<RecurringSeriesReviewSnapshot>(emptyRecurringSeriesReviewSnapshot);
@@ -318,6 +328,9 @@ const RoomFilterPage = () => {
 
   const appliedDate = appliedQuery?.date ?? "";
   const appliedMinistryId = appliedQuery?.ministryId;
+  // Cells are authoritative: the server marks Override only for an eligible Priority Ministry proposal.
+  // Repeated Override checkout is a separate flow, so only One-time admits Override time here.
+  const allowOverride = !isRepeated && Boolean(appliedMinistryId);
   const whenSeed = useMemo(
     () => whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end),
     [appliedQuery?.end, appliedQuery?.start]
@@ -493,6 +506,7 @@ const RoomFilterPage = () => {
     setConfirmRoom(null);
     setEditingSequence(undefined);
     setPendingReplacement(null);
+    setPendingOverride(null);
   }, [scheduleKey, whenSeed]);
 
   const applyRequestedInterval = !appliedMinistryId && whenSeed != null;
@@ -690,8 +704,10 @@ const RoomFilterPage = () => {
     if (isRepeated || loading || rooms.length === 0) {
       return [];
     }
-    return cartState.lines.filter((line) => !lineCoversAvailability(rooms, line)).map((line) => line.sequence);
-  }, [cartState.lines, isRepeated, loading, rooms]);
+    return cartState.lines
+      .filter((line) => !lineCoversAvailability(rooms, line, allowOverride))
+      .map((line) => line.sequence);
+  }, [allowOverride, cartState.lines, isRepeated, loading, rooms]);
 
   if (!appliedQuery || (!isRepeated && !appliedQuery.date)) {
     return <Navigate replace to="/" />;
@@ -702,15 +718,15 @@ const RoomFilterPage = () => {
   }
 
   const handlePinCell = (room: RoomDay, cellStart: string) => {
-    if (!isBookableCellForCart(room, cellStart, cartState)) {
+    if (!isBookableCellForCart(room, cellStart, cartState, allowOverride)) {
       return;
     }
-    setCartState((current) => pinInterval(current, room, cellStart));
+    setCartState((current) => pinInterval(current, room, cellStart, allowOverride));
     setHover(null);
   };
 
   const handleOpenConfirmBookingTime = (room: RoomDay, cellStart: string, sequence?: number) => {
-    const prefill = confirmBookingTimePrefillForCart(room, cartState, cellStart, sequence);
+    const prefill = confirmBookingTimePrefillForCart(room, cartState, cellStart, sequence, allowOverride);
     if (!prefill) {
       return;
     }
@@ -769,6 +785,7 @@ const RoomFilterPage = () => {
     setContactTarget(null);
     setHover(null);
     setConfirmRoom(null);
+    setPendingOverride(null);
     setRooms((current) => current.map((room) => ({ ...room, events: [] })));
     setLoading(true);
     if (!isRepeated && appliedDate) {
@@ -813,39 +830,32 @@ const RoomFilterPage = () => {
       }
       return;
     }
-    let nextState: TimetableCartState | null = null;
-    let quotedSequence: number | undefined;
-    if (editingSequence != null) {
-      const updated = updateCartLine(cartState, editingSequence, {
-        facilityId: confirmRoom.id,
-        start: interval.start,
-        end: interval.end,
-      });
-      if (updated) {
-        nextState = updated;
-        quotedSequence = editingSequence;
-      }
-    } else {
-      const next = addCartLine(
-        cartState,
-        {
-          facilityId: confirmRoom.id,
-          start: interval.start,
-          end: interval.end,
-        },
-        maxBookingLines
-      );
-      if (next) {
-        nextState = next;
-        quotedSequence = next.lines[next.lines.length - 1]?.sequence;
-      }
-    }
+    const sequence = editingSequence;
     handleCancelConfirmBookingTime();
-    if (!nextState || quotedSequence == null) {
+    if (allowOverride && intervalIncludesOverride(confirmRoom, interval)) {
+      setPendingOverride({ room: confirmRoom, interval, editingSequence: sequence });
+      return;
+    }
+    applyOneTimeLine(confirmRoom, interval, sequence);
+  };
+
+  const applyOneTimeLine = (room: RoomDay, interval: BookingInterval, sequence?: number) => {
+    const line = { facilityId: room.id, start: interval.start, end: interval.end };
+    const nextState =
+      sequence != null ? updateCartLine(cartState, sequence, line) : addCartLine(cartState, line, maxBookingLines);
+    if (!nextState) {
       return;
     }
     setCartState(nextState);
     persistCartState(nextState);
+  };
+
+  const handleAcceptOverride = () => {
+    if (!pendingOverride) {
+      return;
+    }
+    setPendingOverride(null);
+    applyOneTimeLine(pendingOverride.room, pendingOverride.interval, pendingOverride.editingSequence);
   };
 
   const handleConfirmReplacement = () => {
@@ -882,7 +892,7 @@ const RoomFilterPage = () => {
     if (event.pointerType !== "mouse") {
       return;
     }
-    const preview = emptyTimeBookInterval(room, cellStart);
+    const preview = emptyTimeBookInterval(room, cellStart, allowOverride);
     if (!preview) {
       setHover(null);
       return;
@@ -897,7 +907,7 @@ const RoomFilterPage = () => {
   };
 
   const handleCellPointerUp = (room: RoomDay, cellStart: string, event: { pointerType: string }) => {
-    if (!isBookableCellForCart(room, cellStart, cartState)) {
+    if (!isBookableCellForCart(room, cellStart, cartState, allowOverride)) {
       return;
     }
     const target = { roomId: room.id, cellStart };
@@ -945,7 +955,7 @@ const RoomFilterPage = () => {
       oneTimeQuote.key !== oneTimeLinesKey ||
       oneTimeQuote.status !== "ready" ||
       loading ||
-      cartState.lines.some((line) => !lineCoversAvailability(rooms, line))
+      cartState.lines.some((line) => !lineCoversAvailability(rooms, line, allowOverride))
     ) {
       return;
     }
@@ -1268,9 +1278,18 @@ const RoomFilterPage = () => {
                         {paddedRooms.map((room, roomIndex) =>
                           Array.from({ length: 48 }, (_, cellIndex) => {
                             const cell = room?.cells[cellIndex];
-                            const bookable = room && cell ? isBookableCellForCart(room, cell.start, cartState) : false;
+                            const bookable =
+                              room && cell ? isBookableCellForCart(room, cell.start, cartState, allowOverride) : false;
                             return (
                               <button
+                                aria-label={
+                                  room && cell
+                                    ? t("timetable.selectSlot", {
+                                        room: room.name,
+                                        time: formatClockForLocale(cell.start),
+                                      })
+                                    : undefined
+                                }
                                 className={cn(
                                   "relative border-t border-gray-300",
                                   cellIndex % 2 === 0 && "border-t-gray-400",
@@ -1312,7 +1331,8 @@ const RoomFilterPage = () => {
                             cartState,
                             hover,
                             Boolean(appliedMinistryId),
-                            allowRentalContact
+                            allowRentalContact,
+                            allowOverride
                           ).map((block) => {
                             const startRow = clockToMinutes(block.start) / SLOT_MINUTES + 1;
                             const endRow = clockToMinutes(block.end) / SLOT_MINUTES + 1;
@@ -1321,7 +1341,7 @@ const RoomFilterPage = () => {
                             const bookableStart =
                               isPinnedOverlay &&
                               block.state === "available" &&
-                              isBookableCellForCart(room, block.start, cartState);
+                              isBookableCellForCart(room, block.start, cartState, allowOverride);
                             const blockAction =
                               (isPinnedOverlay || isCommittedOverlay) && block.state === "available"
                                 ? blockActionForInterval(cartState.lines, room.id, block)
@@ -1340,7 +1360,9 @@ const RoomFilterPage = () => {
                                   <p className="m-0 text-base font-bold leading-normal">
                                     {block.presentation === "ministry"
                                       ? t("timetable.contact.title")
-                                      : t(`timetable.${block.state}`)}
+                                      : block.presentation === "override"
+                                        ? t("timetable.override")
+                                        : t(`timetable.${block.state}`)}
                                   </p>
                                   <p className="m-0 text-xs font-medium leading-none">
                                     {startLabel} – {endLabel}
@@ -1477,6 +1499,7 @@ const RoomFilterPage = () => {
           onEndChange={setConfirmEnd}
           onLastOccurrenceDateChange={setConfirmLastDate}
           onStartChange={setConfirmStart}
+          allowOverride={allowOverride}
           requireLastOccurrence={isRepeated}
           room={confirmRoom}
           start={confirmStart}
@@ -1486,6 +1509,21 @@ const RoomFilterPage = () => {
       {pendingReplacement ? (
         <ReplaceRepeatedTimeModal isOpen onCancel={handleCancelReplacement} onConfirm={handleConfirmReplacement} />
       ) : null}
+      <OverrideSelectionDialog
+        formatClock={formatClockForLocale}
+        onAccept={handleAcceptOverride}
+        onCancel={() => setPendingOverride(null)}
+        target={
+          pendingOverride && appliedDate
+            ? {
+                roomName: pendingOverride.room.name,
+                date: appliedDate,
+                start: pendingOverride.interval.start,
+                end: pendingOverride.interval.end,
+              }
+            : null
+        }
+      />
       {previewUrls ? <ImagePreview onClose={() => setPreviewUrls(null)} photoUrls={previewUrls} /> : null}
       <TimetableContactDialog
         formatClock={formatClockForLocale}

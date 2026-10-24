@@ -21,18 +21,23 @@ export interface CreateBookingFromDraftPayload {
     sequence: number;
   }>;
   bookingDraftId?: string | null;
+  overrideReviewToken?: string | null;
 }
 
-export const lineCoversAvailability = (rooms: RoomDay[], line: BookingLineDraft): boolean => {
+export const lineCoversAvailability = (rooms: RoomDay[], line: BookingLineDraft, allowOverride = false): boolean => {
   const room = rooms.find((item) => item.id === line.facilityId);
   if (!room) {
     return false;
   }
-  return isRoomAvailable(room, { start: line.start, end: line.end });
+  return isRoomAvailable(room, { start: line.start, end: line.end }, allowOverride);
 };
 
-export const allLinesCoverAvailability = (rooms: RoomDay[], draft: BookingCartDraft): boolean => {
-  return draft.lines.every((line) => lineCoversAvailability(rooms, line));
+export const allLinesCoverAvailability = (
+  rooms: RoomDay[],
+  draft: BookingCartDraft,
+  allowOverride = false
+): boolean => {
+  return draft.lines.every((line) => lineCoversAvailability(rooms, line, allowOverride));
 };
 
 export const envelopeClocks = (lines: BookingLineDraft[]): { start: string; end: string } => {
@@ -67,7 +72,8 @@ export const buildPreviewQuotePayload = (draft: BookingCartDraft): PreviewQuoteP
 export const buildCreateBookingPayload = (
   draft: BookingCartDraft,
   title: string,
-  bookingDraftId?: string | null
+  bookingDraftId?: string | null,
+  overrideReviewToken?: string | null
 ): CreateBookingFromDraftPayload => {
   const envelope = envelopeClocks(draft.lines);
   return {
@@ -77,6 +83,7 @@ export const buildCreateBookingPayload = (
     ministryId: draft.ministryId || null,
     rooms: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
     bookingDraftId: bookingDraftId || null,
+    overrideReviewToken: overrideReviewToken || null,
   };
 };
 
@@ -86,7 +93,9 @@ export const buildCreateBookingDraftPayload = (draft: BookingCartDraft): CreateB
   lines: draft.lines.map((line) => mapDraftLineToInterval(draft.date, line)),
 });
 
-export const bookingDraftDetailToCartDraft = (detail: BookingDraftDetail): BookingCartDraft => ({
+export const bookingDraftDetailToCartDraft = (
+  detail: Pick<BookingDraftDetail, "id" | "date" | "ministryId" | "title" | "lines">
+): BookingCartDraft => ({
   date: detail.date,
   ministryId: detail.ministryId || undefined,
   title: detail.title,

@@ -257,7 +257,8 @@
     "halfFilledTime": "开始与结束时间需同时空白或同时填写。",
     "whenInvalid": "日期需为今天起一年内。若填写时间，须在同一天且开始早于结束。",
     "errorTitle": "无法继续",
-    "successTitle": "预订已创建"
+    "successTitle": "预订已创建",
+    "selectSlot": "选择 {{room}}，{{time}}"
   },
   "confirmBookingTime": {
     "title": "确认预订时间",
@@ -272,6 +273,42 @@
     "body": "选择不同时段会清除这次重复预订中已选的所有房间。",
     "cancel": "取消",
     "confirm": "更换时段"
+  },
+  "override": {
+    "room": "房间",
+    "date": "日期",
+    "time": "时间",
+    "selection": {
+      "title": "要取代现有预订吗？",
+      "body": "此时段已有租借预订。作为优先事工预订，您的申请将取代该预订。目前不会有任何变更：加入购物车不会取消或保留任何预订。",
+      "reviewLater": "最终确认前，您会查看所有将被取代的预订。",
+      "cancel": "取消",
+      "accept": "加入购物车"
+    },
+    "final": {
+      "title": "确认并通知",
+      "body": "确认后将创建您的预订，并完整取代下列每一笔预订。受影响的预订者会收到电子邮件通知，并需要重新预订。",
+      "cancel": "取消",
+      "confirm": "确认并通知"
+    },
+    "impacts": {
+      "title": "将被取代的预订",
+      "description": "下列每一笔预订都会被完整取代，包括与您申请时段不重叠的房间时段。",
+      "booking": "现有预订 {{index}}",
+      "seriesOccurrence": "现有定期预订 {{index}}（仅此场次）",
+      "unknownRoom": "其他房间"
+    },
+    "conflicts": {
+      "title": "阻挡此预订的冲突",
+      "ministry": "事工预订",
+      "occupancy": "不可预订",
+      "blackout": "关闭",
+      "opening_hours": "不在开放时间内"
+    },
+    "errors": {
+      "reviewChanged": "将被取代的预订已变更。请查看更新后的清单并再次确认。",
+      "conflict": "此时段现与其他预订冲突。请查看冲突并修改您的申请。"
+    }
   },
   "bookingTitle": {
     "label": "预订标题",

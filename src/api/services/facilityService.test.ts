@@ -52,3 +52,93 @@ describe("facilityService.getBookingSeriesDraft pending payment hold mapping", (
     expect((draft as unknown as Record<string, unknown>).pendingPaymentHoldHours).toBeUndefined();
   });
 });
+
+describe("facilityService.getBookingDraft Override review mapping", () => {
+  it("maps the serialized Draft evaluation the Core API returns", async () => {
+    mockHttpClient.get.mockResolvedValueOnce({
+      success: true,
+      data: {
+        id: DRAFT_ID,
+        date: "2026-09-01",
+        title: "Youth night",
+        ministryId: "ministry-1",
+        lines: [
+          {
+            facilityId: "chapel-id",
+            startAt: "2026-09-01T14:00:00Z",
+            endAt: "2026-09-01T15:00:00Z",
+            sequence: 1,
+            isAvailable: false,
+          },
+        ],
+        isConfirmable: true,
+        conflicts: [
+          {
+            facilityId: "hall-id",
+            startAt: "2026-09-01T14:00:00Z",
+            endAt: "2026-09-01T15:00:00Z",
+            kind: "ministry",
+            ministryName: "Choir",
+            contactDisplayName: "Ada Steward",
+            contactEmail: "ada@efcnewlife.org",
+          },
+        ],
+        overrideImpacts: [
+          {
+            bookingId: "rental-1",
+            isSeriesOccurrence: true,
+            startAt: "2026-09-01T14:00:00Z",
+            endAt: "2026-09-01T18:00:00Z",
+            releasedIntervals: [
+              { facilityId: "chapel-id", startAt: "2026-09-01T14:00:00Z", endAt: "2026-09-01T15:00:00Z" },
+              { facilityId: "gym-id", startAt: "2026-09-01T17:00:00Z", endAt: "2026-09-01T18:00:00Z" },
+            ],
+          },
+        ],
+        overrideReviewToken: "opaque-token",
+      },
+    });
+
+    const draft = await facilityService.getBookingDraft(DRAFT_ID);
+
+    expect(draft.isConfirmable).toBe(true);
+    expect(draft.overrideReviewToken).toBe("opaque-token");
+    expect(draft.conflicts).toEqual([
+      {
+        facilityId: "hall-id",
+        startAt: "2026-09-01T14:00:00Z",
+        endAt: "2026-09-01T15:00:00Z",
+        kind: "ministry",
+        ministryName: "Choir",
+        contactDisplayName: "Ada Steward",
+        contactEmail: "ada@efcnewlife.org",
+      },
+    ]);
+    expect(draft.overrideImpacts).toEqual([
+      {
+        bookingId: "rental-1",
+        isSeriesOccurrence: true,
+        startAt: "2026-09-01T14:00:00Z",
+        endAt: "2026-09-01T18:00:00Z",
+        releasedIntervals: [
+          { facilityId: "chapel-id", startAt: "2026-09-01T14:00:00Z", endAt: "2026-09-01T15:00:00Z" },
+          { facilityId: "gym-id", startAt: "2026-09-01T17:00:00Z", endAt: "2026-09-01T18:00:00Z" },
+        ],
+      },
+    ]);
+  });
+
+  it("treats a Draft without review fields as confirmable with no impact or token", async () => {
+    mockHttpClient.get.mockResolvedValueOnce({
+      success: true,
+      data: { id: DRAFT_ID, date: "2026-09-01", title: "Choir", lines: [] },
+    });
+
+    const draft = await facilityService.getBookingDraft(DRAFT_ID);
+
+    expect(draft.isConfirmable).toBe(true);
+    expect(draft.conflicts).toEqual([]);
+    expect(draft.overrideImpacts).toEqual([]);
+    expect(draft.overrideReviewToken).toBeNull();
+  });
+});

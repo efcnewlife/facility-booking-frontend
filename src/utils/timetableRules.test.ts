@@ -18,6 +18,7 @@ import {
   emptyTimePointerAction,
   hasDuplicateLine,
   hasNoMatchingResults,
+  intervalIncludesOverride,
   intervalStaysOnSameDay,
   isBookableCellForCart,
   isRepeatedRoomSelectable,
@@ -145,6 +146,33 @@ describe("isRoomAvailable", () => {
     const overridden = gym({ cells: gymCells({ "10:00": "override", "10:30": "override" }) });
     expect(isRoomAvailable(overridden, { start: "10:00", end: "11:00" })).toBe(false);
     expect(emptyTimeBookInterval(overridden, "10:00")).toBeNull();
+  });
+
+  it("lets a One-time Priority proposal select eligible Override time, alone or mixed with Available", () => {
+    const overridden = gym({ cells: gymCells({ "10:00": "override", "10:30": "override" }) });
+    expect(isRoomAvailable(overridden, { start: "10:00", end: "11:00" }, true)).toBe(true);
+    expect(isRoomAvailable(overridden, { start: "09:30", end: "11:30" }, true)).toBe(true);
+    expect(emptyTimeBookInterval(overridden, "10:00", true)).toEqual({ start: "10:00", end: "11:00" });
+    expect(isBookableCellForCart(overridden, "10:00", emptyCartState(), true)).toBe(true);
+    expect(pinInterval(emptyCartState(), overridden, "10:00", true).pinned).toEqual({
+      facilityId: "gym-id",
+      start: "10:00",
+      end: "11:00",
+    });
+    expect(canConfirmBookingTime(overridden, { start: "10:00", end: "11:00" }, true)).toBe(true);
+  });
+
+  it("keeps protected occupancy and Closed time unselectable even when Override is allowed", () => {
+    const mixed = gym({ cells: gymCells({ "10:00": "override", "10:30": "unavailable", "16:30": "override" }) });
+    expect(isRoomAvailable(mixed, { start: "10:00", end: "11:00" }, true)).toBe(false);
+    expect(isRoomAvailable(mixed, { start: "16:30", end: "17:30" }, true)).toBe(false);
+    expect(emptyTimeBookInterval(mixed, "10:00", true)).toBeNull();
+  });
+
+  it("reports whether a proposed interval would replace Override occupancy", () => {
+    const overridden = gym({ cells: gymCells({ "10:30": "override" }) });
+    expect(intervalIncludesOverride(overridden, { start: "10:00", end: "11:00" })).toBe(true);
+    expect(intervalIncludesOverride(overridden, { start: "11:00", end: "12:00" })).toBe(false);
   });
 
   it("rejects an interval with missing Slots", () => {

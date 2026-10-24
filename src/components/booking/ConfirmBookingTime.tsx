@@ -65,6 +65,7 @@ interface ConfirmBookingTimeProps {
   weekday?: number | null;
   minDate?: string;
   maxDate?: string;
+  allowOverride?: boolean;
 }
 
 const ConfirmBookingTime = ({
@@ -82,12 +83,13 @@ const ConfirmBookingTime = ({
   weekday = null,
   minDate,
   maxDate,
+  allowOverride = false,
 }: ConfirmBookingTimeProps) => {
   const { t } = useTranslation("booking");
   const interval: BookingInterval | null = start && end ? { start, end } : null;
   const lastOccurrenceValid =
     !requireLastOccurrence || canSubmitRepeatedConfirmBookingTime(date, lastOccurrenceDate || null, weekday);
-  const canContinue = canConfirmBookingTime(room, interval) && lastOccurrenceValid;
+  const canContinue = canConfirmBookingTime(room, interval, allowOverride) && lastOccurrenceValid;
   const lastBeforeFirst = Boolean(
     date &&
     lastOccurrenceDate &&

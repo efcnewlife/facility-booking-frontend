@@ -1,6 +1,11 @@
-import facilityService, { BookingDraftNotFoundError } from "@/api/services/facilityService";
+import facilityService, { BookingDraftNotFoundError, type OverrideReview } from "@/api/services/facilityService";
+import BookingConflictList from "@/components/booking/BookingConflictList";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
+import OverrideConfirmDialog from "@/components/booking/OverrideConfirmDialog";
+import OverrideImpactList from "@/components/booking/OverrideImpactList";
+import OverrideSelectionDialog from "@/components/booking/OverrideSelectionDialog";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
+import { clockFromDateTime } from "@/utils/bookingDateTime";
 import { validateBookingTitle } from "@/utils/bookingTitle";
 import type { BookingCartDraft } from "@/utils/bookingCartDraft";
 import {
@@ -14,10 +19,16 @@ import {
   replaceLineInDraft,
 } from "@/utils/bookingDetailsDraft";
 import { discountLabelKey } from "@/utils/discountEligibility";
+import { finalConfirmationRejection } from "@/utils/overrideReviewErrors";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { toRoomsSearchParams } from "@/utils/startBookingFlow";
 import { saveTimetableCart } from "@/utils/timetableCartStorage";
-import { MAX_BOOKING_LINES, type BookingInterval, type RoomDay } from "@/utils/timetableRules";
+import {
+  intervalIncludesOverride,
+  MAX_BOOKING_LINES,
+  type BookingInterval,
+  type RoomDay,
+} from "@/utils/timetableRules";
 import { Button, cn, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -46,6 +57,13 @@ const messageFromUnknown = (err: unknown, fallback: string): string => {
   }
   return fallback;
 };
+
+const reviewFromDraft = ({
+  isConfirmable,
+  conflicts,
+  overrideImpacts,
+  overrideReviewToken,
+}: OverrideReview): OverrideReview => ({ isConfirmable, conflicts, overrideImpacts, overrideReviewToken });
 
 const BookingDetailsPage = () => {
   const location = useLocation();
@@ -78,10 +96,17 @@ const OneTimeBookingDetailsPage = () => {
   const [editingSequence, setEditingSequence] = useState<number | undefined>(undefined);
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
+  const [review, setReview] = useState<OverrideReview | null>(null);
+  const [finalOverrideOpen, setFinalOverrideOpen] = useState(false);
+  const [pendingOverrideEdit, setPendingOverrideEdit] = useState<{
+    sequence: number;
+    facilityId: string;
+    interval: BookingInterval;
+  } | null>(null);
 
-  const loadDraftDetail = useCallback(async () => {
+  const loadDraftDetail = useCallback(async (): Promise<boolean> => {
     if (!draftId) {
-      return;
+      return false;
     }
     setLoading(true);
     setError(null);
@@ -90,6 +115,8 @@ const OneTimeBookingDetailsPage = () => {
     try {
       const detail = await facilityService.getBookingDraft(draftId);
       setDraft(bookingDraftDetailToCartDraft(detail));
+      setReview(reviewFromDraft(detail));
+      return true;
     } catch (err) {
       if (err instanceof BookingDraftNotFoundError) {
         setNotFound(true);
@@ -98,6 +125,7 @@ const OneTimeBookingDetailsPage = () => {
         setDraft(null);
       }
       setLoading(false);
+      return false;
     }
   }, [draftId, i18nInstance.language, t]);
 
@@ -158,19 +186,27 @@ const OneTimeBookingDetailsPage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [draft?.ministryId]);
 
+  // A Ministry Draft's availability marks eligible Override time; the Draft evaluation decides confirmability.
+  const allowOverride = Boolean(draft?.ministryId);
+
   const linesAvailable = useMemo(() => {
     if (!draft || rooms.length === 0) {
       return false;
     }
-    return allLinesCoverAvailability(rooms, draft);
-  }, [draft, rooms]);
+    return allLinesCoverAvailability(rooms, draft, allowOverride);
+  }, [allowOverride, draft, rooms]);
+
+  const overrideImpacts = review?.overrideImpacts ?? [];
+  const reviewConfirmable = Boolean(
+    review?.isConfirmable && (overrideImpacts.length === 0 || review.overrideReviewToken)
+  );
 
   const canConfirm = useMemo(() => {
     if (!draft || loading || confirming || updating || validateBookingTitle(draft.title ?? "")) {
       return false;
     }
-    return linesAvailable;
-  }, [confirming, draft, linesAvailable, loading, updating]);
+    return linesAvailable && reviewConfirmable;
+  }, [confirming, draft, linesAvailable, loading, reviewConfirmable, updating]);
 
   if (!draftId) {
     return <Navigate replace to="/" />;
@@ -212,6 +248,7 @@ const OneTimeBookingDetailsPage = () => {
     try {
       const updated = await facilityService.updateBookingDraft(draftId, buildCreateBookingDraftPayload(nextDraft));
       setDraft(bookingDraftDetailToCartDraft(updated));
+      setReview(reviewFromDraft(updated));
     } catch (err) {
       if (err instanceof BookingDraftNotFoundError) {
         setNotFound(true);
@@ -248,34 +285,77 @@ const OneTimeBookingDetailsPage = () => {
     setConfirmEnd("");
   };
 
-  const handleConfirmEdit = (interval: BookingInterval) => {
-    const line = draft.lines.find((item) => item.sequence === editingSequence);
-    if (!line || editingSequence == null) {
-      return;
-    }
-    const nextDraft = replaceLineInDraft(draft, editingSequence, {
-      facilityId: line.facilityId,
+  const applyLineEdit = (sequence: number, facilityId: string, interval: BookingInterval) => {
+    const nextDraft = replaceLineInDraft(draft, sequence, {
+      facilityId,
       start: interval.start,
       end: interval.end,
     });
-    handleCancelEdit();
     void applyDraftUpdate(nextDraft);
   };
 
-  const handleConfirm = async () => {
-    if (!canConfirm || !draft) {
+  const handleConfirmEdit = (interval: BookingInterval) => {
+    const line = draft.lines.find((item) => item.sequence === editingSequence);
+    const room = line ? roomForLine(line.facilityId) : undefined;
+    if (!line || editingSequence == null) {
       return;
     }
+    handleCancelEdit();
+    if (allowOverride && room && intervalIncludesOverride(room, interval)) {
+      setPendingOverrideEdit({ sequence: line.sequence, facilityId: line.facilityId, interval });
+      return;
+    }
+    applyLineEdit(line.sequence, line.facilityId, interval);
+  };
+
+  const handleAcceptOverrideEdit = () => {
+    if (!pendingOverrideEdit) {
+      return;
+    }
+    setPendingOverrideEdit(null);
+    applyLineEdit(pendingOverrideEdit.sequence, pendingOverrideEdit.facilityId, pendingOverrideEdit.interval);
+  };
+
+  const submitBooking = async (overrideReviewToken: string | null) => {
     setConfirming(true);
     setError(null);
     try {
-      const created = await facilityService.createBooking(buildCreateBookingPayload(draft, draft.title ?? "", draftId));
+      const created = await facilityService.createBooking(
+        buildCreateBookingPayload(draft, draft.title ?? "", draftId, overrideReviewToken)
+      );
       navigate(`/payment/one-time/${created.id}`);
     } catch (err) {
-      setError(messageFromUnknown(err, t("timetable.createError")));
+      const rejection = finalConfirmationRejection(err);
+      if (!rejection) {
+        setError(messageFromUnknown(err, t("timetable.createError")));
+        return;
+      }
+      // A stale review or new occupant needs a fresh evaluation and a renewed acknowledgement, never a retry.
+      setFinalOverrideOpen(false);
+      if (await loadDraftDetail()) {
+        setError(t(rejection === "review" ? "override.errors.reviewChanged" : "override.errors.conflict"));
+      }
     } finally {
       setConfirming(false);
     }
+  };
+
+  const handleConfirm = () => {
+    if (!canConfirm || !draft) {
+      return;
+    }
+    if (overrideImpacts.length > 0) {
+      setFinalOverrideOpen(true);
+      return;
+    }
+    void submitBooking(null);
+  };
+
+  const handleConfirmOverride = () => {
+    if (confirming || !review?.overrideReviewToken) {
+      return;
+    }
+    void submitBooking(review.overrideReviewToken);
   };
 
   const formattedDate = moment(draft.date).locale(i18nInstance.language).format("dddd, MMMM D, YYYY");
@@ -285,6 +365,18 @@ const OneTimeBookingDetailsPage = () => {
   const roomForLine = (facilityId: string): RoomDay | undefined => {
     return rooms.find((room) => room.id === facilityId);
   };
+
+  const roomName = (facilityId: string): string | null => roomForLine(facilityId)?.name ?? null;
+
+  const formatTimeRange = (startAt: string, endAt: string): string =>
+    `${formatClock(clockFromDateTime(draft.date, startAt), i18nInstance.language)} – ${formatClock(
+      clockFromDateTime(draft.date, endAt),
+      i18nInstance.language
+    )}`;
+
+  const impactList = (
+    <OverrideImpactList formatTimeRange={formatTimeRange} impacts={overrideImpacts} roomName={roomName} />
+  );
 
   const editingLine =
     editingSequence != null ? draft.lines.find((item) => item.sequence === editingSequence) : undefined;
@@ -396,6 +488,16 @@ const OneTimeBookingDetailsPage = () => {
                 </dd>
               </div>
             </dl>
+            {review && review.conflicts.length > 0 ? (
+              <div className="mt-4">
+                <BookingConflictList
+                  conflicts={review.conflicts}
+                  formatTimeRange={formatTimeRange}
+                  roomName={roomName}
+                />
+              </div>
+            ) : null}
+            {overrideImpacts.length > 0 ? <div className="mt-4">{impactList}</div> : null}
           </div>
           <aside className="flex w-full shrink-0 flex-col items-center gap-4 sm:w-[300px]">
             <h2 className="m-0 text-center text-[26px] font-semibold leading-none text-booking-primary">
@@ -429,15 +531,39 @@ const OneTimeBookingDetailsPage = () => {
                 <span>{t("bookingDetails.total")}</span>
                 <span>{paymentSummary.total}</span>
               </div>
-              <Button className="mt-1" disabled={!canConfirm} onClick={() => void handleConfirm()}>
+              <Button className="mt-1" disabled={!canConfirm} onClick={handleConfirm}>
                 {t("bookingDetails.confirm")}
               </Button>
             </div>
           </aside>
         </section>
       </main>
+      <OverrideConfirmDialog
+        confirming={confirming}
+        isOpen={finalOverrideOpen}
+        onCancel={() => setFinalOverrideOpen(false)}
+        onConfirm={handleConfirmOverride}
+      >
+        {impactList}
+      </OverrideConfirmDialog>
+      <OverrideSelectionDialog
+        formatClock={(clock) => formatClock(clock, i18nInstance.language)}
+        onAccept={handleAcceptOverrideEdit}
+        onCancel={() => setPendingOverrideEdit(null)}
+        target={
+          pendingOverrideEdit
+            ? {
+                roomName: roomName(pendingOverrideEdit.facilityId) ?? pendingOverrideEdit.facilityId,
+                date: draft.date,
+                start: pendingOverrideEdit.interval.start,
+                end: pendingOverrideEdit.interval.end,
+              }
+            : null
+        }
+      />
       {editingRoom ? (
         <ConfirmBookingTime
+          allowOverride={allowOverride}
           date={draft.date}
           end={confirmEnd}
           onCancel={handleCancelEdit}
