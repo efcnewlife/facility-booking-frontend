@@ -60,7 +60,11 @@ const RepeatedSeriesPanel = ({
       bookableMinistries={bookableMinistries}
       estimatedTotal={
         reviewState.previewStatus === "ready" && reviewState.quotedAmount != null && reviewState.currency
-          ? { quotedAmount: reviewState.quotedAmount, currency: reviewState.currency }
+          ? {
+              quotedAmount: reviewState.quotedAmount,
+              currency: reviewState.currency,
+              isFreeMinistry: reviewState.isFreeMinistry,
+            }
           : null
       }
       formatClock={formatClock}

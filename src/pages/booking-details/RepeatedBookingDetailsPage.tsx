@@ -4,12 +4,14 @@ import facilityService, {
   type RecurringSeriesDraftDetail,
 } from "@/api/services/facilityService";
 import OverrideConfirmDialog from "@/components/booking/OverrideConfirmDialog";
+import PaymentSummaryCard from "@/components/booking/PaymentSummaryCard";
 import OverrideImpactList from "@/components/booking/OverrideImpactList";
 import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import RepeatedConflictDialog from "@/components/booking/RepeatedConflictDialog";
 import RepeatedConflictList from "@/components/booking/RepeatedConflictList";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { discountLabelKey } from "@/utils/discountEligibility";
+import { bookingConfirmationTarget } from "@/utils/freeMinistryBooking";
 import { finalConfirmationRejection } from "@/utils/overrideReviewErrors";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { groupRecurringConflictsByDate, toggleExcludedDate } from "@/utils/recurringBookingConflicts";
@@ -81,6 +83,7 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
             surchargeAmount: next.surchargeAmount,
             quotedAmount: next.quotedAmount,
             currency: next.currency,
+            isFreeMinistry: next.isFreeMinistry,
           },
           i18nInstance.language
         )
@@ -226,7 +229,8 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
     setError(null);
     try {
       const created = await facilityService.confirmBookingSeriesDraft(draftId, overrideReviewToken);
-      navigate(`/payment/repeated/${created.id}`);
+      const target = bookingConfirmationTarget("repeated", created.id, draft?.isFreeMinistry ?? false);
+      navigate(target.path, { state: target.state });
     } catch (err) {
       if (err instanceof BookingSeriesDraftNotFoundError) {
         setNotFound(true);
@@ -447,49 +451,15 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
             ) : null}
             {overrideImpacts.length > 0 ? <div className="mt-6">{impactList}</div> : null}
           </div>
-          <aside className="flex w-full shrink-0 flex-col items-center gap-4 sm:w-[300px]">
-            <h2 className="m-0 text-center text-[26px] font-semibold leading-none text-booking-primary">
-              {t("bookingDetails.paymentSummary")}
-            </h2>
-            <div className="flex w-full flex-col items-center gap-[15px] rounded-[10px] border border-booking-grey bg-booking-bg px-[25px] py-10">
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.rate")}</span>
-                <span>{paymentSummary.rate}</span>
-              </div>
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t(discountLabelKey(discountCode))}</span>
-                <span>{paymentSummary.ministryDiscount}</span>
-              </div>
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.surcharge")}</span>
-                <span>{paymentSummary.surcharge}</span>
-              </div>
-              <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
-              <div className="flex w-[233px] justify-between text-base font-bold leading-5 text-booking-primary">
-                <span>{t("bookingDetails.subtotal")}</span>
-                <span>{paymentSummary.subtotal}</span>
-              </div>
-              <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.tax")}</span>
-                <span>{paymentSummary.tax}</span>
-              </div>
-              <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
-              <div className="flex w-[233px] justify-between text-base font-bold leading-5 text-booking-primary">
-                <span>{t("bookingDetails.total")}</span>
-                <span>{paymentSummary.total}</span>
-              </div>
-              {holdDeadlineLabel ? (
-                <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                  <span>{t("bookingDetails.holdDeadline")}</span>
-                  <span>{holdDeadlineLabel}</span>
-                </div>
-              ) : null}
-              <Button className="mt-1" disabled={!canConfirm} onClick={handleConfirm}>
-                {t("bookingDetails.confirm")}
-              </Button>
-            </div>
-          </aside>
+          <PaymentSummaryCard
+            discountLabel={t(discountLabelKey(discountCode))}
+            holdDeadlineLabel={holdDeadlineLabel}
+            summary={paymentSummary}
+          >
+            <Button className="mt-1" disabled={!canConfirm} onClick={handleConfirm}>
+              {t("bookingDetails.confirm")}
+            </Button>
+          </PaymentSummaryCard>
         </section>
       </main>
       <RepeatedConflictDialog

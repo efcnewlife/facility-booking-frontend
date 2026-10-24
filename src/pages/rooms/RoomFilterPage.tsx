@@ -251,6 +251,7 @@ interface OneTimeQuoteState {
   status: "idle" | "loading" | "ready" | "error";
   quotedAmount: string | number | null;
   currency: string | null;
+  isFreeMinistry: boolean;
 }
 
 const idleOneTimeQuote = (key: string): OneTimeQuoteState => ({
@@ -258,6 +259,7 @@ const idleOneTimeQuote = (key: string): OneTimeQuoteState => ({
   status: "idle",
   quotedAmount: null,
   currency: null,
+  isFreeMinistry: false,
 });
 
 const RoomFilterPage = () => {
@@ -581,6 +583,7 @@ const RoomFilterPage = () => {
           status: "ready",
           quotedAmount: quote.quotedAmount,
           currency: quote.currency,
+          isFreeMinistry: quote.isFreeMinistry,
         });
         setCartState((current) => applyCartAggregateQuote(current, sequences, quote));
       })
@@ -588,7 +591,13 @@ const RoomFilterPage = () => {
         if (cancelled) {
           return;
         }
-        setOneTimeQuote({ key: oneTimeLinesKey, status: "error", quotedAmount: null, currency: null });
+        setOneTimeQuote({
+          key: oneTimeLinesKey,
+          status: "error",
+          quotedAmount: null,
+          currency: null,
+          isFreeMinistry: false,
+        });
       });
     return () => {
       cancelled = true;
@@ -1034,7 +1043,11 @@ const RoomFilterPage = () => {
     oneTimeQuote.status === "ready" &&
     oneTimeQuote.quotedAmount != null &&
     oneTimeQuote.currency
-      ? { quotedAmount: oneTimeQuote.quotedAmount, currency: oneTimeQuote.currency }
+      ? {
+          quotedAmount: oneTimeQuote.quotedAmount,
+          currency: oneTimeQuote.currency,
+          isFreeMinistry: oneTimeQuote.isFreeMinistry,
+        }
       : null;
   const oneTimePriceLoading =
     cartState.lines.length > 0 && (loading || !isOneTimeQuoteCurrent || oneTimeQuote.status === "loading");

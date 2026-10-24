@@ -28,6 +28,7 @@ export interface RecurringSeriesReviewSnapshot {
   excludedDates: string[];
   quotedAmount: string | number | null;
   currency: string | null;
+  isFreeMinistry: boolean;
   title: string;
   createdSeries: RecurringBookingSeriesDetail | null;
   createError: string | null;
@@ -69,6 +70,7 @@ export const emptyRecurringSeriesReviewSnapshot = (): RecurringSeriesReviewSnaps
   excludedDates: [],
   quotedAmount: null,
   currency: null,
+  isFreeMinistry: false,
   title: "",
   createdSeries: null,
   createError: null,
@@ -126,6 +128,7 @@ export const applyScheduledPreview = (
   excludedDates: [],
   quotedAmount: null,
   currency: null,
+  isFreeMinistry: false,
   createdSeries: state.phase === "created" ? state.createdSeries : null,
   createError: null,
   previewError: null,
@@ -147,7 +150,8 @@ export const applyPreviewSucceeded = (
   proposalKey: string,
   conflicts: RecurringBookingConflict[],
   quotedAmount: string | number | null = null,
-  currency: string | null = null
+  currency: string | null = null,
+  isFreeMinistry = false
 ): RecurringSeriesReviewSnapshot => {
   if (requestId !== state.previewRequestId || proposalKey !== state.proposalKey) {
     return state;
@@ -159,6 +163,7 @@ export const applyPreviewSucceeded = (
     excludedDates: [],
     quotedAmount,
     currency,
+    isFreeMinistry,
     previewError: null,
   };
 };
@@ -179,6 +184,7 @@ export const applyPreviewFailed = (
     excludedDates: [],
     quotedAmount: null,
     currency: null,
+    isFreeMinistry: false,
     previewError: error,
   };
 };
@@ -339,7 +345,15 @@ export const createRecurringSeriesPreviewController = (deps: RecurringSeriesPrev
     try {
       const result = await deps.preview(payload);
       emit(
-        applyPreviewSucceeded(state, requestId, proposalKey, result.conflicts, result.quotedAmount, result.currency)
+        applyPreviewSucceeded(
+          state,
+          requestId,
+          proposalKey,
+          result.conflicts,
+          result.quotedAmount,
+          result.currency,
+          result.isFreeMinistry
+        )
       );
     } catch (error) {
       emit(

@@ -12,6 +12,7 @@ describe("mapPaymentSummary", () => {
       subtotal: EM_DASH,
       tax: EM_DASH,
       total: EM_DASH,
+      isFreeMinistry: false,
     });
   });
 
@@ -34,6 +35,7 @@ describe("mapPaymentSummary", () => {
       subtotal: EM_DASH,
       tax: EM_DASH,
       total: "$132.50",
+      isFreeMinistry: false,
     });
   });
 
@@ -68,6 +70,31 @@ describe("mapPaymentSummary", () => {
       subtotal: EM_DASH,
       tax: EM_DASH,
       total: EM_DASH,
+      isFreeMinistry: false,
+    });
+  });
+
+  it("flags a free Ministry quote and keeps its zero amounts", () => {
+    expect(
+      mapPaymentSummary(
+        {
+          subtotalAmount: "0.00",
+          discountAmount: "0.00",
+          surchargeAmount: "0.00",
+          quotedAmount: "0.00",
+          currency: "CAD",
+          isFreeMinistry: true,
+        },
+        "en-CA"
+      )
+    ).toEqual({
+      rate: "$0.00",
+      ministryDiscount: "$0.00",
+      surcharge: "$0.00",
+      subtotal: EM_DASH,
+      tax: EM_DASH,
+      total: "$0.00",
+      isFreeMinistry: true,
     });
   });
 });

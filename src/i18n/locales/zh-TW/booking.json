@@ -807,5 +807,11 @@
       "filtersHeading": "搜尋條件",
       "resultsCount": "{{count}} 間房間"
     }
+  },
+  "freeMinistry": {
+    "badge": "免費事工預訂",
+    "summary": "事工預訂免費，無需付款。",
+    "confirmedTitle": "預訂已確認",
+    "confirmedMessage": "您的事工預訂已確認。事工預訂免費，無需付款。"
   }
 }

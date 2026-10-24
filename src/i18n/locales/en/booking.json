@@ -809,5 +809,11 @@
       "filtersHeading": "Search filters",
       "resultsCount": "{{count}} rooms"
     }
+  },
+  "freeMinistry": {
+    "badge": "Free Ministry booking",
+    "summary": "Ministry bookings are free. No payment is needed.",
+    "confirmedTitle": "Booking confirmed",
+    "confirmedMessage": "Your Ministry booking is confirmed. It is free, so no payment is needed."
   }
 }

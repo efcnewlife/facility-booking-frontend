@@ -65,6 +65,7 @@ const { mockFacility, BookingSeriesDraftNotFoundError, BookingSeriesDraftNotConf
       previewBookingSeries: vi.fn(),
       getBookingSeries: vi.fn(),
       getDiscountEligibility: vi.fn(),
+      getMyBooking: vi.fn(),
     },
   };
 });
@@ -193,6 +194,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
         React.createElement("label", { htmlFor: id }, label),
         React.createElement("input", { id, readOnly: true, value: value ? value.format("HH:mm") : "" })
       ),
+    Radio: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
+    TextArea: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
     cn: (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" "),
   };
 });
@@ -200,6 +203,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
 import ministryService from "@/api/services/ministryService";
 import { change_app_language } from "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
+import BookingDetailPage from "@/pages/my-bookings/BookingDetailPage";
+import RecurringSeriesDetailPage from "@/pages/my-bookings/RecurringSeriesDetailPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
@@ -246,6 +251,7 @@ const confirmableDraft = (overrides: Partial<RecurringSeriesDraftDetail> = {}): 
   discountAmount: "0.00",
   surchargeAmount: "0.00",
   currency: "CAD",
+  isFreeMinistry: false,
   occurrenceCount: 6,
   pendingPaymentHoldDays: 3,
   paymentHoldExpiresAt: "2026-08-22T16:00:00.000Z",
@@ -1271,5 +1277,209 @@ describe("Repeated Booking Details conflicts and reviewed Override confirmation"
     const cnPopup = await screen.findByRole("dialog", { name: "冲突" });
     expect(within(cnPopup).getByRole("button", { name: "跳过此日期" })).toBeTruthy();
     expect(mockFacility.updateBookingSeriesDraft).not.toHaveBeenCalled();
+  });
+});
+
+const OCCURRENCE_ID = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb";
+const ZERO_AMOUNT = /^(CA)?\$0\.00$/;
+
+const freeMinistryDraft = (overrides: Partial<RecurringSeriesDraftDetail> = {}): RecurringSeriesDraftDetail =>
+  confirmableDraft({
+    title: "Weekly choir",
+    ministryId: "ministry-1",
+    isMissionAligned: true,
+    quotedAmount: "0.00",
+    subtotalAmount: "0.00",
+    discountPercent: "0",
+    discountAmount: "0.00",
+    surchargeAmount: "0.00",
+    isFreeMinistry: true,
+    pendingPaymentHoldDays: null,
+    paymentHoldExpiresAt: null,
+    ...overrides,
+  });
+
+// Free Ministry occurrence rooms carry no Rental Rate, so their rate fields are null.
+const freeOccurrence = () => ({
+  id: OCCURRENCE_ID,
+  title: "Weekly choir",
+  status: "confirmed",
+  bookingType: "recurring",
+  seriesId: SERIES_ID,
+  startAt: "2099-01-01T09:00:00-05:00",
+  endAt: "2099-01-01T10:30:00-05:00",
+  ministryId: "ministry-1",
+  ministryName: "Youth Ministry",
+  remark: null,
+  bookerDisplayName: "Jane Doe",
+  bookerEmail: "jane@example.com",
+  quotedAmount: "0.00",
+  subtotalAmount: "0.00",
+  discountPercent: "0",
+  discountAmount: "0.00",
+  surchargeAmount: "0.00",
+  currency: "CAD",
+  paymentHoldExpiresAt: null,
+  isBooker: true,
+  isViewOnly: false,
+  rooms: [
+    {
+      id: "occurrence-room-1",
+      facilityId: "gym-id",
+      facilityName: "Gym",
+      sequence: 0,
+      startAt: "2099-01-01T09:00:00-05:00",
+      endAt: "2099-01-01T10:30:00-05:00",
+      billedHours: "1.50",
+      rentalRateName: null,
+      billingUnit: null,
+      unitAmount: null,
+      currency: "CAD",
+      lineSubtotal: "0.00",
+      photoUrls: [],
+    },
+  ],
+  timeline: [],
+  actions: {
+    canEditTitle: false,
+    canCancel: true,
+    canViewPaymentInstructions: false,
+    canBookAgain: false,
+    bookAgainDate: null,
+  },
+});
+
+const freeCreatedSeries = () => ({
+  ...createdSeries(),
+  ministryId: "ministry-1",
+  ministryName: "Youth Ministry",
+  firstOccurrenceDate: "2099-01-01",
+  lastOccurrenceDate: "2099-02-05",
+  status: "confirmed",
+  paymentHoldExpiresAt: null,
+  quotedAmount: "0.00",
+  actions: {
+    canEditTitle: false,
+    canCancel: false,
+    canViewPaymentInstructions: false,
+    canBookAgain: false,
+    bookAgainDate: null,
+  },
+  occurrences: [freeOccurrence()],
+});
+
+const renderCheckoutToDetail = (initialEntry: string) => {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route element={<RoomFilterPage />} path="/rooms" />
+        <Route element={<BookingDetailsPage />} path="/booking-details/repeated/:draftId" />
+        <Route element={<PaymentPage />} path="/payment/repeated/:seriesId" />
+        <Route element={<RecurringSeriesDetailPage />} path="/my-bookings/series/:seriesId" />
+        <Route element={<BookingDetailPage />} path="/my-bookings/:bookingId" />
+        <Route element={<NotFoundPage />} path="*" />
+      </Routes>
+    </MemoryRouter>
+  );
+};
+
+describe("Repeated free Ministry checkout", () => {
+  beforeEach(() => {
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    mockFacility.getBookingSeriesDraft.mockResolvedValue(freeMinistryDraft());
+    mockFacility.confirmBookingSeriesDraft.mockResolvedValue(freeCreatedSeries());
+    mockFacility.getBookingSeries.mockResolvedValue(freeCreatedSeries());
+    mockFacility.getMyBooking.mockResolvedValue(freeOccurrence());
+    mockFacility.getDiscountEligibility.mockResolvedValue({
+      discountCode: null,
+      discountPercent: 0,
+      isFreeMinistry: true,
+    });
+    mockFacility.getRecurringBookingWindowStatus.mockResolvedValue({ isOpen: true, nextOpeningDate: null });
+    mockFacility.previewBookingSeries.mockResolvedValue({
+      conflicts: [],
+      quotedAmount: "0.00",
+      currency: "CAD",
+      isFreeMinistry: true,
+    });
+    mockFacility.getAvailability.mockResolvedValue(availabilityResponse());
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.clearAllMocks();
+    vi.mocked(ministryService.listMine).mockResolvedValue({ items: [] });
+    await change_app_language("en");
+  });
+
+  it("shows the Repeated Cart as a free Ministry booking with a zero Estimated Total", async () => {
+    renderCheckoutToDetail(`${repeatedTimetableUrl()}&ministryId=ministry-1`);
+
+    await waitFor(() => expect(mockFacility.previewBookingSeries).toHaveBeenCalled(), { timeout: 2000 });
+    const cart = await screen.findByRole("complementary", { name: "Booking cart" });
+    expect(await within(cart).findByText("Free Ministry booking")).toBeTruthy();
+    expect(within(cart).getByText(ZERO_AMOUNT)).toBeTruthy();
+  });
+
+  it("reviews a free Ministry Series with zero charges, no discount row, and no payment hold", async () => {
+    renderCheckoutToDetail(`/booking-details/repeated/${DRAFT_ID}`);
+
+    expect(await screen.findByText("Free Ministry booking")).toBeTruthy();
+    expect(screen.getByText("Ministry bookings are free. No payment is needed.")).toBeTruthy();
+    expect(screen.getAllByText(ZERO_AMOUNT).length).toBe(3);
+    expect(screen.queryByText("Ministry discount")).toBeNull();
+    expect(screen.queryByText("Discount")).toBeNull();
+    expect(screen.queryByText("Hold deadline")).toBeNull();
+  });
+
+  it("confirms a free Ministry Series to its saved details instead of Repeated Payment", async () => {
+    const user = userEvent.setup();
+    renderCheckoutToDetail(`/booking-details/repeated/${DRAFT_ID}`);
+
+    await screen.findByText("Free Ministry booking");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("Booking confirmed")).toBeTruthy();
+    expect(mockFacility.confirmBookingSeriesDraft).toHaveBeenCalledWith(DRAFT_ID, null);
+    expect(mockFacility.getBookingSeries).toHaveBeenCalledWith(SERIES_ID);
+    expect(screen.queryByRole("heading", { name: "Payment" })).toBeNull();
+    expect(screen.getByText("Free Ministry booking")).toBeTruthy();
+    expect(screen.queryByText("Hold deadline")).toBeNull();
+    expect(screen.queryByText(/Pay in full before/)).toBeNull();
+    expect(screen.queryByText(/e-Transfer/i)).toBeNull();
+  });
+
+  it("revisits a free Ministry Series and Occurrence with no payment instructions or expiry warning", async () => {
+    renderCheckoutToDetail(`/my-bookings/series/${SERIES_ID}`);
+
+    expect(await screen.findByRole("heading", { name: "Weekly choir" })).toBeTruthy();
+    expect(screen.getByText("Free Ministry booking")).toBeTruthy();
+    expect(screen.queryByText("Booking confirmed")).toBeNull();
+    expect(screen.queryByText("Hold deadline")).toBeNull();
+    expect(screen.queryByText(/Pay in full before/)).toBeNull();
+    expect(screen.queryByText(/hold has expired/)).toBeNull();
+    cleanup();
+
+    renderCheckoutToDetail(`/my-bookings/${OCCURRENCE_ID}`);
+
+    expect(await screen.findByRole("heading", { name: "Weekly choir" })).toBeTruthy();
+    expect(screen.getByText("Free Ministry booking")).toBeTruthy();
+    expect(screen.queryByText("Ministry discount")).toBeNull();
+    expect(screen.queryByText(/Pay in full before/)).toBeNull();
+    expect(screen.queryByText(/e-Transfer/i)).toBeNull();
+  });
+
+  it("keeps a Personal Series hold deadline and price without the free display", async () => {
+    mockFacility.getBookingSeriesDraft.mockResolvedValue(confirmableDraft({ title: "Weekly choir" }));
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
+    renderCheckoutToDetail(`/booking-details/repeated/${DRAFT_ID}`);
+
+    expect(await screen.findByText("Hold deadline")).toBeTruthy();
+    expect(screen.getAllByText(/150\.00/).length).toBeGreaterThan(0);
+    expect(screen.getByText("Discount")).toBeTruthy();
+    expect(screen.queryByText("Free Ministry booking")).toBeNull();
   });
 });

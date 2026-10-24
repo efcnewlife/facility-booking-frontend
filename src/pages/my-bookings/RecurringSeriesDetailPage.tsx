@@ -5,11 +5,13 @@ import facilityService, {
 import BookingRoomLines from "@/components/booking/BookingRoomLines";
 import BookingTimelineList from "@/components/booking/BookingTimelineList";
 import EditTitleModal from "@/components/booking/EditTitleModal";
+import FreeMinistryBadge from "@/components/booking/FreeMinistryBadge";
 import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
 import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import RecurringSeriesCancelModal from "@/components/booking/RecurringSeriesCancelModal";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { canShowPaymentInstructions } from "@/utils/bookingDetail";
+import { isFreeMinistryConfirmationState, isSavedFreeMinistryBooking } from "@/utils/freeMinistryBooking";
 import { formatQuotedAmount } from "@/utils/paymentPage";
 import { format_booking_date, format_booking_time_range } from "@/utils/bookingFormat";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
@@ -26,7 +28,7 @@ import { Alert, Badge, Button, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams, useSearchParams } from "react-router";
+import { useLocation, useNavigate, useParams, useSearchParams } from "react-router";
 
 const CANCEL_QUERY_KEY = "cancel";
 
@@ -35,6 +37,7 @@ const occurrenceClock = (value: string): string => moment(value).format("HH:mm")
 const RecurringSeriesDetailPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
+  const location = useLocation();
   const { seriesId: seriesIdParam } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const seriesId = useMemo(() => parseSeriesId(seriesIdParam), [seriesIdParam]);
@@ -153,6 +156,8 @@ const RecurringSeriesDetailPage = () => {
   const canCancel = Boolean(series?.occurrences.some((occurrence) => isCancellableOccurrence(occurrence, now)));
   const holdLabel = series?.paymentHoldExpiresAt ? moment(series.paymentHoldExpiresAt).format("LLL") : "—";
   const showPaymentInstructions = series != null && canShowPaymentInstructions(series, now);
+  const isFreeMinistry = series != null && isSavedFreeMinistryBooking(series);
+  const justConfirmedFree = isFreeMinistry && isFreeMinistryConfirmationState(location.state);
 
   return (
     <main className="mx-auto w-full max-w-[960px] flex-1 px-4 py-7 sm:px-6 lg:px-8">
@@ -167,6 +172,7 @@ const RecurringSeriesDetailPage = () => {
             {t(`myBookings.status.${displayStatus}`, { defaultValue: displayStatus })}
           </Badge>
         ) : null}
+        {isFreeMinistry ? <FreeMinistryBadge /> : null}
         {series?.isViewOnly ? (
           <Badge color="info" size="sm">
             {t("myBookings.viewOnlyBadge")}
@@ -189,6 +195,14 @@ const RecurringSeriesDetailPage = () => {
 
       {series && !loading ? (
         <section className="mt-8 space-y-6">
+          {justConfirmedFree ? (
+            <Alert
+              message={t("freeMinistry.confirmedMessage")}
+              title={t("freeMinistry.confirmedTitle")}
+              variant="success"
+              width="full"
+            />
+          ) : null}
           {displayStatus === SERIES_DISPLAY_STATUS.EXPIRED ? (
             <Alert
               message={t("myBookings.detail.holdExpired")}
@@ -225,10 +239,12 @@ const RecurringSeriesDetailPage = () => {
                 {formatQuotedAmount(series.quotedAmount, series.currency, i18nInstance.language)}
               </dd>
             </div>
-            <div>
-              <dt className="text-xs font-medium text-booking-text">{t("myBookings.fields.holdDeadline")}</dt>
-              <dd className="mt-1 text-lg font-bold text-on-surface">{holdLabel}</dd>
-            </div>
+            {isFreeMinistry ? null : (
+              <div>
+                <dt className="text-xs font-medium text-booking-text">{t("myBookings.fields.holdDeadline")}</dt>
+                <dd className="mt-1 text-lg font-bold text-on-surface">{holdLabel}</dd>
+              </div>
+            )}
             <div>
               <dt className="text-xs font-medium text-booking-text">{t("bookingDetail.booker")}</dt>
               <dd className="mt-1 text-lg font-bold text-on-surface">

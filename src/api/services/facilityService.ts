@@ -57,9 +57,15 @@ export interface DiscountEligibilityPayload {
 export interface DiscountEligibility {
   discountCode: string | null;
   discountPercent: string | number | null;
+  isFreeMinistry: boolean;
 }
 
-interface ApiDiscountEligibility {
+interface ApiFreeMinistryFlag {
+  isFreeMinistry?: boolean;
+  is_free_ministry?: boolean;
+}
+
+interface ApiDiscountEligibility extends ApiFreeMinistryFlag {
   discountCode?: string | null;
   discount_code?: string | null;
   discountPercent?: string | number | null;
@@ -74,7 +80,7 @@ interface ApiPreviewQuoteRoomLine {
   currency?: string | null;
 }
 
-interface ApiPreviewQuote {
+interface ApiPreviewQuote extends ApiFreeMinistryFlag {
   subtotalAmount?: string | number | null;
   subtotal_amount?: string | number | null;
   discountAmount?: string | number | null;
@@ -100,6 +106,8 @@ export interface MemberPreviewQuote {
   surchargeAmount: string | number | null;
   quotedAmount: string | number | null;
   currency: string | null;
+  /** Server-decided free Ministry booking: every charge is zero and no payment applies. */
+  isFreeMinistry: boolean;
   roomLines: MemberPreviewQuoteRoomLine[];
 }
 
@@ -168,7 +176,7 @@ interface ApiOverrideImpact {
   released_intervals?: ApiDraftInterval[];
 }
 
-interface ApiBookingDraftDetail {
+interface ApiBookingDraftDetail extends ApiFreeMinistryFlag {
   id?: string;
   date?: string;
   title?: string | null;
@@ -227,6 +235,7 @@ export interface BookingDraftDetail extends OverrideReview {
   date: string;
   title: string;
   ministryId: string | null;
+  isFreeMinistry: boolean;
   lines: BookingDraftDetailLine[];
 }
 
@@ -250,6 +259,9 @@ export class BookingSeriesDraftNotConfirmableError extends Error {
     this.name = "BookingSeriesDraftNotConfirmableError";
   }
 }
+
+const isFreeMinistryFlag = (data: ApiFreeMinistryFlag): boolean =>
+  Boolean(data.isFreeMinistry ?? data.is_free_ministry);
 
 const isApiError = (err: unknown): err is ApiError => {
   return typeof err === "object" && err !== null && "code" in err;
@@ -290,6 +302,7 @@ const mapBookingDraftDetail = (data: ApiBookingDraftDetail, fallbackId: string):
     date: String(data.date ?? ""),
     title: String(data.title ?? ""),
     ministryId: data.ministryId ?? data.ministry_id ?? null,
+    isFreeMinistry: isFreeMinistryFlag(data),
     lines: rawLines.map((line) => ({
       facilityId: String(line.facilityId ?? line.facility_id ?? ""),
       startAt: String(line.startAt ?? line.start_at ?? ""),
@@ -366,8 +379,10 @@ export interface RecurringSeriesDraftDetail {
   discountAmount: string | number | null;
   surchargeAmount: string | number | null;
   currency: string | null;
+  isFreeMinistry: boolean;
   occurrenceCount: number;
-  pendingPaymentHoldDays: number;
+  /** Null when no payment hold applies (free Ministry Series). */
+  pendingPaymentHoldDays: number | null;
   paymentHoldExpiresAt: string | null;
 }
 
@@ -393,7 +408,7 @@ interface ApiRecurringBookingConflict {
   booker_email?: string | null;
 }
 
-interface ApiRecurringBookingPreview {
+interface ApiRecurringBookingPreview extends ApiFreeMinistryFlag {
   conflicts?: ApiRecurringBookingConflict[];
   quotedAmount?: string | number | null;
   quoted_amount?: string | number | null;
@@ -404,6 +419,7 @@ export interface RecurringBookingSeriesPreview {
   conflicts: RecurringBookingConflict[];
   quotedAmount: string | number | null;
   currency: string | null;
+  isFreeMinistry: boolean;
 }
 
 export interface RecurringBookingConflict {
@@ -437,7 +453,7 @@ interface ApiRecurringSeriesDraftRoom {
   sequence?: number;
 }
 
-interface ApiRecurringSeriesDraftDetail {
+interface ApiRecurringSeriesDraftDetail extends ApiFreeMinistryFlag {
   id?: string;
   title?: string | null;
   ministryId?: string | null;
@@ -482,8 +498,8 @@ interface ApiRecurringSeriesDraftDetail {
   currency?: string | null;
   occurrenceCount?: number;
   occurrence_count?: number;
-  pendingPaymentHoldDays?: number;
-  pending_payment_hold_days?: number;
+  pendingPaymentHoldDays?: number | null;
+  pending_payment_hold_days?: number | null;
   paymentHoldExpiresAt?: string | null;
   payment_hold_expires_at?: string | null;
 }
@@ -494,6 +510,8 @@ const calendarDateString = (value: string | Date | null | undefined): string => 
   }
   return String(value).slice(0, 10);
 };
+
+const optionalNumber = (value: number | null | undefined): number | null => (value == null ? null : Number(value));
 
 const mapRecurringSeriesDraftDetail = (
   data: ApiRecurringSeriesDraftDetail,
@@ -526,8 +544,9 @@ const mapRecurringSeriesDraftDetail = (
   discountAmount: data.discountAmount ?? data.discount_amount ?? null,
   surchargeAmount: data.surchargeAmount ?? data.surcharge_amount ?? null,
   currency: data.currency ?? null,
+  isFreeMinistry: isFreeMinistryFlag(data),
   occurrenceCount: Number(data.occurrenceCount ?? data.occurrence_count ?? 0),
-  pendingPaymentHoldDays: Number(data.pendingPaymentHoldDays ?? data.pending_payment_hold_days ?? 0),
+  pendingPaymentHoldDays: optionalNumber(data.pendingPaymentHoldDays ?? data.pending_payment_hold_days),
   paymentHoldExpiresAt: data.paymentHoldExpiresAt ?? data.payment_hold_expires_at ?? null,
 });
 
@@ -696,6 +715,7 @@ class FacilityService {
     return {
       discountCode: data.discountCode ?? data.discount_code ?? null,
       discountPercent: data.discountPercent ?? data.discount_percent ?? null,
+      isFreeMinistry: isFreeMinistryFlag(data),
     };
   }
 
@@ -712,6 +732,7 @@ class FacilityService {
       surchargeAmount: data.surchargeAmount ?? data.surcharge_amount ?? null,
       quotedAmount: data.quotedAmount ?? data.quoted_amount ?? null,
       currency: data.currency ?? null,
+      isFreeMinistry: isFreeMinistryFlag(data),
       roomLines: rawRoomLines.map((line) => ({
         facilityId: String(line.facilityId ?? line.facility_id ?? ""),
         lineSubtotal: line.lineSubtotal ?? line.line_subtotal ?? null,
@@ -740,6 +761,7 @@ class FacilityService {
       conflicts: (response.data.conflicts ?? []).map(mapRecurringBookingConflict),
       quotedAmount: response.data.quotedAmount ?? response.data.quoted_amount ?? null,
       currency: response.data.currency ?? null,
+      isFreeMinistry: isFreeMinistryFlag(response.data),
     };
   }
 

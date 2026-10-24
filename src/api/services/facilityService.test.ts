@@ -48,8 +48,20 @@ describe("facilityService.getBookingSeriesDraft pending payment hold mapping", (
 
     const draft = await facilityService.getBookingSeriesDraft(DRAFT_ID);
 
-    expect(draft.pendingPaymentHoldDays).toBe(0);
+    expect(draft.pendingPaymentHoldDays).toBeNull();
     expect((draft as unknown as Record<string, unknown>).pendingPaymentHoldHours).toBeUndefined();
+  });
+
+  it("keeps a free Ministry Series Draft's null hold fields and free flag", async () => {
+    mockHttpClient.get.mockResolvedValueOnce(
+      apiDraftResponse({ is_free_ministry: true, pending_payment_hold_days: null, payment_hold_expires_at: null })
+    );
+
+    const draft = await facilityService.getBookingSeriesDraft(DRAFT_ID);
+
+    expect(draft.isFreeMinistry).toBe(true);
+    expect(draft.pendingPaymentHoldDays).toBeNull();
+    expect(draft.paymentHoldExpiresAt).toBeNull();
   });
 });
 
@@ -240,5 +252,81 @@ describe("facilityService Recurring Series Draft Override review", () => {
     await expect(facilityService.confirmBookingSeriesDraft(DRAFT_ID)).rejects.toBeInstanceOf(
       BookingSeriesDraftNotConfirmableError
     );
+  });
+});
+
+describe("facilityService free Ministry contract mapping", () => {
+  it("maps a free no-rate preview quote without requiring rate fields", async () => {
+    mockHttpClient.post.mockResolvedValueOnce({
+      success: true,
+      data: {
+        subtotalAmount: "0.00",
+        discountAmount: "0.00",
+        surchargeAmount: "0.00",
+        quotedAmount: "0.00",
+        currency: "CAD",
+        isFreeMinistry: true,
+        roomLines: [
+          {
+            facilityId: "gym-id",
+            billedHours: "1.00",
+            rentalRateName: null,
+            billingUnit: null,
+            unitAmount: null,
+            currency: "CAD",
+            lineSubtotal: "0.00",
+            isDefault: false,
+            applicability: null,
+          },
+        ],
+      },
+    });
+
+    const quote = await facilityService.previewQuote({ ministryId: "ministry-1", lines: [] });
+
+    expect(quote.isFreeMinistry).toBe(true);
+    expect(quote.quotedAmount).toBe("0.00");
+    expect(quote.roomLines).toEqual([{ facilityId: "gym-id", lineSubtotal: "0.00", currency: "CAD" }]);
+  });
+
+  it("defaults the free flag to false when the server omits it", async () => {
+    mockHttpClient.post.mockResolvedValueOnce({
+      success: true,
+      data: { quotedAmount: "75.00", currency: "CAD", roomLines: [] },
+    });
+
+    const quote = await facilityService.previewQuote({ ministryId: null, lines: [] });
+
+    expect(quote.isFreeMinistry).toBe(false);
+  });
+
+  it("maps the free flag on Discount Eligibility, Booking Draft, and Recurring preview", async () => {
+    mockHttpClient.post.mockResolvedValueOnce({
+      success: true,
+      data: { discount_code: null, discount_percent: "0", is_free_ministry: true },
+    });
+    const eligibility = await facilityService.getDiscountEligibility({ bookingType: "one_time", ministryId: "m" });
+    expect(eligibility.isFreeMinistry).toBe(true);
+
+    mockHttpClient.get.mockResolvedValueOnce({
+      success: true,
+      data: { id: DRAFT_ID, date: "2026-09-01", title: "Choir", ministryId: "m", lines: [], isFreeMinistry: true },
+    });
+    const draft = await facilityService.getBookingDraft(DRAFT_ID);
+    expect(draft.isFreeMinistry).toBe(true);
+
+    mockHttpClient.post.mockResolvedValueOnce({
+      success: true,
+      data: { conflicts: [], quoted_amount: "0.00", currency: "CAD", is_free_ministry: true },
+    });
+    const preview = await facilityService.previewBookingSeries({
+      ministryId: "m",
+      firstOccurrenceDate: "2099-01-01",
+      lastOccurrenceDate: "2099-02-05",
+      localStartTime: "09:00",
+      localEndTime: "10:30",
+      rooms: [],
+    });
+    expect(preview.isFreeMinistry).toBe(true);
   });
 });

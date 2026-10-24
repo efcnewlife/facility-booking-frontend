@@ -2,12 +2,14 @@ import facilityService, { BookingNotFoundError, type MemberBookingDetail } from 
 import BookingRoomLines from "@/components/booking/BookingRoomLines";
 import BookingTimelineList from "@/components/booking/BookingTimelineList";
 import EditTitleModal from "@/components/booking/EditTitleModal";
+import FreeMinistryBadge from "@/components/booking/FreeMinistryBadge";
 import OneTimeCancelModal from "@/components/booking/OneTimeCancelModal";
 import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
 import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { bookAgainRoomsSearchParams, canShowPaymentInstructions, parseBookingDetailId } from "@/utils/bookingDetail";
 import { format_booking_date, format_booking_time_range } from "@/utils/bookingFormat";
+import { isFreeMinistryConfirmationState, isSavedFreeMinistryBooking } from "@/utils/freeMinistryBooking";
 import { formatQuotedAmount } from "@/utils/paymentPage";
 import { resolveRecurringBookingSeriesErrorMessage } from "@/utils/recurringBookingErrors";
 import { getBookingStatusBadgeColor, resolveSeriesDisplayStatus } from "@/utils/myBookings";
@@ -15,13 +17,14 @@ import { Alert, Badge, Button, Spinner } from "@efcnewlife/newlife-ui";
 import moment from "moment";
 import { useCallback, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 
 const occurrenceClock = (value: string): string => moment(value).format("HH:mm");
 
 const BookingDetailPage = () => {
   const { t, i18n: i18nInstance } = useTranslation("booking");
   const navigate = useNavigate();
+  const location = useLocation();
   const { bookingId: bookingIdParam } = useParams();
   const bookingId = parseBookingDetailId(bookingIdParam);
 
@@ -121,6 +124,8 @@ const BookingDetailPage = () => {
   const displayStatus = resolveSeriesDisplayStatus(detail, now);
   const showPaymentInstructions = canShowPaymentInstructions(detail, now);
   const bookAgainDate = detail.actions.bookAgainDate;
+  const isFreeMinistry = isSavedFreeMinistryBooking(detail);
+  const justConfirmedFree = isFreeMinistry && isFreeMinistryConfirmationState(location.state);
 
   return (
     <>
@@ -134,6 +139,7 @@ const BookingDetailPage = () => {
           <Badge color={getBookingStatusBadgeColor(displayStatus)}>
             {t(`myBookings.status.${displayStatus}`, { defaultValue: displayStatus })}
           </Badge>
+          {isFreeMinistry ? <FreeMinistryBadge /> : null}
           {detail.isViewOnly ? (
             <Badge color="info" size="sm">
               {t("myBookings.viewOnlyBadge")}
@@ -155,6 +161,14 @@ const BookingDetailPage = () => {
         {loading ? <Spinner className="mt-8" showText size="sm" text={t("myBookings.loading")} /> : null}
 
         <section className="mt-8 space-y-6">
+          {justConfirmedFree ? (
+            <Alert
+              message={t("freeMinistry.confirmedMessage")}
+              title={t("freeMinistry.confirmedTitle")}
+              variant="success"
+              width="full"
+            />
+          ) : null}
           {displayStatus === "expired" ? (
             <Alert
               message={t("myBookings.detail.holdExpired")}
@@ -225,14 +239,16 @@ const BookingDetailPage = () => {
                 <span>{t("bookingDetail.priceSummary.subtotal")}</span>
                 <span>{formatQuotedAmount(detail.subtotalAmount, detail.currency, i18nInstance.language)}</span>
               </div>
-              <div className="flex justify-between text-sm text-on-surface">
-                <span>{t("bookingDetail.priceSummary.discount")}</span>
-                <span>
-                  {detail.discountAmount != null
-                    ? `-${formatQuotedAmount(detail.discountAmount, detail.currency, i18nInstance.language)}`
-                    : "—"}
-                </span>
-              </div>
+              {isFreeMinistry ? null : (
+                <div className="flex justify-between text-sm text-on-surface">
+                  <span>{t("bookingDetail.priceSummary.discount")}</span>
+                  <span>
+                    {detail.discountAmount != null
+                      ? `-${formatQuotedAmount(detail.discountAmount, detail.currency, i18nInstance.language)}`
+                      : "—"}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between text-sm text-on-surface">
                 <span>{t("bookingDetail.priceSummary.surcharge")}</span>
                 <span>{formatQuotedAmount(detail.surchargeAmount, detail.currency, i18nInstance.language)}</span>
