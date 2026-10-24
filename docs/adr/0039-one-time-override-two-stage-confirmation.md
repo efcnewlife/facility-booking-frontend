@@ -1,6 +1,6 @@
 # One-time Override is acknowledged twice: before the Cart and at final confirmation
 
-A One-time Priority Ministry proposal may now select Override time (ADR 0011 and ADR 0038 kept it display-only). Cells stay the authority: the Timetable admits Override cells only on a One-time Ministry proposal, and the whole selected interval must be Available or Override. Repeated proposals still cannot select Override until the Repeated reviewed checkout ships.
+A One-time Priority Ministry proposal may now select Override time (ADR 0011 and ADR 0038 kept it display-only). Cells stay the authority: the Timetable admits Override cells only on a One-time Ministry proposal, and the whole selected interval must be Available or Override. Repeated proposals follow the same two stages; see ADR 0040.
 
 Selecting Override has two acknowledgements. After Confirm Booking Time, an early popup confirms the actual interval before Cart admission; it has no notify wording and causes no request. On Booking Details, the Draft evaluation (`isConfirmable`, `conflicts`, `overrideImpacts`, `overrideReviewToken`) drives the page: impacts list every released room interval, and Confirm opens a final Confirm and notify popup. Only that action sends `overrideReviewToken` with the existing create request.
 

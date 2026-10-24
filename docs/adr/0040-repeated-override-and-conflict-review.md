@@ -1,0 +1,7 @@
+# Repeated Override and later-date conflicts are reviewed on the same Series Draft
+
+A Repeated Priority Ministry proposal may now select Override time on the First occurrence, with the same early acknowledgement as One-time (ADR 0039). Timetable cells describe only the First occurrence: Unavailable, Ministry Booking, and Closed time stay out of the Cart, and later availability never unlocks an invalid first date. A retained room that a Cart association change makes invalid stays visible and blocks Review & Confirm.
+
+Repeated Booking Details replaces the checkbox conflict review with a Conflicting dates list. Each date opens a Conflict popup showing its kinds, rooms, and only the contact the server authorized. Skip the date (or Include the date) updates the same Series Draft, which returns a fresh quote, conflicts, Override impact, and review token. We considered keeping the checkboxes, but they skipped dates without showing who holds them, and their copy said Rental conflicts would be overridden automatically.
+
+Confirm stays disabled while a blocking date is unresolved. With an Override impact, Confirm opens Confirm and notify, and only that action sends `overrideReviewToken` to Series Draft confirm. A review error reloads the Draft and needs a new acknowledgement. A not-confirmable or scheduling-conflict error reloads the Draft so the new conflict can be skipped or revised. The page never retries on its own.

@@ -11,6 +11,8 @@ interface CartMinistryOption {
 interface RepeatedSeriesPanelProps {
   reviewState: RecurringSeriesReviewSnapshot;
   lines: BookingLine[];
+  /** Retained rooms the current First occurrence no longer allows; they stay visible and block Review. */
+  invalidLineSequences?: number[];
   rooms: RoomDay[];
   sharedTime: TimeRange | null;
   occurrenceCount: number;
@@ -29,6 +31,7 @@ interface RepeatedSeriesPanelProps {
 const RepeatedSeriesPanel = ({
   reviewState,
   lines,
+  invalidLineSequences = [],
   rooms,
   sharedTime,
   occurrenceCount,
@@ -61,6 +64,7 @@ const RepeatedSeriesPanel = ({
           : null
       }
       formatClock={formatClock}
+      invalidLineSequences={invalidLineSequences}
       isChecking={isChecking}
       isPriceLoading={isChecking}
       lines={lines}
@@ -74,7 +78,7 @@ const RepeatedSeriesPanel = ({
       onTitleChange={onTitleChange}
       onTitleTouch={onTitleTouch}
       priceUnavailable={priceUnavailable}
-      reviewDisabled={!canReview}
+      reviewDisabled={!canReview || invalidLineSequences.length > 0}
       rooms={rooms}
       sharedTime={sharedTime}
       statusError={reviewState.previewError}

@@ -198,7 +198,7 @@ A Timetable block that cannot be booked because the room is not open: outside th
 _Avoid_: outside hours, not open, gray as the name of the state, treating blackout as Unavailable, painting a booking label on Closed time
 
 **Override**:
-A Timetable block where this proposal is a Priority Ministry booking and a future Rental booking holds the slot. Shown in red with the Override label and time. On a One-time proposal it is selectable: the whole selected interval may mix Available and Override time, but never Unavailable, Ministry Booking, or Closed time. Pin, ADD, and Confirm Booking Time work as usual; then the Override acknowledgement must be accepted before the line joins the Booking cart. Repeated proposals still cannot select it. It has no View contact.
+A Timetable block where this proposal is a Priority Ministry booking and a future Rental booking holds the slot. Shown in red with the Override label and time. It is selectable on One-time and Repeated proposals: the whole selected interval may mix Available and Override time, but never Unavailable, Ministry Booking, or Closed time. Pin, ADD, and Confirm Booking Time work as usual; then the Override acknowledgement must be accepted before the line joins the Booking cart. Repeated cells describe the First occurrence only, so later availability never unlocks an invalid first date. It has no View contact.
 _Avoid_: painting Override as Unavailable, showing Override on a Personal or Non-priority search, opening View contact on Override, cancelling or notifying anyone when Override time is selected
 
 **Override acknowledgement**:
@@ -209,8 +209,16 @@ _Avoid_: Confirm and notify here, skipping it for mixed Available/Override inter
 The Booking Details list of every existing Booking the Draft would replace, from the server's Draft evaluation. Each target is replaced as a whole, so the list shows every room interval it releases, including rooms the proposal does not overlap. A Series target is only that occurrence. It shows no booker name or Booking Title.
 _Avoid_: listing only overlapping lines, computing the impact in the browser, showing the displaced booker
 
+**Repeated conflict review**:
+The Conflicting dates list on Repeated Booking Details: every later occurrence the Series Draft evaluation reports as conflicting, with its rooms and whether it still blocks confirmation. Opening a date shows its Conflict popup with the date, shared time, each conflict's kind and rooms, and only the contact the server authorized (the primary steward for Ministry occupancy, the Booker for Rental occupancy on a Non-priority Ministry proposal). A Personal proposal sees generic Unavailable occupancy with no Ministry or contact. The popup offers Skip the date, or Include the date for an already skipped one. Confirm stays disabled while any blocking date is neither skipped nor revised on the Timetable.
+_Avoid_: silently omitting dates, excluding a free date, overriding protected Ministry occupancy, a checkbox list that skips without opening the conflict
+
+**Skip the date**:
+The explicit Conflict popup action that excludes that whole occurrence, for every room, on the same Series Draft. The Draft update refreshes the quote, conflicts, Override impact, and review token. Skipping an Override date removes its impact. Nothing is reserved, cancelled, or notified.
+_Avoid_: skipping one room of an occurrence, a client-only exclusion, a second Draft
+
 **Confirm and notify**:
-The final Override popup opened by Confirm on Booking Details when the Draft has an Override impact. It repeats the impact. Only its Confirm and notify action submits the create, with the Draft's review token. Without an impact, Confirm keeps the normal path and sends no token. If the server says the review is missing or stale, Booking Details reloads the Draft and the member must open this popup again. If new occupancy now blocks the proposal, Booking Details shows the blocking conflicts with only the authorized contact and keeps Confirm disabled. Neither case retries the create on its own.
+The final Override popup opened by Confirm on One-time or Repeated Booking Details when the Draft has an Override impact. It repeats the impact. Only its Confirm and notify action submits the create, with the Draft's review token. Without an impact, Confirm keeps the normal path and sends no token. If the server says the review is missing or stale, Booking Details reloads the Draft and the member must open this popup again. If new occupancy now blocks the proposal, Booking Details shows the blocking conflicts with only the authorized contact and keeps Confirm disabled. Neither case retries the create on its own.
 _Avoid_: submitting from Confirm when an impact exists, retrying silently after a stale review, a second checkout flow
 
 **Ministry Booking**:

@@ -66,6 +66,8 @@ const conflict = (overrides: Partial<RecurringBookingConflict> = {}): RecurringB
   ministryId: null,
   ministryStewardDisplayName: null,
   ministryStewardEmail: null,
+  bookerDisplayName: null,
+  bookerEmail: null,
   ...overrides,
 });
 
