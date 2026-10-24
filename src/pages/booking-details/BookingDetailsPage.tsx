@@ -4,6 +4,7 @@ import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import OverrideConfirmDialog from "@/components/booking/OverrideConfirmDialog";
 import OverrideImpactList from "@/components/booking/OverrideImpactList";
 import OverrideSelectionDialog from "@/components/booking/OverrideSelectionDialog";
+import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { clockFromDateTime } from "@/utils/bookingDateTime";
 import { validateBookingTitle } from "@/utils/bookingTitle";
@@ -399,6 +400,7 @@ const OneTimeBookingDetailsPage = () => {
             <h1 className="m-0 mb-6 text-[26px] font-semibold leading-none text-booking-primary">
               {t("bookingDetails.title")}
             </h1>
+            <PersonalPriorityReminder className="mb-6" ministryId={draft.ministryId} scope="booking" />
             {error ? (
               <p className="mb-4 text-sm font-medium text-error" role="alert">
                 {error}

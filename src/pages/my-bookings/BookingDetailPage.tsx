@@ -4,6 +4,7 @@ import BookingTimelineList from "@/components/booking/BookingTimelineList";
 import EditTitleModal from "@/components/booking/EditTitleModal";
 import OneTimeCancelModal from "@/components/booking/OneTimeCancelModal";
 import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
+import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { bookAgainRoomsSearchParams, canShowPaymentInstructions, parseBookingDetailId } from "@/utils/bookingDetail";
 import { format_booking_date, format_booking_time_range } from "@/utils/bookingFormat";
@@ -144,6 +145,7 @@ const BookingDetailPage = () => {
             </Button>
           ) : null}
         </div>
+        <PersonalPriorityReminder className="mt-6" ministryId={detail.ministryId} scope="booking" />
 
         {error ? (
           <p className="mt-4 text-sm font-medium text-error" role="alert">

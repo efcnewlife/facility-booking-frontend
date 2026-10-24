@@ -312,6 +312,11 @@
       "conflict": "This time now conflicts with another booking. Review the conflicts and change your request."
     }
   },
+  "priorityReminder": {
+    "title": "Reminder",
+    "booking": "Priority Ministry bookings take precedence. Your entire booking may be overridden by a conflicting Priority Ministry booking. You will be notified by email and will need to book again.",
+    "series": "Priority Ministry bookings take precedence. If a Priority Ministry booking conflicts with one of your occurrences, that occurrence's entire booking may be overridden; your other occurrences stay booked. You will be notified by email and will need to book that date again."
+  },
   "repeatedConflicts": {
     "title": "Conflicting dates",
     "description": "These later dates conflict with your shared time. Open a date to see the conflict, or skip that whole occurrence.",

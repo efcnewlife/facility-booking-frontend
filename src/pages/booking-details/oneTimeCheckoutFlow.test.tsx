@@ -220,7 +220,7 @@ const draftDetail = (overrides: Partial<{ ministryId: string | null; title: stri
   id: DRAFT_ID,
   date: "2026-09-01",
   title: overrides.title ?? "Choir practice",
-  ministryId: overrides.ministryId ?? "ministry-1",
+  ministryId: overrides.ministryId !== undefined ? overrides.ministryId : "ministry-1",
   lines: [{ facilityId: "gym-id", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 }],
   ...noOverrideReview(),
 });
@@ -288,6 +288,61 @@ describe("One-time Booking Details discount eligibility", () => {
     renderFlow(`/booking-details/one-time/${DRAFT_ID}`);
 
     expect(await screen.findByText("Discount")).toBeTruthy();
+  });
+});
+
+const PRIORITY_REMINDER = /Priority Ministry bookings take precedence\. Your entire booking may be overridden/;
+
+describe("One-time Booking Details Personal priority Reminder", () => {
+  beforeEach(() => {
+    mockFacility.getAvailability.mockResolvedValue(availability());
+    mockFacility.previewQuote.mockResolvedValue({
+      subtotalAmount: "100.00",
+      discountAmount: "0.00",
+      surchargeAmount: "0.00",
+      quotedAmount: "100.00",
+      currency: "CAD",
+      roomLines: [],
+    });
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.clearAllMocks();
+    await change_app_language("en");
+  });
+
+  it("shows the Reminder directly below the title for a Personal Draft", async () => {
+    mockFacility.getBookingDraft.mockResolvedValue(draftDetail({ ministryId: null }));
+    renderFlow(`/booking-details/one-time/${DRAFT_ID}`);
+
+    const heading = await screen.findByRole("heading", { name: "Booking Details" });
+    expect(heading.nextElementSibling).toHaveTextContent("Reminder");
+    expect(heading.nextElementSibling).toHaveTextContent(PRIORITY_REMINDER);
+    expect(heading.nextElementSibling).toHaveTextContent("You will be notified by email and will need to book again.");
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("omits the Reminder for a Ministry Draft", async () => {
+    mockFacility.getBookingDraft.mockResolvedValue(draftDetail({ ministryId: "ministry-1" }));
+    renderFlow(`/booking-details/one-time/${DRAFT_ID}`);
+
+    await screen.findByRole("heading", { name: "Booking Details" });
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    expect(screen.queryByText(PRIORITY_REMINDER)).toBeNull();
+  });
+
+  it.each([
+    ["zh-TW", "預訂詳情", "優先事工的預訂享有優先權"],
+    ["zh-CN", "预订详情", "优先事工的预订享有优先权"],
+  ])("shows the %s Reminder copy", async (locale, title, reminder) => {
+    await change_app_language(locale);
+    mockFacility.getBookingDraft.mockResolvedValue(draftDetail({ ministryId: null }));
+    renderFlow(`/booking-details/one-time/${DRAFT_ID}`);
+
+    const heading = await screen.findByRole("heading", { name: title });
+    expect(heading.nextElementSibling).toHaveTextContent(reminder);
   });
 });
 
@@ -480,6 +535,7 @@ describe("One-time Timetable cart to Booking Details", () => {
     await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
     await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
     await screen.findByRole("heading", { name: "Booking Details" });
+    expect(await screen.findByText(PRIORITY_REMINDER)).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
     expect(await screen.findByText("Personal booking")).toBeTruthy();
@@ -499,6 +555,7 @@ describe("One-time Timetable cart to Booking Details", () => {
       DRAFT_ID,
       expect.objectContaining({ title: "Choir practice", ministryId: "ministry-1" })
     );
+    await waitFor(() => expect(screen.queryByText(PRIORITY_REMINDER)).toBeNull());
   });
 
   it("switches back to Personal from the Cart and creates a non-Ministry Draft", async () => {

@@ -6,6 +6,7 @@ import BookingRoomLines from "@/components/booking/BookingRoomLines";
 import BookingTimelineList from "@/components/booking/BookingTimelineList";
 import EditTitleModal from "@/components/booking/EditTitleModal";
 import PaymentInstructionsPanel from "@/components/booking/PaymentInstructionsPanel";
+import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import RecurringSeriesCancelModal from "@/components/booking/RecurringSeriesCancelModal";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import { canShowPaymentInstructions } from "@/utils/bookingDetail";
@@ -177,6 +178,7 @@ const RecurringSeriesDetailPage = () => {
           </Button>
         ) : null}
       </div>
+      {series ? <PersonalPriorityReminder className="mt-6" ministryId={series.ministryId} scope="series" /> : null}
 
       {loading ? <Spinner className="mt-8" showText size="sm" text={t("myBookings.loading")} /> : null}
       {error ? (
