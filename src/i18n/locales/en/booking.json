@@ -184,6 +184,11 @@
     "noAvailableRooms": "No available rooms"
   },
   "timetable": {
+    "invalidDate": {
+      "title": "Selected date is not valid",
+      "message_one": "Please choose a date from today through one year ahead. Returning to Book Now in {{count}} second.",
+      "message_other": "Please choose a date from today through one year ahead. Returning to Book Now in {{count}} seconds."
+    },
     "searchBar": "Search details",
     "ministry": "Ministry",
     "ministryNone": "None",

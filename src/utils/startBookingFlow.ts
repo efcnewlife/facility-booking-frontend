@@ -54,6 +54,8 @@ export interface RoomsSearchQuery {
   lastDate?: string;
 }
 
+export const FACILITY_TIMEZONE = "America/Toronto";
+
 const DATE_FORMAT = "YYYY-MM-DD";
 const TIME_FORMAT = "HH:mm";
 const DATE_TIME_FORMAT = "YYYY-MM-DD HH:mm";
@@ -82,19 +84,41 @@ export const isWhenEndAfterStart = (when: WhenValue): boolean => {
   return end.isAfter(start);
 };
 
+/** Calendar day and clock time in the facility timezone, independent of the browser zone. */
+const facilityClock = (now: Date): { date: string; time: string } => {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: FACILITY_TIMEZONE,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(now);
+  const part = (type: Intl.DateTimeFormatPartTypes) => parts.find((item) => item.type === type)?.value ?? "";
+  return {
+    date: `${part("year")}-${part("month")}-${part("day")}`,
+    time: `${part("hour")}:${part("minute")}`,
+  };
+};
+
+export const facilityToday = (now: Date): string => {
+  return facilityClock(now).date;
+};
+
+/** Bookable date window shared by Start booking When and the Rooms timetable: facility today through today + 1 year. */
+export const isDateInBookingWindow = (date: string, now: Date): boolean => {
+  const parsed = moment(date, DATE_FORMAT, true);
+  if (!parsed.isValid()) {
+    return false;
+  }
+  const today = moment(facilityToday(now), DATE_FORMAT, true);
+  const lastAllowed = today.clone().add(1, "year");
+  return !parsed.isBefore(today, "day") && !parsed.isAfter(lastAllowed, "day");
+};
+
 export const isWhenValid = (when: WhenValue, now: Date): boolean => {
-  if (!when.date || hasHalfFilledTime(when)) {
-    return false;
-  }
-
-  const date = moment(when.date, DATE_FORMAT, true);
-  if (!date.isValid()) {
-    return false;
-  }
-
-  const today = moment(now).startOf("day");
-  const lastAllowed = moment(now).startOf("day").add(1, "year");
-  if (date.isBefore(today, "day") || date.isAfter(lastAllowed, "day")) {
+  if (!when.date || hasHalfFilledTime(when) || !isDateInBookingWindow(when.date, now)) {
     return false;
   }
 
@@ -110,7 +134,8 @@ export const isWhenValid = (when: WhenValue, now: Date): boolean => {
   if (!isWhenEndAfterStart(when)) {
     return false;
   }
-  if (date.isSame(today, "day") && !start.isAfter(moment(now))) {
+  const clock = facilityClock(now);
+  if (when.date === clock.date && !start.isAfter(moment(`${clock.date} ${clock.time}`, DATE_TIME_FORMAT, true))) {
     return false;
   }
   return true;
@@ -214,7 +239,7 @@ export const isRepeatedDateTimeSearchValid = (value: RecurringWhenValue, now: Da
     return false;
   }
   const first = moment(value.firstOccurrenceDate, DATE_FORMAT, true);
-  const today = moment(now).startOf("day");
+  const today = moment(facilityToday(now), DATE_FORMAT, true);
   return !first.isBefore(today, "day");
 };
 
@@ -252,7 +277,7 @@ export const isRecurringScheduleValid = (value: RecurringWhenValue, now: Date): 
   if (!first.isValid() || !last.isValid()) {
     return false;
   }
-  const today = moment(now).startOf("day");
+  const today = moment(facilityToday(now), DATE_FORMAT, true);
   if (first.isBefore(today, "day")) {
     return false;
   }
@@ -542,6 +567,28 @@ export const parseRoomsSearchQuery = (params: URLSearchParams): RoomsSearchQuery
     query.ministryId = ministryId;
   }
   return query;
+};
+
+/**
+ * Checks the raw URL dates, since parseRoomsSearchQuery drops malformed ones. A Repeated search may omit
+ * `date` until Start Date is set; any `date` / `lastDate` present must be in the booking window, in order.
+ */
+export const isRoomsSearchDateValid = (params: URLSearchParams, now: Date): boolean => {
+  const date = params.get("date") || null;
+  if (params.get("frequency") !== "repeated") {
+    return date != null && isDateInBookingWindow(date, now);
+  }
+  if (date != null && !isDateInBookingWindow(date, now)) {
+    return false;
+  }
+  const lastDate = params.get("lastDate") || null;
+  if (lastDate == null) {
+    return true;
+  }
+  if (!isDateInBookingWindow(lastDate, now)) {
+    return false;
+  }
+  return date == null || !moment(lastDate, DATE_FORMAT, true).isBefore(moment(date, DATE_FORMAT, true), "day");
 };
 
 export const toRoomsSearchParams = (query: RoomsSearchQuery): URLSearchParams => {

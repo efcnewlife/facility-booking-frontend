@@ -6,6 +6,7 @@ import ImagePreview from "@/components/booking/ImagePreview";
 import OverrideSelectionDialog from "@/components/booking/OverrideSelectionDialog";
 import RepeatedSeriesPanel from "@/components/booking/RepeatedSeriesPanel";
 import ReplaceRepeatedTimeModal from "@/components/booking/ReplaceRepeatedTimeModal";
+import InvalidRoomsDateNotice from "@/pages/rooms/InvalidRoomsDateNotice";
 import TimetableContactDialog, { type TimetableContactTarget } from "@/components/booking/TimetableContactDialog";
 import type { MinistryItem } from "@/types/ministry";
 import { cartStateToDraft, draftToCartState, whenSeedFromSearch } from "@/utils/bookingCartDraft";
@@ -30,6 +31,7 @@ import {
   applyWeekday,
   canSubmitRepeatedConfirmBookingTime,
   isRepeatedRoomsSearch,
+  isRoomsSearchDateValid,
   isSameWeekday,
   occurrencePeriodForDate,
   parseRoomsSearchQuery,
@@ -265,6 +267,10 @@ const RoomFilterPage = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const searchKey = searchParams.toString();
   const appliedQuery = useMemo(() => parseRoomsSearchQuery(new URLSearchParams(searchKey)), [searchKey]);
+  const isSearchDateValid = useMemo(
+    () => isRoomsSearchDateValid(new URLSearchParams(searchKey), new Date()),
+    [searchKey]
+  );
   const isRepeated = isRepeatedRoomsSearch(appliedQuery);
 
   const [draftDate, setDraftDate] = useState(appliedQuery?.date ?? "");
@@ -406,7 +412,7 @@ const RoomFilterPage = () => {
   };
 
   const loadAvailability = useCallback(async () => {
-    if (!appliedDate) {
+    if (!appliedDate || !isSearchDateValid) {
       setRooms([]);
       setLoading(false);
       return;
@@ -435,7 +441,7 @@ const RoomFilterPage = () => {
         setLoading(false);
       }
     }
-  }, [appliedDate, appliedMinistryId, t]);
+  }, [appliedDate, appliedMinistryId, isSearchDateValid, t]);
 
   useEffect(() => {
     void loadAvailability();
@@ -487,12 +493,12 @@ const RoomFilterPage = () => {
   }, []);
 
   useEffect(() => {
-    if (!isRepeated) {
+    if (!isRepeated || !isSearchDateValid) {
       seriesPreviewControllerRef.current?.setProposal(null);
       return;
     }
     seriesPreviewControllerRef.current?.setProposal(repeatedProposalKey && repeatedAnswers ? repeatedAnswers : null);
-  }, [isRepeated, repeatedAnswers, repeatedProposalKey]);
+  }, [isRepeated, isSearchDateValid, repeatedAnswers, repeatedProposalKey]);
 
   const scheduleKey = `${appliedDate}|${whenSeed?.start ?? ""}|${whenSeed?.end ?? ""}`;
   const prevScheduleKeyRef = useRef(scheduleKey);
@@ -679,7 +685,7 @@ const RoomFilterPage = () => {
   }, [handleUpdateSearch, loading]);
 
   useEffect(() => {
-    if (!isRepeated) {
+    if (!isRepeated || !isSearchDateValid) {
       return;
     }
     let cancelled = false;
@@ -699,7 +705,7 @@ const RoomFilterPage = () => {
     return () => {
       cancelled = true;
     };
-  }, [appliedQuery?.date, isRepeated]);
+  }, [appliedQuery?.date, isRepeated, isSearchDateValid]);
 
   const invalidLineSequences = useMemo(() => {
     if (loading || rooms.length === 0) {
@@ -710,8 +716,8 @@ const RoomFilterPage = () => {
       .map((line) => line.sequence);
   }, [allowOverride, cartState.lines, loading, rooms]);
 
-  if (!appliedQuery || (!isRepeated && !appliedQuery.date)) {
-    return <Navigate replace to="/" />;
+  if (!isSearchDateValid || !appliedQuery) {
+    return <InvalidRoomsDateNotice />;
   }
 
   if (isRepeated && repeatedWindowOpen === false) {

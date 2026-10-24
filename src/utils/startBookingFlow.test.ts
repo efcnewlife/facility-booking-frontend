@@ -1,10 +1,13 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import {
   applyFirstOccurrenceDate,
   applyWeekday,
   buildRoomsSearchQuery,
   canAdvance,
   canSubmitRepeatedConfirmBookingTime,
+  facilityToday,
+  isDateInBookingWindow,
+  isRoomsSearchDateValid,
   frequencyAfterAvailabilityRefresh,
   isRecurringScheduleValid,
   isRepeatedFrequencySelectable,
@@ -378,8 +381,90 @@ describe("canAdvance", () => {
   });
 });
 
+describe("isDateInBookingWindow", () => {
+  // 10:00 in America/Toronto on 2026-10-24.
+  const now = new Date("2026-10-24T14:00:00Z");
+
+  it("accepts today through today + 1 year", () => {
+    expect(isDateInBookingWindow("2026-10-24", now)).toBe(true);
+    expect(isDateInBookingWindow("2027-10-24", now)).toBe(true);
+  });
+
+  it("rejects yesterday and today + 1 year + 1 day", () => {
+    expect(isDateInBookingWindow("2026-10-23", now)).toBe(false);
+    expect(isDateInBookingWindow("2027-10-25", now)).toBe(false);
+  });
+
+  it("rejects malformed dates", () => {
+    expect(isDateInBookingWindow("abc", now)).toBe(false);
+    expect(isDateInBookingWindow("2026-13-01", now)).toBe(false);
+    expect(isDateInBookingWindow("24-10-2026", now)).toBe(false);
+    expect(isDateInBookingWindow("", now)).toBe(false);
+  });
+
+  describe("when the browser zone is still on the previous day", () => {
+    const originalTz = process.env.TZ;
+    afterEach(() => {
+      process.env.TZ = originalTz;
+    });
+
+    it("follows the facility timezone for today", () => {
+      process.env.TZ = "America/Vancouver";
+      // 00:30 in America/Toronto on 2026-10-24; 21:30 on 2026-10-23 in Vancouver.
+      const justAfterFacilityMidnight = new Date("2026-10-24T04:30:00Z");
+      expect(justAfterFacilityMidnight.getDate()).toBe(23);
+
+      expect(facilityToday(justAfterFacilityMidnight)).toBe("2026-10-24");
+      expect(isDateInBookingWindow("2026-10-23", justAfterFacilityMidnight)).toBe(false);
+      expect(isDateInBookingWindow("2026-10-24", justAfterFacilityMidnight)).toBe(true);
+      expect(isWhenValid({ date: "2026-10-23", start: null, end: null }, justAfterFacilityMidnight)).toBe(false);
+    });
+  });
+});
+
+describe("isRoomsSearchDateValid", () => {
+  const now = new Date("2026-10-24T14:00:00Z");
+  const valid = (query: string) => isRoomsSearchDateValid(new URLSearchParams(query), now);
+
+  it("accepts a one-time date inside the booking window", () => {
+    expect(valid("date=2026-10-24&ministryId=m-1")).toBe(true);
+    expect(valid("date=2027-10-24")).toBe(true);
+  });
+
+  it("rejects a one-time date that is missing, malformed, or outside the window", () => {
+    expect(valid("")).toBe(false);
+    expect(valid("date=abc")).toBe(false);
+    expect(valid("date=2026-10-23")).toBe(false);
+    expect(valid("date=2027-10-25")).toBe(false);
+  });
+
+  it("lets a repeated search without a date stay on the page", () => {
+    expect(valid("frequency=repeated")).toBe(true);
+  });
+
+  it("rejects a repeated search with an invalid date", () => {
+    expect(valid("frequency=repeated&date=2026-10-23&weekday=5")).toBe(false);
+    expect(valid("frequency=repeated&date=abc")).toBe(false);
+  });
+
+  it("rejects a repeated search with an invalid lastDate", () => {
+    expect(valid("frequency=repeated&date=2026-10-30&lastDate=2026-10-23")).toBe(false);
+    expect(valid("frequency=repeated&date=2026-10-30&lastDate=abc")).toBe(false);
+    expect(valid("frequency=repeated&date=2026-10-30&lastDate=2027-10-29")).toBe(false);
+  });
+
+  it("rejects a repeated lastDate before date", () => {
+    expect(valid("frequency=repeated&date=2026-11-06&lastDate=2026-10-30")).toBe(false);
+  });
+
+  it("accepts a repeated date and lastDate inside the window", () => {
+    expect(valid("frequency=repeated&date=2026-10-30&weekday=5&lastDate=2026-12-25")).toBe(true);
+    expect(valid("frequency=repeated&date=2026-10-30&lastDate=2026-10-30")).toBe(true);
+  });
+});
+
 describe("isWhenValid", () => {
-  const now = new Date("2026-08-13T14:30:00");
+  const now = new Date("2026-08-13T14:30:00-04:00");
 
   it("rejects a blank When", () => {
     expect(isWhenValid(blankWhen, now)).toBe(false);

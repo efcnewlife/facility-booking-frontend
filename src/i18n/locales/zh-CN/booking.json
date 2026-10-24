@@ -184,6 +184,10 @@
     "noAvailableRooms": "目前没有可预订的场地"
   },
   "timetable": {
+    "invalidDate": {
+      "title": "所选日期无效",
+      "message_other": "请选择今天起一年内的日期。{{count}} 秒后返回立即预订。"
+    },
     "searchBar": "搜索条件",
     "ministry": "事工",
     "ministryNone": "无",
