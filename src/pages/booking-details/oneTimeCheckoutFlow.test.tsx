@@ -248,6 +248,15 @@ const renderTimetableFlow = (initialEntry: string) => {
   );
 };
 
+// Fixture dates must stay inside the Rooms booking window (facility today through today + 1 year).
+beforeEach(() => {
+  vi.useFakeTimers({ now: new Date("2026-08-13T12:00:00-04:00"), toFake: ["Date"] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
+
 describe("One-time Booking Details discount eligibility", () => {
   beforeEach(() => {
     mockFacility.getBookingDraft.mockResolvedValue(draftDetail());

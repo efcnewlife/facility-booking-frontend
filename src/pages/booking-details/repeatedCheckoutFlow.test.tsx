@@ -204,8 +204,7 @@ import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import PaymentPage from "@/pages/payment/PaymentPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
 
-// Far in the future so the run stays valid for years, since the live preview controller validates
-// the proposal against the real current date rather than an injectable clock.
+// Far in the future; the pinned clock below keeps it inside the Rooms booking window.
 const repeatedTimetableUrl = () => {
   const params = new URLSearchParams({
     frequency: "repeated",
@@ -342,6 +341,15 @@ const renderFlow = (initialEntry: string) => {
     </MemoryRouter>
   );
 };
+
+// Fixture dates must stay inside the Rooms booking window (facility today through today + 1 year).
+beforeEach(() => {
+  vi.useFakeTimers({ now: new Date("2098-12-01T12:00:00-05:00"), toFake: ["Date"] });
+});
+
+afterEach(() => {
+  vi.useRealTimers();
+});
 
 describe("Repeated Timetable cart to Booking Details", () => {
   let draft: RecurringSeriesDraftDetail;

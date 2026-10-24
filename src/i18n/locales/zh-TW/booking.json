@@ -184,6 +184,10 @@
     "noAvailableRooms": "目前沒有可預訂的場地"
   },
   "timetable": {
+    "invalidDate": {
+      "title": "所選日期無效",
+      "message_other": "請選擇今天起一年內的日期。{{count}} 秒後返回立即預訂。"
+    },
     "searchBar": "搜尋條件",
     "ministry": "事工",
     "ministryNone": "無",
