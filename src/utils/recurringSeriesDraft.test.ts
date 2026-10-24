@@ -16,6 +16,8 @@ const conflict = (overrides: Partial<RecurringBookingConflict> = {}): RecurringB
   ministryId: null,
   ministryStewardDisplayName: null,
   ministryStewardEmail: null,
+  bookerDisplayName: null,
+  bookerEmail: null,
   ...overrides,
 });
 
@@ -36,6 +38,8 @@ const confirmableDraft = (overrides: Partial<RecurringSeriesDraftDetail> = {}): 
     { facilityId: "room-2", sequence: 1 },
   ],
   conflicts: [conflict()],
+  overrideImpacts: [],
+  overrideReviewToken: null,
   isConfirmable: true,
   invalidityCode: null,
   invalidityDetail: null,

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 const { mockHttpClient } = vi.hoisted(() => ({
-  mockHttpClient: { get: vi.fn() },
+  mockHttpClient: { get: vi.fn(), post: vi.fn() },
 }));
 
 vi.mock("./httpClient", () => ({
@@ -9,7 +9,7 @@ vi.mock("./httpClient", () => ({
   default: mockHttpClient,
 }));
 
-import { facilityService } from "./facilityService";
+import { BookingSeriesDraftNotConfirmableError, facilityService } from "./facilityService";
 
 const DRAFT_ID = "3fa85f64-5717-4562-b3fc-2c963f66afa6";
 
@@ -140,5 +140,105 @@ describe("facilityService.getBookingDraft Override review mapping", () => {
     expect(draft.conflicts).toEqual([]);
     expect(draft.overrideImpacts).toEqual([]);
     expect(draft.overrideReviewToken).toBeNull();
+  });
+});
+
+describe("facilityService Recurring Series Draft Override review", () => {
+  it("maps whole-Booking impacts, the review token, and authorized Rental contacts", async () => {
+    mockHttpClient.get.mockResolvedValueOnce(
+      apiDraftResponse({
+        conflicts: [
+          {
+            occurrenceDate: "2099-01-15",
+            kind: "occupancy",
+            facilityIds: ["gym-id"],
+            isOverridable: false,
+            bookerDisplayName: "Ben Booker",
+            bookerEmail: "ben@example.com",
+          },
+          { occurrence_date: "2099-01-22", kind: "opening_hours", facility_ids: ["gym-id"] },
+        ],
+        overrideImpacts: [
+          {
+            bookingId: "rental-1",
+            isSeriesOccurrence: true,
+            startAt: "2099-01-08T09:00:00-05:00",
+            endAt: "2099-01-08T12:00:00-05:00",
+            releasedIntervals: [
+              { facilityId: "gym-id", startAt: "2099-01-08T09:00:00-05:00", endAt: "2099-01-08T10:30:00-05:00" },
+              { facilityId: "room-2", startAt: "2099-01-08T11:00:00-05:00", endAt: "2099-01-08T12:00:00-05:00" },
+            ],
+          },
+        ],
+        overrideReviewToken: "series-review-1",
+      })
+    );
+
+    const draft = await facilityService.getBookingSeriesDraft(DRAFT_ID);
+
+    expect(draft.overrideReviewToken).toBe("series-review-1");
+    expect(draft.overrideImpacts).toEqual([
+      {
+        bookingId: "rental-1",
+        isSeriesOccurrence: true,
+        startAt: "2099-01-08T09:00:00-05:00",
+        endAt: "2099-01-08T12:00:00-05:00",
+        releasedIntervals: [
+          { facilityId: "gym-id", startAt: "2099-01-08T09:00:00-05:00", endAt: "2099-01-08T10:30:00-05:00" },
+          { facilityId: "room-2", startAt: "2099-01-08T11:00:00-05:00", endAt: "2099-01-08T12:00:00-05:00" },
+        ],
+      },
+    ]);
+    expect(draft.conflicts[0]).toMatchObject({ bookerDisplayName: "Ben Booker", bookerEmail: "ben@example.com" });
+    expect(draft.conflicts[1]).toMatchObject({ kind: "opening_hours", bookerDisplayName: null, bookerEmail: null });
+  });
+
+  it("treats a Series Draft without review fields as having no impact or token", async () => {
+    mockHttpClient.get.mockResolvedValueOnce(apiDraftResponse());
+
+    const draft = await facilityService.getBookingSeriesDraft(DRAFT_ID);
+
+    expect(draft.overrideImpacts).toEqual([]);
+    expect(draft.overrideReviewToken).toBeNull();
+  });
+
+  it("sends the reviewed token on confirmation only when one is given", async () => {
+    mockHttpClient.post.mockResolvedValue({ success: true, data: { id: "series-1" } });
+
+    await facilityService.confirmBookingSeriesDraft(DRAFT_ID, "series-review-1");
+    await facilityService.confirmBookingSeriesDraft(DRAFT_ID);
+
+    expect(mockHttpClient.post.mock.calls[0][1]).toEqual({ overrideReviewToken: "series-review-1" });
+    expect(mockHttpClient.post.mock.calls[1][1]).toBeUndefined();
+  });
+
+  it("keeps review and scheduling-conflict errors distinct from a not-confirmable Draft", async () => {
+    const reviewStale = {
+      code: 409,
+      message: "Stale",
+      details: { error_code: "FACILITY_BOOKING_OVERRIDE_REVIEW_STALE" },
+    };
+    const schedulingConflict = {
+      code: 409,
+      message: "Conflict",
+      details: { error_code: "FACILITY_BOOKING_SCHEDULING_CONFLICT" },
+    };
+    const notConfirmable = {
+      code: 409,
+      message: "Not confirmable",
+      details: { error_code: "FACILITY_BOOKING_SERIES_DRAFT_NOT_CONFIRMABLE" },
+    };
+    mockHttpClient.post
+      .mockRejectedValueOnce(reviewStale)
+      .mockRejectedValueOnce(schedulingConflict)
+      .mockRejectedValueOnce(notConfirmable);
+
+    await expect(facilityService.confirmBookingSeriesDraft(DRAFT_ID, "series-review-1")).rejects.toBe(reviewStale);
+    await expect(facilityService.confirmBookingSeriesDraft(DRAFT_ID, "series-review-1")).rejects.toBe(
+      schedulingConflict
+    );
+    await expect(facilityService.confirmBookingSeriesDraft(DRAFT_ID)).rejects.toBeInstanceOf(
+      BookingSeriesDraftNotConfirmableError
+    );
   });
 });

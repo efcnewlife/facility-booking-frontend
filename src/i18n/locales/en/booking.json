@@ -304,12 +304,24 @@
       "ministry": "Ministry booking",
       "occupancy": "Unavailable",
       "blackout": "Closed",
-      "opening_hours": "Outside opening hours"
+      "opening_hours": "Outside opening hours",
+      "weekly_quota": "Weekly limit reached"
     },
     "errors": {
       "reviewChanged": "The bookings this will replace have changed. Review the updated list and confirm again.",
       "conflict": "This time now conflicts with another booking. Review the conflicts and change your request."
     }
+  },
+  "repeatedConflicts": {
+    "title": "Conflicting dates",
+    "description": "These later dates conflict with your shared time. Open a date to see the conflict, or skip that whole occurrence.",
+    "viewConflict": "View conflict",
+    "viewConflictFor": "View conflict for {{date}}",
+    "skipped": "Skipped",
+    "mustResolve": "Skip this date, or return to the Timetable to change rooms or time, before you can confirm.",
+    "skip": "Skip the date",
+    "include": "Include the date",
+    "skipHint": "Skipping leaves out this whole occurrence for every room. Nothing is reserved or cancelled until you confirm."
   },
   "bookingTitle": {
     "label": "Booking title",
@@ -647,29 +659,6 @@
       "previewDoesNotReserve": "This preview does not reserve any rooms. The series is created only after you confirm.",
       "needCompleteProposal": "Choose a valid Recurring schedule and at least one room to review this series.",
       "checking": "Checking the full series…"
-    },
-    "recurringConflicts": {
-      "title": "Review booking conflicts",
-      "priorityTitle": "Priority Ministry override",
-      "rentalTitle": "Conflict review",
-      "priorityIntro": "This ministry has priority: Rental conflicts marked below will be automatically overridden unless you exclude that date.",
-      "rentalIntro": "This follows the same conflict review as a Personal Rental: exclude a conflicting date below, or go back to revise your rooms and shared time.",
-      "occurrenceSummary": "{{remaining}} of {{total}} weekly occurrences will be created",
-      "exclude": "Exclude this date",
-      "mustResolve": "Exclude this date, or go back to revise rooms or time, before you can continue.",
-      "kindOccupancyOverridable": "Priority override available",
-      "kindOccupancyOverridableBody": "Another Rental holds this room on this date. Because this is a Priority Ministry booking, it will be automatically overridden unless you exclude this date.",
-      "kindOccupancyBlocked": "Rental conflict",
-      "kindOccupancyBlockedBody": "Another Rental already holds this room on this date.",
-      "kindMinistry": "Protected Ministry",
-      "kindMinistryBody": "Another Ministry's booking holds this room on this date and can't be overridden.",
-      "kindBlackout": "Room closed",
-      "kindBlackoutBody": "This room is closed (blackout) on this date and can't be overridden.",
-      "kindWeeklyQuota": "Weekly limit reached",
-      "kindWeeklyQuotaBody": "You already have a Personal Rental booking that week; Personal Rentals allow one booking per week.",
-      "stewardLabel": "Primary steward:",
-      "loading": "Checking for conflicts...",
-      "create": "Create booking series"
     },
     "recurringResult": {
       "title": "Booking series created",

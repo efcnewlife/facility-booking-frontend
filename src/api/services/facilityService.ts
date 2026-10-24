@@ -16,6 +16,7 @@ import {
 } from "@/utils/bookingDetail";
 import { mapBrowsePage, type ApiMemberBookingBrowsePage, type RecurringCancellationScope } from "@/utils/myBookings";
 import type { DiscountEligibilityBookingType } from "@/utils/discountEligibility";
+import { finalConfirmationRejection } from "@/utils/overrideReviewErrors";
 import type { RoomDay } from "@/utils/timetableRules";
 import { httpClient } from "./httpClient";
 
@@ -260,6 +261,14 @@ const mapDraftInterval = (interval: ApiDraftInterval): DraftRoomInterval => ({
   endAt: String(interval.endAt ?? interval.end_at ?? ""),
 });
 
+const mapOverrideImpact = (impact: ApiOverrideImpact): OverrideImpact => ({
+  bookingId: String(impact.bookingId ?? impact.booking_id ?? ""),
+  isSeriesOccurrence: Boolean(impact.isSeriesOccurrence ?? impact.is_series_occurrence),
+  startAt: String(impact.startAt ?? impact.start_at ?? ""),
+  endAt: String(impact.endAt ?? impact.end_at ?? ""),
+  releasedIntervals: (impact.releasedIntervals ?? impact.released_intervals ?? []).map(mapDraftInterval),
+});
+
 export const mapOverrideReview = (data: ApiBookingDraftDetail): OverrideReview => ({
   isConfirmable: (data.isConfirmable ?? data.is_confirmable) !== false,
   conflicts: (data.conflicts ?? []).map((conflict) => ({
@@ -269,13 +278,7 @@ export const mapOverrideReview = (data: ApiBookingDraftDetail): OverrideReview =
     contactDisplayName: conflict.contactDisplayName ?? conflict.contact_display_name ?? null,
     contactEmail: conflict.contactEmail ?? conflict.contact_email ?? null,
   })),
-  overrideImpacts: (data.overrideImpacts ?? data.override_impacts ?? []).map((impact) => ({
-    bookingId: String(impact.bookingId ?? impact.booking_id ?? ""),
-    isSeriesOccurrence: Boolean(impact.isSeriesOccurrence ?? impact.is_series_occurrence),
-    startAt: String(impact.startAt ?? impact.start_at ?? ""),
-    endAt: String(impact.endAt ?? impact.end_at ?? ""),
-    releasedIntervals: (impact.releasedIntervals ?? impact.released_intervals ?? []).map(mapDraftInterval),
-  })),
+  overrideImpacts: (data.overrideImpacts ?? data.override_impacts ?? []).map(mapOverrideImpact),
   overrideReviewToken: data.overrideReviewToken ?? data.override_review_token ?? null,
 });
 
@@ -351,6 +354,9 @@ export interface RecurringSeriesDraftDetail {
   excludedDates: string[];
   rooms: RecurringSeriesDraftRoom[];
   conflicts: RecurringBookingConflict[];
+  /** Whole target Bookings (one occurrence each for a Series target) a Priority Ministry confirmation would displace. */
+  overrideImpacts: OverrideImpact[];
+  overrideReviewToken: string | null;
   isConfirmable: boolean;
   invalidityCode: string | null;
   invalidityDetail: string | null;
@@ -365,7 +371,7 @@ export interface RecurringSeriesDraftDetail {
   paymentHoldExpiresAt: string | null;
 }
 
-export type RecurringConflictKind = "occupancy" | "ministry" | "blackout" | "weekly_quota";
+export type RecurringConflictKind = "occupancy" | "ministry" | "blackout" | "opening_hours" | "weekly_quota";
 
 interface ApiRecurringBookingConflict {
   occurrenceDate?: string;
@@ -381,6 +387,10 @@ interface ApiRecurringBookingConflict {
   ministry_steward_display_name?: string | null;
   ministryStewardEmail?: string | null;
   ministry_steward_email?: string | null;
+  bookerDisplayName?: string | null;
+  booker_display_name?: string | null;
+  bookerEmail?: string | null;
+  booker_email?: string | null;
 }
 
 interface ApiRecurringBookingPreview {
@@ -404,6 +414,9 @@ export interface RecurringBookingConflict {
   ministryId: string | null;
   ministryStewardDisplayName: string | null;
   ministryStewardEmail: string | null;
+  /** Rental Booker contact, present only for a Non-priority Ministry proposal. */
+  bookerDisplayName: string | null;
+  bookerEmail: string | null;
 }
 
 const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): RecurringBookingConflict => ({
@@ -414,6 +427,8 @@ const mapRecurringBookingConflict = (data: ApiRecurringBookingConflict): Recurri
   ministryId: data.ministryId ?? data.ministry_id ?? null,
   ministryStewardDisplayName: data.ministryStewardDisplayName ?? data.ministry_steward_display_name ?? null,
   ministryStewardEmail: data.ministryStewardEmail ?? data.ministry_steward_email ?? null,
+  bookerDisplayName: data.bookerDisplayName ?? data.booker_display_name ?? null,
+  bookerEmail: data.bookerEmail ?? data.booker_email ?? null,
 });
 
 interface ApiRecurringSeriesDraftRoom {
@@ -444,6 +459,10 @@ interface ApiRecurringSeriesDraftDetail {
   excluded_dates?: string[];
   rooms?: ApiRecurringSeriesDraftRoom[];
   conflicts?: ApiRecurringBookingConflict[];
+  overrideImpacts?: ApiOverrideImpact[];
+  override_impacts?: ApiOverrideImpact[];
+  overrideReviewToken?: string | null;
+  override_review_token?: string | null;
   isConfirmable?: boolean;
   is_confirmable?: boolean;
   invalidityCode?: string | null;
@@ -496,6 +515,8 @@ const mapRecurringSeriesDraftDetail = (
     sequence: Number(room.sequence ?? index),
   })),
   conflicts: (data.conflicts ?? []).map(mapRecurringBookingConflict),
+  overrideImpacts: (data.overrideImpacts ?? data.override_impacts ?? []).map(mapOverrideImpact),
+  overrideReviewToken: data.overrideReviewToken ?? data.override_review_token ?? null,
   isConfirmable: Boolean(data.isConfirmable ?? data.is_confirmable),
   invalidityCode: data.invalidityCode ?? data.invalidity_code ?? null,
   invalidityDetail: data.invalidityDetail ?? data.invalidity_detail ?? null,
@@ -859,10 +880,15 @@ class FacilityService {
     }
   }
 
-  async confirmBookingSeriesDraft(seriesDraftId: string): Promise<RecurringBookingSeriesDetail> {
+  /** Send the reviewed `overrideReviewToken` whenever the Draft has an Override impact; omit it otherwise. */
+  async confirmBookingSeriesDraft(
+    seriesDraftId: string,
+    overrideReviewToken: string | null = null
+  ): Promise<RecurringBookingSeriesDetail> {
     try {
       const response = await httpClient.post<ApiRecurringBookingSeriesDetail>(
-        API_ENDPOINTS.FACILITY.confirmBookingSeriesDraft(seriesDraftId)
+        API_ENDPOINTS.FACILITY.confirmBookingSeriesDraft(seriesDraftId),
+        overrideReviewToken ? { overrideReviewToken } : undefined
       );
       if (!response.success || !response.data) {
         throw new Error(response.message || "Failed to confirm recurring series draft");
@@ -871,6 +897,10 @@ class FacilityService {
     } catch (err) {
       if (isApiError(err) && err.code === HTTP_STATUS.NOT_FOUND) {
         throw new BookingSeriesDraftNotFoundError();
+      }
+      // Review and scheduling-conflict rejections need their own refresh path on Booking Details.
+      if (finalConfirmationRejection(err)) {
+        throw err;
       }
       if (
         isApiError(err) &&

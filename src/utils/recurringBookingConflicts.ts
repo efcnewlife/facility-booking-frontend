@@ -82,7 +82,7 @@ export const isOverridableOccupancyConflict = (conflict: RecurringBookingConflic
   conflict.kind === "occupancy" && conflict.isOverridable;
 
 export type RecurringConflictPresentationKey =
-  "occupancy_overridable" | "occupancy_blocked" | "ministry" | "blackout" | "weekly_quota";
+  "occupancy_overridable" | "occupancy_blocked" | "ministry" | "blackout" | "opening_hours" | "weekly_quota";
 
 export const conflictPresentationKey = (conflict: RecurringBookingConflict): RecurringConflictPresentationKey => {
   if (conflict.kind === "occupancy") {

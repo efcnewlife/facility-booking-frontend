@@ -329,8 +329,8 @@ const RoomFilterPage = () => {
   const appliedDate = appliedQuery?.date ?? "";
   const appliedMinistryId = appliedQuery?.ministryId;
   // Cells are authoritative: the server marks Override only for an eligible Priority Ministry proposal.
-  // Repeated Override checkout is a separate flow, so only One-time admits Override time here.
-  const allowOverride = !isRepeated && Boolean(appliedMinistryId);
+  // Repeated cells describe the First occurrence, so later availability never unlocks an invalid first date.
+  const allowOverride = Boolean(appliedMinistryId);
   const whenSeed = useMemo(
     () => whenSeedFromSearch(appliedQuery?.start, appliedQuery?.end),
     [appliedQuery?.end, appliedQuery?.start]
@@ -701,13 +701,13 @@ const RoomFilterPage = () => {
   }, [appliedQuery?.date, isRepeated]);
 
   const invalidLineSequences = useMemo(() => {
-    if (isRepeated || loading || rooms.length === 0) {
+    if (loading || rooms.length === 0) {
       return [];
     }
     return cartState.lines
       .filter((line) => !lineCoversAvailability(rooms, line, allowOverride))
       .map((line) => line.sequence);
-  }, [allowOverride, cartState.lines, isRepeated, loading, rooms]);
+  }, [allowOverride, cartState.lines, loading, rooms]);
 
   if (!appliedQuery || (!isRepeated && !appliedQuery.date)) {
     return <Navigate replace to="/" />;
@@ -818,16 +818,13 @@ const RoomFilterPage = () => {
         return;
       }
       persistRepeatedLastDate(confirmLastDate);
-      const candidate = { facilityId: confirmRoom.id, start: interval.start, end: interval.end };
-      const result = confirmRepeatedCartLine(cartState, candidate, maxBookingLines);
-      if (result.decision === "replace") {
-        setPendingReplacement({ room: confirmRoom, interval });
+      if (allowOverride && intervalIncludesOverride(confirmRoom, interval)) {
+        const room = confirmRoom;
+        handleCancelConfirmBookingTime();
+        setPendingOverride({ room, interval });
         return;
       }
-      handleCancelConfirmBookingTime();
-      if (result.decision === "added") {
-        setCartState(result.state);
-      }
+      applyRepeatedLine(confirmRoom, interval);
       return;
     }
     const sequence = editingSequence;
@@ -837,6 +834,19 @@ const RoomFilterPage = () => {
       return;
     }
     applyOneTimeLine(confirmRoom, interval, sequence);
+  };
+
+  const applyRepeatedLine = (room: RoomDay, interval: BookingInterval) => {
+    const candidate = { facilityId: room.id, start: interval.start, end: interval.end };
+    const result = confirmRepeatedCartLine(cartState, candidate, maxBookingLines);
+    if (result.decision === "replace") {
+      setPendingReplacement({ room, interval });
+      return;
+    }
+    handleCancelConfirmBookingTime();
+    if (result.decision === "added") {
+      setCartState(result.state);
+    }
   };
 
   const applyOneTimeLine = (room: RoomDay, interval: BookingInterval, sequence?: number) => {
@@ -855,6 +865,10 @@ const RoomFilterPage = () => {
       return;
     }
     setPendingOverride(null);
+    if (isRepeated) {
+      applyRepeatedLine(pendingOverride.room, pendingOverride.interval);
+      return;
+    }
     applyOneTimeLine(pendingOverride.room, pendingOverride.interval, pendingOverride.editingSequence);
   };
 
@@ -922,7 +936,7 @@ const RoomFilterPage = () => {
   const handleReviewBooking = async () => {
     setTitleTouched(true);
     if (isRepeated) {
-      if (!canReviewAndConfirm(reviewState) || !repeatedAnswers) {
+      if (!canReviewAndConfirm(reviewState) || !repeatedAnswers || invalidLineSequences.length > 0) {
         return;
       }
       const payload = buildCreateRecurringSeriesDraftPayload(
@@ -1428,6 +1442,7 @@ const RoomFilterPage = () => {
           <RepeatedSeriesPanel
             bookableMinistries={cartMinistryOptions}
             formatClock={formatClockForLocale}
+            invalidLineSequences={invalidLineSequences}
             lines={cartState.lines}
             ministryId={appliedMinistryId ?? null}
             ministryName={ministryName}

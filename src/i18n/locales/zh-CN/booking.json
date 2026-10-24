@@ -303,12 +303,24 @@
       "ministry": "事工预订",
       "occupancy": "不可预订",
       "blackout": "关闭",
-      "opening_hours": "不在开放时间内"
+      "opening_hours": "不在开放时间内",
+      "weekly_quota": "已达每周上限"
     },
     "errors": {
       "reviewChanged": "将被取代的预订已变更。请查看更新后的清单并再次确认。",
       "conflict": "此时段现与其他预订冲突。请查看冲突并修改您的申请。"
     }
+  },
+  "repeatedConflicts": {
+    "title": "冲突日期",
+    "description": "以下后续日期与您的共用时段冲突。打开日期以查看冲突，或跳过整个场次。",
+    "viewConflict": "查看冲突",
+    "viewConflictFor": "查看冲突：{{date}}",
+    "skipped": "已跳过",
+    "mustResolve": "请跳过此日期，或返回时间表更改房间或时间，才能确认。",
+    "skip": "跳过此日期",
+    "include": "恢复此日期",
+    "skipHint": "跳过会移除此场次的所有房间。在您确认之前，不会预留或取消任何预订。"
   },
   "bookingTitle": {
     "label": "预订标题",
@@ -646,29 +658,6 @@
       "previewDoesNotReserve": "此预览不会保留任何房间。只有在你确认之后才会创建系列。",
       "needCompleteProposal": "请先选择有效的重复日程与至少一间房间，才能查看此系列。",
       "checking": "正在检查完整系列…"
-    },
-    "recurringConflicts": {
-      "title": "查看预订冲突",
-      "priorityTitle": "优先事工覆盖",
-      "rentalTitle": "冲突审查",
-      "priorityIntro": "此事工具有优先权：下方标示的租借冲突将自动被覆盖，除非你排除该日期。",
-      "rentalIntro": "此流程与个人租借的冲突审查相同：请在下方排除有冲突的日期，或返回修改房间与共用时段。",
-      "occurrenceSummary": "将创建 {{total}} 次每周场次中的 {{remaining}} 次",
-      "exclude": "排除此日期",
-      "mustResolve": "请先排除此日期，或返回修改房间或时段，才能继续。",
-      "kindOccupancyOverridable": "可使用优先覆盖",
-      "kindOccupancyOverridableBody": "此日期该房间已被另一笔租借预订。由于此为优先事工预订，除非你排除此日期，否则将自动覆盖该租借。",
-      "kindOccupancyBlocked": "租借冲突",
-      "kindOccupancyBlockedBody": "此日期该房间已被另一笔租借预订占用。",
-      "kindMinistry": "受保护事工",
-      "kindMinistryBody": "此日期该房间已被另一个事工的预订占用，无法覆盖。",
-      "kindBlackout": "房间关闭",
-      "kindBlackoutBody": "此房间在此日期为关闭状态（暂停开放），无法覆盖。",
-      "kindWeeklyQuota": "已达每周上限",
-      "kindWeeklyQuotaBody": "你当周已有一笔个人租借预订；个人租借每周仅限一笔。",
-      "stewardLabel": "主要同工：",
-      "loading": "正在检查冲突…",
-      "create": "创建预订系列"
     },
     "recurringResult": {
       "title": "预订系列已创建",
