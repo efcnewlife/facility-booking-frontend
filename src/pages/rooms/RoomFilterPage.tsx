@@ -51,6 +51,7 @@ import {
   clockToMinutes,
   confirmBookingTimePrefillForCart,
   confirmRepeatedCartLine,
+  displayBlockIdentity,
   displayBlocksForCart,
   emptyCartState,
   emptyTimeBookInterval,
@@ -1367,7 +1368,7 @@ const RoomFilterPage = () => {
                             return (
                               <article
                                 className={eventClassName(block.state, block.overlayKind, block.presentation)}
-                                key={`${room.id}-${block.start}-${block.end}-${block.presentation ?? block.state}-${block.overlayKind ?? "occupied"}`}
+                                key={`${room.id}-${displayBlockIdentity(block)}`}
                                 style={{ gridColumn: roomIndex + 2, gridRow: `${startRow} / ${endRow}` }}
                               >
                                 <div className="flex min-w-0 flex-1 flex-col gap-1.5">

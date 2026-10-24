@@ -687,6 +687,30 @@ const eventDisplayBlock = (
   };
 };
 
+export const displayBlockIdentity = (block: TimetableDisplayBlock): string =>
+  JSON.stringify([
+    block.start,
+    block.end,
+    block.state,
+    block.presentation ?? null,
+    block.overlayKind ?? null,
+    block.contact?.ministryName ?? null,
+    block.contact?.displayName ?? null,
+    block.contact?.email ?? null,
+  ]);
+
+const uniqueDisplayBlocks = (blocks: TimetableDisplayBlock[]): TimetableDisplayBlock[] => {
+  const seen = new Set<string>();
+  return blocks.filter((block) => {
+    const identity = displayBlockIdentity(block);
+    if (seen.has(identity)) {
+      return false;
+    }
+    seen.add(identity);
+    return true;
+  });
+};
+
 export const occupancyDisplayBlocks = (
   room: RoomDay,
   revealContacts: boolean,
@@ -723,7 +747,7 @@ export const occupancyDisplayBlocks = (
       presentation: block.state === "override" ? ("override" as const) : ("generic" as const),
     }))
   );
-  return [...fromEvents, ...uncovered];
+  return uniqueDisplayBlocks([...fromEvents, ...uncovered]);
 };
 
 export const displayBlocksForCart = (
@@ -772,7 +796,7 @@ export const displayBlocksForCart = (
     }
   }
 
-  return [...occupied, ...overlays];
+  return uniqueDisplayBlocks([...occupied, ...overlays]);
 };
 
 export const isRepeatedRoomSelectable = (room: RoomDay, sharedInterval: BookingInterval): boolean => {

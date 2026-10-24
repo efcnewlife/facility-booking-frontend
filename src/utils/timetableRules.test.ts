@@ -861,3 +861,40 @@ describe("repeatedCartLineTime", () => {
     expect(repeatedCartLineTime(state, state.lines[0])).toEqual({ start: "10:00", end: "11:00" });
   });
 });
+
+describe("displayBlocksForCart with duplicated events", () => {
+  const busyGym = (events: RoomDay["events"]): RoomDay =>
+    gym({
+      cells: gymCells({ "10:00": "unavailable", "10:30": "unavailable" }),
+      events,
+    });
+  const ministryEvent = {
+    start: "10:00",
+    end: "11:00",
+    occupancyKind: "ministry" as const,
+    isOverridable: false,
+    ministryName: "Youth",
+    contactDisplayName: "Ann",
+    contactEmail: "ann@example.com",
+  };
+
+  it("collapses the same event repeated three times into one block", () => {
+    const room = busyGym([ministryEvent, { ...ministryEvent }, { ...ministryEvent }]);
+
+    expect(displayBlocksForCart(room, emptyCartState(), null, true)).toEqual([
+      {
+        start: "10:00",
+        end: "11:00",
+        state: "unavailable",
+        presentation: "ministry",
+        contact: { ministryName: "Youth", displayName: "Ann", email: "ann@example.com" },
+      },
+    ]);
+  });
+
+  it("keeps distinct contacts that share a time range", () => {
+    const room = busyGym([ministryEvent, { ...ministryEvent, ministryName: "Choir" }]);
+
+    expect(displayBlocksForCart(room, emptyCartState(), null, true)).toHaveLength(2);
+  });
+});
