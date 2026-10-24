@@ -1,6 +1,7 @@
 import { Modal } from "@efcnewlife/newlife-ui";
-import { useEffect, useRef } from "react";
+import { useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { useDialogFocus } from "./useDialogFocus";
 
 export interface TimetableContactTarget {
   roomName: string;
@@ -21,26 +22,7 @@ interface TimetableContactDialogProps {
 const TimetableContactDialog = ({ target, formatClock, onClose }: TimetableContactDialogProps) => {
   const { t } = useTranslation("booking");
   const closeRef = useRef<HTMLButtonElement>(null);
-  const onCloseRef = useRef(onClose);
-  onCloseRef.current = onClose;
-
-  useEffect(() => {
-    if (!target) {
-      return;
-    }
-    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    closeRef.current?.focus();
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        onCloseRef.current();
-      }
-    };
-    document.addEventListener("keydown", onKeyDown);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      previouslyFocused?.focus();
-    };
-  }, [target]);
+  useDialogFocus(target != null, closeRef, onClose);
 
   return (
     <Modal

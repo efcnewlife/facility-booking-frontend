@@ -258,7 +258,8 @@
     "halfFilledTime": "Start and end must both be empty or both set.",
     "whenInvalid": "Choose a date from today through one year ahead. If Time is set, it must stay on that day and start before end.",
     "errorTitle": "Unable to continue",
-    "successTitle": "Booking created"
+    "successTitle": "Booking created",
+    "selectSlot": "Select {{room}}, {{time}}"
   },
   "confirmBookingTime": {
     "title": "Confirm Booking Time",
@@ -273,6 +274,42 @@
     "body": "Choosing a different time clears every selected room from this Repeated Booking.",
     "cancel": "Cancel",
     "confirm": "Replace time"
+  },
+  "override": {
+    "room": "Room",
+    "date": "Date",
+    "time": "Time",
+    "selection": {
+      "title": "Replace an existing booking?",
+      "body": "An existing rental booking holds this time. As a Priority Ministry booking, your proposal intends to replace it. Nothing changes now: adding it to your cart does not cancel or reserve anything.",
+      "reviewLater": "You will review every booking it would replace before the final confirmation.",
+      "cancel": "Cancel",
+      "accept": "Add to cart"
+    },
+    "final": {
+      "title": "Confirm and notify",
+      "body": "Confirming creates your booking and replaces every booking listed below as a whole. Each affected booker is notified by email and will need to book again.",
+      "cancel": "Cancel",
+      "confirm": "Confirm and notify"
+    },
+    "impacts": {
+      "title": "Bookings this will replace",
+      "description": "Each booking below is replaced as a whole, including room times that do not overlap your request.",
+      "booking": "Existing booking {{index}}",
+      "seriesOccurrence": "Existing repeated booking {{index}} (this occurrence only)",
+      "unknownRoom": "Another room"
+    },
+    "conflicts": {
+      "title": "Conflicts blocking this booking",
+      "ministry": "Ministry booking",
+      "occupancy": "Unavailable",
+      "blackout": "Closed",
+      "opening_hours": "Outside opening hours"
+    },
+    "errors": {
+      "reviewChanged": "The bookings this will replace have changed. Review the updated list and confirm again.",
+      "conflict": "This time now conflicts with another booking. Review the conflicts and change your request."
+    }
   },
   "bookingTitle": {
     "label": "Booking title",

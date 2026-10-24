@@ -126,7 +126,16 @@ const cellsInRange = (room: RoomDay, start: string, end: string): TimeCell[] => 
   });
 };
 
-export const emptyTimeBookInterval = (room: RoomDay, cellStart: string): BookingInterval | null => {
+// Override is selectable only for a One-time Priority Ministry proposal; every other state stays protected.
+const isSelectableCell = (cell: TimeCell, allowOverride: boolean): boolean => {
+  return cell.state === "available" || (allowOverride && cell.state === "override");
+};
+
+export const emptyTimeBookInterval = (
+  room: RoomDay,
+  cellStart: string,
+  allowOverride = false
+): BookingInterval | null => {
   const duration = durationForRoom(room, cellStart);
   if (duration <= 0) {
     return null;
@@ -138,15 +147,17 @@ export const emptyTimeBookInterval = (room: RoomDay, cellStart: string): Booking
   const interval: BookingInterval = { start: cellStart, end: minutesToClock(endMinutes) };
   const cells = cellsInRange(room, interval.start, interval.end);
   const coveredMinutes = cells.reduce((sum, cell) => sum + (clockToMinutes(cell.end) - clockToMinutes(cell.start)), 0);
-  if (coveredMinutes < duration || cells.some((cell) => cell.state !== "available")) {
+  if (coveredMinutes < duration || cells.some((cell) => !isSelectableCell(cell, allowOverride))) {
     return null;
   }
   return interval;
 };
 
-export const isRoomAvailable = (room: RoomDay, interval: BookingInterval | null): boolean => {
+export const isRoomAvailable = (room: RoomDay, interval: BookingInterval | null, allowOverride = false): boolean => {
   if (!interval) {
-    return room.cells.some((cell) => cell.state === "available" && emptyTimeBookInterval(room, cell.start) != null);
+    return room.cells.some(
+      (cell) => isSelectableCell(cell, allowOverride) && emptyTimeBookInterval(room, cell.start, allowOverride) != null
+    );
   }
   const duration = durationForRoom(room, interval.start);
   if (intervalLengthMinutes(interval) < duration) {
@@ -154,10 +165,17 @@ export const isRoomAvailable = (room: RoomDay, interval: BookingInterval | null)
   }
   const cells = cellsInRange(room, interval.start, interval.end);
   const coveredMinutes = cells.reduce((sum, cell) => sum + (clockToMinutes(cell.end) - clockToMinutes(cell.start)), 0);
-  if (coveredMinutes < intervalLengthMinutes(interval) || cells.some((cell) => cell.state !== "available")) {
+  if (
+    coveredMinutes < intervalLengthMinutes(interval) ||
+    cells.some((cell) => !isSelectableCell(cell, allowOverride))
+  ) {
     return false;
   }
   return true;
+};
+
+export const intervalIncludesOverride = (room: RoomDay, interval: BookingInterval): boolean => {
+  return cellsInRange(room, interval.start, interval.end).some((cell) => cell.state === "override");
 };
 
 export const isCellInInterval = (cellStart: string, interval: TimeRange): boolean => {
@@ -174,16 +192,21 @@ export const isBookableCell = (room: RoomDay, cellStart: string, interval: Booki
   return emptyTimeBookInterval(room, cellStart) != null;
 };
 
-export const isBookableCellForCart = (room: RoomDay, cellStart: string, state: TimetableCartState): boolean => {
+export const isBookableCellForCart = (
+  room: RoomDay,
+  cellStart: string,
+  state: TimetableCartState,
+  allowOverride = false
+): boolean => {
   const pinned = pinnedIntervalForRoom(state, room.id);
-  if (pinned && isCellInInterval(cellStart, pinned) && isRoomAvailable(room, pinned)) {
+  if (pinned && isCellInInterval(cellStart, pinned) && isRoomAvailable(room, pinned, allowOverride)) {
     return true;
   }
   const committedOnRoom = state.lines.filter((line) => line.facilityId === room.id);
   if (committedOnRoom.some((line) => isCellInInterval(cellStart, line))) {
     return false;
   }
-  return emptyTimeBookInterval(room, cellStart) != null;
+  return emptyTimeBookInterval(room, cellStart, allowOverride) != null;
 };
 
 export const isWhenSeedEligible = (room: RoomDay, whenSeed: WhenSeedRange | null): boolean => {
@@ -236,8 +259,13 @@ export const canAddCartLine = (
   return intervalStaysOnSameDay(line);
 };
 
-export const pinInterval = (state: TimetableCartState, room: RoomDay, cellStart: string): TimetableCartState => {
-  const interval = emptyTimeBookInterval(room, cellStart);
+export const pinInterval = (
+  state: TimetableCartState,
+  room: RoomDay,
+  cellStart: string,
+  allowOverride = false
+): TimetableCartState => {
+  const interval = emptyTimeBookInterval(room, cellStart, allowOverride);
   if (!interval) {
     return state;
   }
@@ -362,7 +390,8 @@ export const confirmBookingTimePrefillForCart = (
   room: RoomDay,
   state: TimetableCartState,
   cellStart: string,
-  editingSequence?: number
+  editingSequence?: number,
+  allowOverride = false
 ): BookingInterval | null => {
   if (editingSequence != null) {
     const editing = state.lines.find((line) => line.sequence === editingSequence);
@@ -374,17 +403,21 @@ export const confirmBookingTimePrefillForCart = (
   if (pinned) {
     return pinned;
   }
-  return emptyTimeBookInterval(room, cellStart);
+  return emptyTimeBookInterval(room, cellStart, allowOverride);
 };
 
-export const canConfirmBookingTime = (room: RoomDay, interval: BookingInterval | null): boolean => {
+export const canConfirmBookingTime = (
+  room: RoomDay,
+  interval: BookingInterval | null,
+  allowOverride = false
+): boolean => {
   if (!interval) {
     return false;
   }
   if (clockToMinutes(interval.end) <= clockToMinutes(interval.start)) {
     return false;
   }
-  return isRoomAvailable(room, interval);
+  return isRoomAvailable(room, interval, allowOverride);
 };
 
 export const capacityBandFor = (capacity: number): CapacityBand | null => {
@@ -698,14 +731,22 @@ export const displayBlocksForCart = (
   state: TimetableCartState,
   hover: HoverPreview | null = null,
   revealContacts = false,
-  allowRentalContact = false
+  allowRentalContact = false,
+  allowOverride = false
 ): TimetableDisplayBlock[] => {
   const occupied = occupancyDisplayBlocks(room, revealContacts, allowRentalContact);
   const overlays: TimetableDisplayBlock[] = [];
+  const overlay = (range: TimeRange, overlayKind: AvailableOverlayKind): TimetableDisplayBlock => ({
+    start: range.start,
+    end: range.end,
+    state: "available",
+    overlayKind,
+    ...(allowOverride && intervalIncludesOverride(room, range) ? { presentation: "override" as const } : {}),
+  });
 
   const committedLines = state.lines.filter((line) => line.facilityId === room.id);
   for (const line of committedLines) {
-    overlays.push({ start: line.start, end: line.end, state: "available", overlayKind: "committed" });
+    overlays.push(overlay(line, "committed"));
   }
 
   const pinned = pinnedIntervalForRoom(state, room.id);
@@ -718,16 +759,16 @@ export const displayBlocksForCart = (
     });
   }
 
-  if (pinned && isRoomAvailable(room, pinned)) {
-    overlays.push({ start: pinned.start, end: pinned.end, state: "available", overlayKind: "pinned" });
+  if (pinned && isRoomAvailable(room, pinned, allowOverride)) {
+    overlays.push(overlay(pinned, "pinned"));
   }
 
   if (hover?.roomId === room.id) {
-    const preview = emptyTimeBookInterval(room, hover.cellStart);
+    const preview = emptyTimeBookInterval(room, hover.cellStart, allowOverride);
     const overlapsPinned = preview != null && pinned != null && intervalsOverlap(preview, pinned);
     const overlapsCommitted = preview != null && committedLines.some((line) => intervalsOverlap(preview, line));
     if (preview && !overlapsPinned && !overlapsCommitted) {
-      overlays.push({ start: preview.start, end: preview.end, state: "available", overlayKind: "hover" });
+      overlays.push(overlay(preview, "hover"));
     }
   }
 

@@ -198,8 +198,20 @@ A Timetable block that cannot be booked because the room is not open: outside th
 _Avoid_: outside hours, not open, gray as the name of the state, treating blackout as Unavailable, painting a booking label on Closed time
 
 **Override**:
-A Timetable block where this proposal is a Priority Ministry booking and a future Rental booking holds the slot. Shown in red with the Override label and time. It stays unselectable until the reviewed checkout flow exists: no ADD, no View contact, and no Confirm and notify.
-_Avoid_: painting Override as Unavailable, showing Override on a Personal or Non-priority search, opening View contact on Override
+A Timetable block where this proposal is a Priority Ministry booking and a future Rental booking holds the slot. Shown in red with the Override label and time. On a One-time proposal it is selectable: the whole selected interval may mix Available and Override time, but never Unavailable, Ministry Booking, or Closed time. Pin, ADD, and Confirm Booking Time work as usual; then the Override acknowledgement must be accepted before the line joins the Booking cart. Repeated proposals still cannot select it. It has no View contact.
+_Avoid_: painting Override as Unavailable, showing Override on a Personal or Non-priority search, opening View contact on Override, cancelling or notifying anyone when Override time is selected
+
+**Override acknowledgement**:
+The early popup after Confirm Booking Time for an interval that includes Override time. It names the room, date, and actual interval and says that the proposal intends to replace an existing booking. Accepting adds the line to the Booking cart; cancelling leaves the cart unchanged. It never cancels, reserves, or notifies, and contains no notify wording. Editing a line onto Override time asks again.
+_Avoid_: Confirm and notify here, skipping it for mixed Available/Override intervals, treating acceptance as a reservation
+
+**Override impact**:
+The Booking Details list of every existing Booking the Draft would replace, from the server's Draft evaluation. Each target is replaced as a whole, so the list shows every room interval it releases, including rooms the proposal does not overlap. A Series target is only that occurrence. It shows no booker name or Booking Title.
+_Avoid_: listing only overlapping lines, computing the impact in the browser, showing the displaced booker
+
+**Confirm and notify**:
+The final Override popup opened by Confirm on Booking Details when the Draft has an Override impact. It repeats the impact. Only its Confirm and notify action submits the create, with the Draft's review token. Without an impact, Confirm keeps the normal path and sends no token. If the server says the review is missing or stale, Booking Details reloads the Draft and the member must open this popup again. If new occupancy now blocks the proposal, Booking Details shows the blocking conflicts with only the authorized contact and keeps Confirm disabled. Neither case retries the create on its own.
+_Avoid_: submitting from Confirm when an impact exists, retrying silently after a stale review, a second checkout flow
 
 **Ministry Booking**:
 Protected Ministry occupancy on a Ministry proposal. Shown with a light orange background, darker orange border, dark text, the Conflict label, the time, and View contact. It cannot be selected.

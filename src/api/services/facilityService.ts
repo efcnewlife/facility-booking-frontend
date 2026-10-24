@@ -34,6 +34,7 @@ interface CreateBookingPayload {
   }>;
   remark?: string;
   bookingDraftId?: string | null;
+  overrideReviewToken?: string | null;
 }
 
 export interface PreviewQuoteLinePayload {
@@ -134,6 +135,38 @@ interface ApiBookingDraftLine {
   sequence?: number;
 }
 
+interface ApiDraftInterval {
+  facilityId?: string;
+  facility_id?: string;
+  startAt?: string;
+  start_at?: string;
+  endAt?: string;
+  end_at?: string;
+}
+
+interface ApiBookingConflict extends ApiDraftInterval {
+  kind?: string;
+  ministryName?: string | null;
+  ministry_name?: string | null;
+  contactDisplayName?: string | null;
+  contact_display_name?: string | null;
+  contactEmail?: string | null;
+  contact_email?: string | null;
+}
+
+interface ApiOverrideImpact {
+  bookingId?: string;
+  booking_id?: string;
+  isSeriesOccurrence?: boolean;
+  is_series_occurrence?: boolean;
+  startAt?: string;
+  start_at?: string;
+  endAt?: string;
+  end_at?: string;
+  releasedIntervals?: ApiDraftInterval[];
+  released_intervals?: ApiDraftInterval[];
+}
+
 interface ApiBookingDraftDetail {
   id?: string;
   date?: string;
@@ -141,6 +174,44 @@ interface ApiBookingDraftDetail {
   ministryId?: string | null;
   ministry_id?: string | null;
   lines?: ApiBookingDraftLine[];
+  isConfirmable?: boolean;
+  is_confirmable?: boolean;
+  conflicts?: ApiBookingConflict[];
+  overrideImpacts?: ApiOverrideImpact[];
+  override_impacts?: ApiOverrideImpact[];
+  overrideReviewToken?: string | null;
+  override_review_token?: string | null;
+}
+
+export interface DraftRoomInterval {
+  facilityId: string;
+  startAt: string;
+  endAt: string;
+}
+
+/** Blocking occupancy on a Draft; Ministry name and contact are present only for an authorized Ministry proposal. */
+export interface BookingConflict extends DraftRoomInterval {
+  kind: string;
+  ministryName: string | null;
+  contactDisplayName: string | null;
+  contactEmail: string | null;
+}
+
+/** Whole Booking (or one Series occurrence) a Priority Ministry confirmation would displace. */
+export interface OverrideImpact {
+  bookingId: string;
+  isSeriesOccurrence: boolean;
+  startAt: string;
+  endAt: string;
+  releasedIntervals: DraftRoomInterval[];
+}
+
+/** Server evaluation of the reviewed proposal; final confirmation sends the token whenever impacts exist. */
+export interface OverrideReview {
+  isConfirmable: boolean;
+  conflicts: BookingConflict[];
+  overrideImpacts: OverrideImpact[];
+  overrideReviewToken: string | null;
 }
 
 export interface BookingDraftDetailLine {
@@ -150,7 +221,7 @@ export interface BookingDraftDetailLine {
   sequence: number;
 }
 
-export interface BookingDraftDetail {
+export interface BookingDraftDetail extends OverrideReview {
   id: string;
   date: string;
   title: string;
@@ -183,9 +254,35 @@ const isApiError = (err: unknown): err is ApiError => {
   return typeof err === "object" && err !== null && "code" in err;
 };
 
+const mapDraftInterval = (interval: ApiDraftInterval): DraftRoomInterval => ({
+  facilityId: String(interval.facilityId ?? interval.facility_id ?? ""),
+  startAt: String(interval.startAt ?? interval.start_at ?? ""),
+  endAt: String(interval.endAt ?? interval.end_at ?? ""),
+});
+
+export const mapOverrideReview = (data: ApiBookingDraftDetail): OverrideReview => ({
+  isConfirmable: (data.isConfirmable ?? data.is_confirmable) !== false,
+  conflicts: (data.conflicts ?? []).map((conflict) => ({
+    ...mapDraftInterval(conflict),
+    kind: String(conflict.kind ?? ""),
+    ministryName: conflict.ministryName ?? conflict.ministry_name ?? null,
+    contactDisplayName: conflict.contactDisplayName ?? conflict.contact_display_name ?? null,
+    contactEmail: conflict.contactEmail ?? conflict.contact_email ?? null,
+  })),
+  overrideImpacts: (data.overrideImpacts ?? data.override_impacts ?? []).map((impact) => ({
+    bookingId: String(impact.bookingId ?? impact.booking_id ?? ""),
+    isSeriesOccurrence: Boolean(impact.isSeriesOccurrence ?? impact.is_series_occurrence),
+    startAt: String(impact.startAt ?? impact.start_at ?? ""),
+    endAt: String(impact.endAt ?? impact.end_at ?? ""),
+    releasedIntervals: (impact.releasedIntervals ?? impact.released_intervals ?? []).map(mapDraftInterval),
+  })),
+  overrideReviewToken: data.overrideReviewToken ?? data.override_review_token ?? null,
+});
+
 const mapBookingDraftDetail = (data: ApiBookingDraftDetail, fallbackId: string): BookingDraftDetail => {
   const rawLines = data.lines ?? [];
   return {
+    ...mapOverrideReview(data),
     id: data.id ? String(data.id) : fallbackId,
     date: String(data.date ?? ""),
     title: String(data.title ?? ""),

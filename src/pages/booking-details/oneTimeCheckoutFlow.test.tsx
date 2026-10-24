@@ -176,6 +176,13 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
           )
         : null,
     Spinner: ({ text }: { text?: string }) => React.createElement("div", null, text ?? "Loading"),
+    TimePicker: ({ id, label, value }: LabeledProps & { value?: { format: (pattern: string) => string } | null }) =>
+      React.createElement(
+        "div",
+        null,
+        React.createElement("label", { htmlFor: id }, label),
+        React.createElement("input", { id, readOnly: true, value: value ? value.format("HH:mm") : "" })
+      ),
     cn: (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" "),
   };
 });
@@ -202,12 +209,20 @@ const availability = () => ({
   maxBookingLines: 3,
 });
 
+const noOverrideReview = () => ({
+  isConfirmable: true,
+  conflicts: [],
+  overrideImpacts: [],
+  overrideReviewToken: null,
+});
+
 const draftDetail = (overrides: Partial<{ ministryId: string | null; title: string }> = {}) => ({
   id: DRAFT_ID,
   date: "2026-09-01",
   title: overrides.title ?? "Choir practice",
   ministryId: overrides.ministryId ?? "ministry-1",
   lines: [{ facilityId: "gym-id", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 }],
+  ...noOverrideReview(),
 });
 
 const renderFlow = (initialEntry: string) => {
@@ -318,6 +333,7 @@ describe("One-time Timetable cart to Booking Details", () => {
       lines: [
         { facilityId: "gym-id", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 },
       ],
+      ...noOverrideReview(),
     };
     mockFacility.createBookingDraft.mockImplementation(async (payload) => {
       draft = { ...draft, title: payload.title, ministryId: payload.ministryId ?? null, lines: payload.lines };
@@ -958,5 +974,445 @@ describe("One-time Timetable states and contacts", () => {
     expect(simplifiedContacts).toHaveLength(2);
     await user.click(simplifiedContacts[0]);
     expect(await screen.findByRole("dialog", { name: "冲突" })).toBeTruthy();
+  });
+});
+
+const priorityMinistry = () => ({
+  id: "ministry-1",
+  name: "Youth Ministry",
+  status: "active",
+  isActive: true,
+  hasPriorityBooking: true,
+});
+
+const expectNoMutation = () => {
+  expect(mockFacility.createBooking).not.toHaveBeenCalled();
+  expect(mockFacility.createBookingDraft).not.toHaveBeenCalled();
+  expect(mockFacility.updateBookingDraft).not.toHaveBeenCalled();
+};
+
+const proposeChapelOverride = async (user: ReturnType<typeof userEvent.setup>) => {
+  await user.click(await screen.findByRole("button", { name: "Select Chapel, 10:00 am" }));
+  await user.click(await screen.findByRole("button", { name: "ADD" }));
+  const timeDialog = await screen.findByRole("dialog", { name: "Confirm Booking Time" });
+  await user.click(within(timeDialog).getByRole("button", { name: "Confirm" }));
+  return screen.findByRole("dialog", { name: "Replace an existing booking?" });
+};
+
+describe("One-time Priority Override selection", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.mocked(ministryService.listMine).mockResolvedValue({ items: [priorityMinistry()] });
+    mockFacility.getAvailability.mockResolvedValue({ rooms: [overrideRoom(), gymRoom()], maxBookingLines: 3 });
+    mockFacility.previewQuote.mockResolvedValue({
+      subtotalAmount: "75.00",
+      discountAmount: "0.00",
+      surchargeAmount: "0.00",
+      quotedAmount: "75.00",
+      currency: "CAD",
+      roomLines: [],
+    });
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    await change_app_language("en");
+  });
+
+  it("acknowledges the actual Override interval before Cart admission and leaves the Cart unchanged on cancel", async () => {
+    const user = userEvent.setup();
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    const popup = await proposeChapelOverride(user);
+    expect(within(popup).getByText("Chapel")).toBeTruthy();
+    expect(within(popup).getByText(/10:00 am – 11:00 am/)).toBeTruthy();
+    expect(within(popup).queryByText(/notif/i)).toBeNull();
+    expect(within(popup).getByRole("button", { name: "Cancel" })).toHaveFocus();
+
+    await user.click(within(popup).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.queryByText("1 room")).toBeNull();
+    expect(loadTimetableCart(window.localStorage, "2026-09-01", "ministry-1")).toBeNull();
+    expectNoMutation();
+  });
+
+  it("adds the Override proposal to the Cart only after acceptance, without any create or notify request", async () => {
+    const user = userEvent.setup();
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    const popup = await proposeChapelOverride(user);
+    await user.click(within(popup).getByRole("button", { name: "Add to cart" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await screen.findByText("1 room")).toBeTruthy();
+    expect(loadTimetableCart(window.localStorage, "2026-09-01", "ministry-1")?.lines).toEqual([
+      { sequence: 1, facilityId: "chapel-id", start: "10:00", end: "11:00" },
+    ]);
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    expectNoMutation();
+  });
+
+  it("adds an Available interval without the Override popup", async () => {
+    const user = userEvent.setup();
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    await user.click(await screen.findByRole("button", { name: "Select Gym, 10:00 am" }));
+    await user.click(await screen.findByRole("button", { name: "ADD" }));
+    const timeDialog = await screen.findByRole("dialog", { name: "Confirm Booking Time" });
+    await user.click(within(timeDialog).getByRole("button", { name: "Confirm" }));
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(await screen.findByText("1 room")).toBeTruthy();
+  });
+
+  it("keeps Override unselectable for a Personal proposal", async () => {
+    renderTimetableFlow("/rooms?date=2026-09-01");
+
+    expect(await screen.findByText("Gym")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "Select Chapel, 10:00 am" })).toBeDisabled();
+  });
+
+  it("keeps an accepted Override line valid so Review & Confirm can create the Draft", async () => {
+    const user = userEvent.setup();
+    mockFacility.createBookingDraft.mockResolvedValue({ id: DRAFT_ID });
+    mockFacility.getBookingDraft.mockImplementation(() => new Promise(() => {}));
+    renderTimetableFlow("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    const popup = await proposeChapelOverride(user);
+    await user.click(within(popup).getByRole("button", { name: "Add to cart" }));
+    await user.type(screen.getByLabelText("Booking title"), "Youth night");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Review & Confirm" })).not.toBeDisabled());
+    expect(screen.queryByText("This selection is no longer available. Edit or remove it.")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Review & Confirm" }));
+    await waitFor(() =>
+      expect(mockFacility.createBookingDraft).toHaveBeenCalledWith(
+        expect.objectContaining({ title: "Youth night", ministryId: "ministry-1" })
+      )
+    );
+    expect(mockFacility.createBooking).not.toHaveBeenCalled();
+  });
+});
+
+const reviewedOverrideDraft = (overrides: Record<string, unknown> = {}) => ({
+  id: DRAFT_ID,
+  date: "2026-09-01",
+  title: "Youth night",
+  ministryId: "ministry-1",
+  lines: [
+    { facilityId: "chapel-id", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 },
+  ],
+  isConfirmable: true,
+  conflicts: [],
+  overrideImpacts: [
+    {
+      bookingId: "rental-1",
+      isSeriesOccurrence: false,
+      startAt: "2026-09-01T10:00:00.000",
+      endAt: "2026-09-01T14:00:00.000",
+      releasedIntervals: [
+        { facilityId: "chapel-id", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000" },
+        { facilityId: "gym-id", startAt: "2026-09-01T13:00:00.000", endAt: "2026-09-01T14:00:00.000" },
+      ],
+    },
+  ],
+  overrideReviewToken: "review-token-1",
+  ...overrides,
+});
+
+const secondRentalImpact = () => ({
+  bookingId: "rental-2",
+  isSeriesOccurrence: true,
+  startAt: "2026-09-01T10:30:00.000",
+  endAt: "2026-09-01T11:00:00.000",
+  releasedIntervals: [
+    { facilityId: "chapel-id", startAt: "2026-09-01T10:30:00.000", endAt: "2026-09-01T11:00:00.000" },
+  ],
+});
+
+const reviewError = (errorCode: string) => ({
+  code: 409,
+  message: "Conflict",
+  details: { error_code: errorCode },
+});
+
+const renderDetailsWithPayment = () => {
+  return render(
+    <MemoryRouter initialEntries={[`/booking-details/one-time/${DRAFT_ID}`]}>
+      <Routes>
+        <Route element={<BookingDetailsPage />} path="/booking-details/one-time/:draftId" />
+        <Route element={<p>Payment page</p>} path="/payment/one-time/:bookingId" />
+        <Route element={<NotFoundPage />} path="*" />
+      </Routes>
+    </MemoryRouter>
+  );
+};
+
+describe("One-time Booking Details Override review and final confirmation", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    mockFacility.getAvailability.mockResolvedValue({ rooms: [overrideRoom(), gymRoom()], maxBookingLines: 3 });
+    mockFacility.previewQuote.mockResolvedValue({
+      subtotalAmount: "75.00",
+      discountAmount: "0.00",
+      surchargeAmount: "0.00",
+      quotedAmount: "75.00",
+      currency: "CAD",
+      roomLines: [],
+    });
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.clearAllMocks();
+    window.localStorage.clear();
+    await change_app_language("en");
+  });
+
+  const confirmButton = () => screen.getByRole("button", { name: "Confirm" });
+
+  it("lists every room interval each target Booking would release, including non-intersecting rooms", async () => {
+    mockFacility.getBookingDraft.mockResolvedValue(reviewedOverrideDraft());
+    renderDetailsWithPayment();
+
+    const impacts = await screen.findByRole("region", { name: "Bookings this will replace" });
+    expect(within(impacts).getByText("Existing booking 1")).toBeTruthy();
+    expect(await within(impacts).findByText("Chapel")).toBeTruthy();
+    expect(within(impacts).getByText("10:00 am – 11:00 am")).toBeTruthy();
+    expect(within(impacts).getByText("Gym")).toBeTruthy();
+    expect(within(impacts).getByText("1:00 pm – 2:00 pm")).toBeTruthy();
+    expect(within(impacts).queryByText(/Cara Renter/)).toBeNull();
+    expect(
+      screen.queryByText(
+        "One or more booking lines are no longer available. Return to the Timetable to change the draft."
+      )
+    ).toBeNull();
+  });
+
+  it("opens the final Override popup and submits the reviewed token only from Confirm and notify", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValue(reviewedOverrideDraft());
+    let releaseCreate: (value: { id: string }) => void = () => {};
+    mockFacility.createBooking.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          releaseCreate = resolve;
+        })
+    );
+    renderDetailsWithPayment();
+
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+    await user.click(confirmButton());
+
+    const finalPopup = await screen.findByRole("dialog", { name: "Confirm and notify" });
+    expect(within(finalPopup).getByText("Existing booking 1")).toBeTruthy();
+    expect(within(finalPopup).getByText("Gym")).toBeTruthy();
+    expect(within(finalPopup).getByRole("button", { name: "Cancel" })).toHaveFocus();
+    expect(mockFacility.createBooking).not.toHaveBeenCalled();
+
+    await user.click(within(finalPopup).getByRole("button", { name: "Cancel" }));
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(confirmButton()).toHaveFocus();
+    expect(mockFacility.createBooking).not.toHaveBeenCalled();
+
+    await user.click(confirmButton());
+    const reopened = await screen.findByRole("dialog", { name: "Confirm and notify" });
+    const submit = within(reopened).getByRole("button", { name: "Confirm and notify" });
+    await user.click(submit);
+    expect(submit).toBeDisabled();
+    await user.click(submit);
+
+    expect(mockFacility.createBooking).toHaveBeenCalledTimes(1);
+    expect(mockFacility.createBooking).toHaveBeenCalledWith(
+      expect.objectContaining({
+        ministryId: "ministry-1",
+        bookingDraftId: DRAFT_ID,
+        overrideReviewToken: "review-token-1",
+      })
+    );
+    releaseCreate({ id: "booking-1" });
+    expect(await screen.findByText("Payment page")).toBeTruthy();
+  });
+
+  it("keeps the normal final confirmation without impacts and sends no review token", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValue(
+      reviewedOverrideDraft({
+        lines: [
+          { facilityId: "gym-id", startAt: "2026-09-01T10:00:00.000", endAt: "2026-09-01T11:00:00.000", sequence: 1 },
+        ],
+        overrideImpacts: [],
+        overrideReviewToken: null,
+      })
+    );
+    mockFacility.createBooking.mockResolvedValue({ id: "booking-1" });
+    renderDetailsWithPayment();
+
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+    expect(screen.queryByRole("region", { name: "Bookings this will replace" })).toBeNull();
+    await user.click(confirmButton());
+
+    expect(await screen.findByText("Payment page")).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Confirm and notify" })).toBeNull();
+    expect(mockFacility.createBooking.mock.calls[0][0].overrideReviewToken ?? null).toBeNull();
+  });
+
+  it("refreshes the impact after a stale review and requires a renewed final acknowledgement", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValueOnce(reviewedOverrideDraft()).mockResolvedValue(
+      reviewedOverrideDraft({
+        overrideImpacts: [...reviewedOverrideDraft().overrideImpacts, secondRentalImpact()],
+        overrideReviewToken: "review-token-2",
+      })
+    );
+    mockFacility.createBooking
+      .mockRejectedValueOnce(reviewError("FACILITY_BOOKING_OVERRIDE_REVIEW_STALE"))
+      .mockResolvedValueOnce({ id: "booking-1" });
+    renderDetailsWithPayment();
+
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+    await user.click(confirmButton());
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Confirm and notify" })).getByRole("button", {
+        name: "Confirm and notify",
+      })
+    );
+
+    expect(
+      await screen.findByText("The bookings this will replace have changed. Review the updated list and confirm again.")
+    ).toBeTruthy();
+    expect(screen.queryByRole("dialog", { name: "Confirm and notify" })).toBeNull();
+    const impacts = await screen.findByRole("region", { name: "Bookings this will replace" });
+    expect(within(impacts).getByText("Existing repeated booking 2 (this occurrence only)")).toBeTruthy();
+    expect(mockFacility.createBooking).toHaveBeenCalledTimes(1);
+
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+    await user.click(confirmButton());
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Confirm and notify" })).getByRole("button", {
+        name: "Confirm and notify",
+      })
+    );
+    expect(await screen.findByText("Payment page")).toBeTruthy();
+    expect(mockFacility.createBooking).toHaveBeenLastCalledWith(
+      expect.objectContaining({ overrideReviewToken: "review-token-2" })
+    );
+  });
+
+  it("refreshes the Draft when review is required instead of retrying the create", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValue(reviewedOverrideDraft());
+    mockFacility.createBooking.mockRejectedValue(reviewError("FACILITY_BOOKING_OVERRIDE_REVIEW_REQUIRED"));
+    renderDetailsWithPayment();
+
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+    await user.click(confirmButton());
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Confirm and notify" })).getByRole("button", {
+        name: "Confirm and notify",
+      })
+    );
+
+    expect(
+      await screen.findByText("The bookings this will replace have changed. Review the updated list and confirm again.")
+    ).toBeTruthy();
+    await waitFor(() => expect(mockFacility.getBookingDraft).toHaveBeenCalledTimes(2));
+    expect(mockFacility.createBooking).toHaveBeenCalledTimes(1);
+  });
+
+  it("blocks confirmation and shows the authorized contact when a new Ministry booking now holds the time", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValueOnce(reviewedOverrideDraft()).mockResolvedValue(
+      reviewedOverrideDraft({
+        isConfirmable: false,
+        overrideImpacts: [],
+        overrideReviewToken: null,
+        conflicts: [
+          {
+            facilityId: "chapel-id",
+            startAt: "2026-09-01T10:00:00.000",
+            endAt: "2026-09-01T11:00:00.000",
+            kind: "ministry",
+            ministryName: "Choir",
+            contactDisplayName: "Ada Steward",
+            contactEmail: "ada@efcnewlife.org",
+          },
+        ],
+      })
+    );
+    mockFacility.createBooking.mockRejectedValue(reviewError("FACILITY_BOOKING_SCHEDULING_CONFLICT"));
+    renderDetailsWithPayment();
+
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+    await user.click(confirmButton());
+    await user.click(
+      within(await screen.findByRole("dialog", { name: "Confirm and notify" })).getByRole("button", {
+        name: "Confirm and notify",
+      })
+    );
+
+    expect(
+      await screen.findByText(
+        "This time now conflicts with another booking. Review the conflicts and change your request."
+      )
+    ).toBeTruthy();
+    const conflicts = await screen.findByRole("region", { name: "Conflicts blocking this booking" });
+    expect(within(conflicts).getByText("Ministry booking")).toBeTruthy();
+    expect(within(conflicts).getByText("Choir")).toBeTruthy();
+    expect(within(conflicts).getByText("Ada Steward")).toBeTruthy();
+    expect(within(conflicts).getByRole("link", { name: "ada@efcnewlife.org" })).toBeTruthy();
+    expect(confirmButton()).toBeDisabled();
+    expect(mockFacility.createBooking).toHaveBeenCalledTimes(1);
+  });
+
+  it("disables final confirmation when the Draft is no longer confirmable after a privilege change", async () => {
+    mockFacility.getBookingDraft.mockResolvedValue(
+      reviewedOverrideDraft({
+        isConfirmable: false,
+        overrideImpacts: [],
+        overrideReviewToken: null,
+        conflicts: [
+          {
+            facilityId: "chapel-id",
+            startAt: "2026-09-01T10:00:00.000",
+            endAt: "2026-09-01T11:00:00.000",
+            kind: "occupancy",
+            ministryName: null,
+            contactDisplayName: null,
+            contactEmail: null,
+          },
+        ],
+      })
+    );
+    renderDetailsWithPayment();
+
+    const conflicts = await screen.findByRole("region", { name: "Conflicts blocking this booking" });
+    expect(within(conflicts).getByText("Unavailable")).toBeTruthy();
+    expect(within(conflicts).queryByRole("link")).toBeNull();
+    await waitFor(() => expect(mockFacility.previewQuote).toHaveBeenCalled());
+    expect(confirmButton()).toBeDisabled();
+  });
+
+  it("uses the final Override copy in Traditional and Simplified Chinese", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValue(reviewedOverrideDraft());
+    renderDetailsWithPayment();
+    await waitFor(() => expect(confirmButton()).not.toBeDisabled());
+
+    await change_app_language("zh-TW");
+    expect(await screen.findByRole("region", { name: "將被取代的預訂" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "確認" }));
+    expect(await screen.findByRole("dialog", { name: "確認並通知" })).toBeTruthy();
+    await user.keyboard("{Escape}");
+
+    await change_app_language("zh-CN");
+    expect(await screen.findByRole("region", { name: "将被取代的预订" })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "确认" }));
+    expect(await screen.findByRole("dialog", { name: "确认并通知" })).toBeTruthy();
+    expect(mockFacility.createBooking).not.toHaveBeenCalled();
   });
 });
