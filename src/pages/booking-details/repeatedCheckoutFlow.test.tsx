@@ -327,6 +327,9 @@ const availabilityResponse = () => ({
   maxBookingLines: 3,
 });
 
+const SERIES_PRIORITY_REMINDER =
+  /Priority Ministry bookings take precedence\. If a Priority Ministry booking conflicts/;
+
 const renderFlow = (initialEntry: string) => {
   return render(
     <MemoryRouter initialEntries={[initialEntry]}>
@@ -372,9 +375,10 @@ describe("Repeated Timetable cart to Booking Details", () => {
     mockFacility.getAvailability.mockResolvedValue(availabilityResponse());
   });
 
-  afterEach(() => {
+  afterEach(async () => {
     cleanup();
     vi.clearAllMocks();
+    await change_app_language("en");
   });
 
   it("gates Review & Confirm on a valid Title and a ready price preview, then creates the Series Draft", async () => {
@@ -523,6 +527,36 @@ describe("Repeated Timetable cart to Booking Details", () => {
     expect(await screen.findByRole("heading", { name: "Page not found" })).toBeTruthy();
   });
 
+  it("shows the Series Reminder directly below the title for a Personal Draft", async () => {
+    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
+
+    const heading = await screen.findByRole("heading", { name: "Booking Details" });
+    expect(heading.nextElementSibling).toHaveTextContent("Reminder");
+    expect(heading.nextElementSibling).toHaveTextContent(SERIES_PRIORITY_REMINDER);
+    expect(heading.nextElementSibling).toHaveTextContent("your other occurrences stay booked");
+    expect(screen.queryByRole("checkbox")).toBeNull();
+  });
+
+  it("omits the Series Reminder for a Ministry Draft", async () => {
+    draft = confirmableDraft({ ministryId: "ministry-1" });
+    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
+
+    await screen.findByRole("heading", { name: "Booking Details" });
+    await waitFor(() => expect(mockFacility.getAvailability).toHaveBeenCalled());
+    expect(screen.queryByText(SERIES_PRIORITY_REMINDER)).toBeNull();
+  });
+
+  it.each([
+    ["zh-TW", "預訂詳情", "該場次的整筆預訂可能會被取代"],
+    ["zh-CN", "预订详情", "该场次的整笔预订可能会被取代"],
+  ])("shows the %s Series Reminder copy", async (locale, title, reminder) => {
+    await change_app_language(locale);
+    renderFlow(`/booking-details/repeated/${DRAFT_ID}`);
+
+    const heading = await screen.findByRole("heading", { name: title });
+    expect(heading.nextElementSibling).toHaveTextContent(reminder);
+  });
+
   it("applies a Ministry from the Cart and updates the same Series Draft on return", async () => {
     const user = userEvent.setup();
     vi.mocked(ministryService.listMine).mockResolvedValue({
@@ -564,6 +598,7 @@ describe("Repeated Timetable cart to Booking Details", () => {
     expect(mockFacility.createBookingSeriesDraft).toHaveBeenCalledWith(
       expect.objectContaining({ title: "Weekly choir", ministryId: "ministry-1" })
     );
+    expect(screen.queryByText(SERIES_PRIORITY_REMINDER)).toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Back to Timetable" }));
     expect(await screen.findByText("Ministry: Youth Ministry")).toBeTruthy();

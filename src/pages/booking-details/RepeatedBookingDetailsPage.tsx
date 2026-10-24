@@ -5,6 +5,7 @@ import facilityService, {
 } from "@/api/services/facilityService";
 import OverrideConfirmDialog from "@/components/booking/OverrideConfirmDialog";
 import OverrideImpactList from "@/components/booking/OverrideImpactList";
+import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
 import RepeatedConflictDialog from "@/components/booking/RepeatedConflictDialog";
 import RepeatedConflictList from "@/components/booking/RepeatedConflictList";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
@@ -331,6 +332,7 @@ const RepeatedBookingDetailsPage = ({ draftId }: RepeatedBookingDetailsPageProps
             <h1 className="m-0 mb-6 text-[26px] font-semibold leading-none text-booking-primary">
               {t("bookingDetails.title")}
             </h1>
+            <PersonalPriorityReminder className="mb-4" ministryId={draft.ministryId} scope="series" />
             <Alert
               message={t("startBooking.recurringReview.previewDoesNotReserve")}
               size="sm"
