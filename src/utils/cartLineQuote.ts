@@ -18,6 +18,7 @@ export const previewQuoteLinePayload = (
 export interface CartAggregateQuote {
   quotedAmount: string | number | null;
   currency: string | null;
+  isFreeMinistry: boolean;
   lineQuotes: Array<{ lineSubtotal: string | number | null; currency: string | null }>;
 }
 
@@ -37,6 +38,7 @@ export const fetchCartAggregateQuote = async (
   return {
     quotedAmount: quote.quotedAmount,
     currency: quote.currency,
+    isFreeMinistry: quote.isFreeMinistry,
     lineQuotes: lines.map((_, index) => ({
       lineSubtotal: quote.roomLines[index]?.lineSubtotal ?? null,
       currency: quote.roomLines[index]?.currency ?? quote.currency,

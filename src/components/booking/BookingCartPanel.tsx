@@ -1,3 +1,4 @@
+import FreeMinistryBadge from "@/components/booking/FreeMinistryBadge";
 import { bookingTitleFieldFeedback } from "@/utils/bookingTitle";
 import { repeatedCartLineTime, type BookingLine, type RoomDay, type TimeRange } from "@/utils/timetableRules";
 import { formatQuotedAmount } from "@/utils/paymentSummary";
@@ -9,6 +10,7 @@ import { MdPhoto } from "react-icons/md";
 export interface EstimatedTotal {
   quotedAmount: string | number;
   currency: string;
+  isFreeMinistry?: boolean;
 }
 
 export interface CartMinistryOption {
@@ -172,6 +174,11 @@ const BookingCartPanel = ({
             </span>
           )}
         </div>
+        {!isPriceLoading && estimatedTotal?.isFreeMinistry ? (
+          <div>
+            <FreeMinistryBadge />
+          </div>
+        ) : null}
       </div>
 
       {isChecking ? (

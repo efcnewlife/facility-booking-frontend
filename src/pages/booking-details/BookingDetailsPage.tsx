@@ -2,6 +2,7 @@ import facilityService, { BookingDraftNotFoundError, type OverrideReview } from 
 import BookingConflictList from "@/components/booking/BookingConflictList";
 import ConfirmBookingTime from "@/components/booking/ConfirmBookingTime";
 import OverrideConfirmDialog from "@/components/booking/OverrideConfirmDialog";
+import PaymentSummaryCard from "@/components/booking/PaymentSummaryCard";
 import OverrideImpactList from "@/components/booking/OverrideImpactList";
 import OverrideSelectionDialog from "@/components/booking/OverrideSelectionDialog";
 import PersonalPriorityReminder from "@/components/booking/PersonalPriorityReminder";
@@ -20,6 +21,7 @@ import {
   replaceLineInDraft,
 } from "@/utils/bookingDetailsDraft";
 import { discountLabelKey } from "@/utils/discountEligibility";
+import { bookingConfirmationTarget } from "@/utils/freeMinistryBooking";
 import { finalConfirmationRejection } from "@/utils/overrideReviewErrors";
 import { mapPaymentSummary, type PaymentSummaryLabels } from "@/utils/paymentSummary";
 import { toRoomsSearchParams } from "@/utils/startBookingFlow";
@@ -98,6 +100,7 @@ const OneTimeBookingDetailsPage = () => {
   const [confirmStart, setConfirmStart] = useState("");
   const [confirmEnd, setConfirmEnd] = useState("");
   const [review, setReview] = useState<OverrideReview | null>(null);
+  const [isFreeMinistry, setIsFreeMinistry] = useState(false);
   const [finalOverrideOpen, setFinalOverrideOpen] = useState(false);
   const [pendingOverrideEdit, setPendingOverrideEdit] = useState<{
     sequence: number;
@@ -117,6 +120,7 @@ const OneTimeBookingDetailsPage = () => {
       const detail = await facilityService.getBookingDraft(draftId);
       setDraft(bookingDraftDetailToCartDraft(detail));
       setReview(reviewFromDraft(detail));
+      setIsFreeMinistry(detail.isFreeMinistry);
       return true;
     } catch (err) {
       if (err instanceof BookingDraftNotFoundError) {
@@ -250,6 +254,7 @@ const OneTimeBookingDetailsPage = () => {
       const updated = await facilityService.updateBookingDraft(draftId, buildCreateBookingDraftPayload(nextDraft));
       setDraft(bookingDraftDetailToCartDraft(updated));
       setReview(reviewFromDraft(updated));
+      setIsFreeMinistry(updated.isFreeMinistry);
     } catch (err) {
       if (err instanceof BookingDraftNotFoundError) {
         setNotFound(true);
@@ -324,7 +329,8 @@ const OneTimeBookingDetailsPage = () => {
       const created = await facilityService.createBooking(
         buildCreateBookingPayload(draft, draft.title ?? "", draftId, overrideReviewToken)
       );
-      navigate(`/payment/one-time/${created.id}`);
+      const target = bookingConfirmationTarget("one-time", created.id, isFreeMinistry);
+      navigate(target.path, { state: target.state });
     } catch (err) {
       const rejection = finalConfirmationRejection(err);
       if (!rejection) {
@@ -501,43 +507,11 @@ const OneTimeBookingDetailsPage = () => {
             ) : null}
             {overrideImpacts.length > 0 ? <div className="mt-4">{impactList}</div> : null}
           </div>
-          <aside className="flex w-full shrink-0 flex-col items-center gap-4 sm:w-[300px]">
-            <h2 className="m-0 text-center text-[26px] font-semibold leading-none text-booking-primary">
-              {t("bookingDetails.paymentSummary")}
-            </h2>
-            <div className="flex w-full flex-col items-center gap-[15px] rounded-[10px] border border-booking-grey bg-booking-bg px-[25px] py-10">
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.rate")}</span>
-                <span>{paymentSummary.rate}</span>
-              </div>
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t(discountLabelKey(discountCode))}</span>
-                <span>{paymentSummary.ministryDiscount}</span>
-              </div>
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.surcharge")}</span>
-                <span>{paymentSummary.surcharge}</span>
-              </div>
-              <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
-              <div className="flex w-[233px] justify-between text-base font-bold leading-5 text-booking-primary">
-                <span>{t("bookingDetails.subtotal")}</span>
-                <span>{paymentSummary.subtotal}</span>
-              </div>
-              <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
-              <div className="flex w-[233px] justify-between text-base leading-5 text-booking-primary">
-                <span>{t("bookingDetails.tax")}</span>
-                <span>{paymentSummary.tax}</span>
-              </div>
-              <hr className="m-0 w-[260px] border-0 border-t border-gray-300" />
-              <div className="flex w-[233px] justify-between text-base font-bold leading-5 text-booking-primary">
-                <span>{t("bookingDetails.total")}</span>
-                <span>{paymentSummary.total}</span>
-              </div>
-              <Button className="mt-1" disabled={!canConfirm} onClick={handleConfirm}>
-                {t("bookingDetails.confirm")}
-              </Button>
-            </div>
-          </aside>
+          <PaymentSummaryCard discountLabel={t(discountLabelKey(discountCode))} summary={paymentSummary}>
+            <Button className="mt-1" disabled={!canConfirm} onClick={handleConfirm}>
+              {t("bookingDetails.confirm")}
+            </Button>
+          </PaymentSummaryCard>
         </section>
       </main>
       <OverrideConfirmDialog

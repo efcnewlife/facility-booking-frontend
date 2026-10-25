@@ -49,6 +49,7 @@ const confirmableDraft = (overrides: Partial<RecurringSeriesDraftDetail> = {}): 
   discountAmount: "0.00",
   surchargeAmount: "0.00",
   currency: "CAD",
+  isFreeMinistry: false,
   occurrenceCount: 5,
   pendingPaymentHoldDays: 3,
   paymentHoldExpiresAt: "2026-08-22T16:00:00.000Z",

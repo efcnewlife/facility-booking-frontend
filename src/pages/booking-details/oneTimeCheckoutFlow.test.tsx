@@ -52,6 +52,7 @@ const { mockFacility, BookingDraftNotFoundError } = vi.hoisted(() => {
       getAvailability: vi.fn(),
       previewQuote: vi.fn(),
       getDiscountEligibility: vi.fn(),
+      getMyBooking: vi.fn(),
     },
   };
 });
@@ -183,6 +184,8 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
         React.createElement("label", { htmlFor: id }, label),
         React.createElement("input", { id, readOnly: true, value: value ? value.format("HH:mm") : "" })
       ),
+    Radio: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
+    TextArea: ({ children }: { children?: React.ReactNode }) => React.createElement("div", null, children),
     cn: (...parts: Array<string | false | null | undefined>) => parts.filter(Boolean).join(" "),
   };
 });
@@ -190,6 +193,7 @@ vi.mock("@efcnewlife/newlife-ui", async () => {
 import ministryService from "@/api/services/ministryService";
 import { change_app_language } from "@/i18n";
 import BookingDetailsPage from "@/pages/booking-details/BookingDetailsPage";
+import BookingDetailPage from "@/pages/my-bookings/BookingDetailPage";
 import NotFoundPage from "@/pages/not-found/NotFoundPage";
 import RoomFilterPage from "@/pages/rooms/RoomFilterPage";
 import { loadTimetableCart, saveTimetableCart } from "@/utils/timetableCartStorage";
@@ -1480,5 +1484,226 @@ describe("One-time Booking Details Override review and final confirmation", () =
     await user.click(screen.getByRole("button", { name: "确认" }));
     expect(await screen.findByRole("dialog", { name: "确认并通知" })).toBeTruthy();
     expect(mockFacility.createBooking).not.toHaveBeenCalled();
+  });
+});
+
+const FREE_BOOKING_ID = "5fa85f64-5717-4562-b3fc-2c963f66afa6";
+const ZERO_AMOUNT = /^(CA)?\$0\.00$/;
+
+const freeMinistryQuote = () => ({
+  subtotalAmount: "0.00",
+  discountAmount: "0.00",
+  surchargeAmount: "0.00",
+  quotedAmount: "0.00",
+  currency: "CAD",
+  isFreeMinistry: true,
+  roomLines: [{ facilityId: "gym-id", lineSubtotal: "0.00", currency: "CAD" }],
+});
+
+// A Room without a Rental Rate still quotes for a free Ministry proposal; its rate fields are null.
+const savedFreeMinistryBooking = () => ({
+  id: FREE_BOOKING_ID,
+  title: "Choir practice",
+  status: "confirmed",
+  bookingType: "one_time",
+  seriesId: null,
+  startAt: "2026-09-01T10:00:00-04:00",
+  endAt: "2026-09-01T11:00:00-04:00",
+  ministryId: "ministry-1",
+  ministryName: "Youth Ministry",
+  remark: null,
+  bookerDisplayName: "Jane Doe",
+  bookerEmail: "jane@example.com",
+  quotedAmount: "0.00",
+  subtotalAmount: "0.00",
+  discountPercent: "0",
+  discountAmount: "0.00",
+  surchargeAmount: "0.00",
+  currency: "CAD",
+  paymentHoldExpiresAt: null,
+  isBooker: true,
+  isViewOnly: false,
+  rooms: [
+    {
+      id: "room-line-1",
+      facilityId: "gym-id",
+      facilityName: "Gym",
+      sequence: 1,
+      startAt: "2026-09-01T10:00:00-04:00",
+      endAt: "2026-09-01T11:00:00-04:00",
+      billedHours: "1.00",
+      rentalRateName: null,
+      billingUnit: null,
+      unitAmount: null,
+      currency: "CAD",
+      lineSubtotal: "0.00",
+      photoUrls: [],
+    },
+  ],
+  timeline: [],
+  actions: {
+    canEditTitle: false,
+    canCancel: true,
+    canViewPaymentInstructions: false,
+    canBookAgain: false,
+    bookAgainDate: null,
+  },
+});
+
+const renderCheckoutToDetail = (initialEntry: string) => {
+  return render(
+    <MemoryRouter initialEntries={[initialEntry]}>
+      <Routes>
+        <Route element={<RoomFilterPage />} path="/rooms" />
+        <Route element={<BookingDetailsPage />} path="/booking-details/one-time/:draftId" />
+        <Route element={<p>Payment page</p>} path="/payment/one-time/:bookingId" />
+        <Route element={<BookingDetailPage />} path="/my-bookings/:bookingId" />
+        <Route element={<NotFoundPage />} path="*" />
+      </Routes>
+    </MemoryRouter>
+  );
+};
+
+describe("One-time free Ministry checkout", () => {
+  beforeEach(() => {
+    window.localStorage.clear();
+    vi.mocked(ministryService.listMine).mockResolvedValue({
+      items: [{ id: "ministry-1", name: "Youth Ministry", status: "active", isActive: true }],
+    });
+    mockFacility.getAvailability.mockResolvedValue(timetableAvailability());
+    mockFacility.getBookingDraft.mockResolvedValue({ ...draftDetail(), isFreeMinistry: true });
+    mockFacility.previewQuote.mockResolvedValue(freeMinistryQuote());
+    mockFacility.getDiscountEligibility.mockResolvedValue({
+      discountCode: null,
+      discountPercent: 0,
+      isFreeMinistry: true,
+    });
+    mockFacility.createBooking.mockResolvedValue({ id: FREE_BOOKING_ID });
+    mockFacility.getMyBooking.mockResolvedValue(savedFreeMinistryBooking());
+  });
+
+  afterEach(async () => {
+    cleanup();
+    vi.clearAllMocks();
+    vi.mocked(ministryService.listMine).mockResolvedValue({ items: [] });
+    window.localStorage.clear();
+    await change_app_language("en");
+  });
+
+  it("shows the Cart as a free Ministry booking with a zero Estimated Total", async () => {
+    saveTimetableCart(window.localStorage, {
+      date: "2026-09-01",
+      ministryId: "ministry-1",
+      lines: [{ sequence: 1, facilityId: "gym-id", start: "10:00", end: "11:00" }],
+    });
+    renderCheckoutToDetail("/rooms?date=2026-09-01&ministryId=ministry-1");
+
+    const cart = await screen.findByRole("complementary", { name: "Booking cart" });
+    expect(await within(cart).findByText("Free Ministry booking")).toBeTruthy();
+    expect(within(cart).getAllByText(ZERO_AMOUNT).length).toBe(2);
+  });
+
+  it("reviews a free Ministry Draft with zero charges and no Ministry discount row", async () => {
+    renderCheckoutToDetail(`/booking-details/one-time/${DRAFT_ID}`);
+
+    expect(await screen.findByText("Free Ministry booking")).toBeTruthy();
+    expect(screen.getByText("Ministry bookings are free. No payment is needed.")).toBeTruthy();
+    await waitFor(() => expect(screen.getAllByText(ZERO_AMOUNT).length).toBe(3));
+    expect(screen.queryByText("Ministry discount")).toBeNull();
+    expect(screen.queryByText("Discount")).toBeNull();
+  });
+
+  it("confirms a free Ministry Booking to its saved details instead of the payment page", async () => {
+    const user = userEvent.setup();
+    renderCheckoutToDetail(`/booking-details/one-time/${DRAFT_ID}`);
+
+    await screen.findByText("Free Ministry booking");
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByRole("heading", { name: "Choir practice" })).toBeTruthy();
+    expect(screen.queryByText("Payment page")).toBeNull();
+    expect(mockFacility.getMyBooking).toHaveBeenCalledWith(FREE_BOOKING_ID);
+    expect(screen.getByText("Booking confirmed")).toBeTruthy();
+    expect(screen.getByText("Free Ministry booking")).toBeTruthy();
+  });
+
+  it("revisits a free Ministry Booking with zero charges and no payment prompts", async () => {
+    renderCheckoutToDetail(`/my-bookings/${FREE_BOOKING_ID}`);
+
+    expect(await screen.findByRole("heading", { name: "Choir practice" })).toBeTruthy();
+    expect(screen.getByText("Free Ministry booking")).toBeTruthy();
+    expect(screen.queryByText("Booking confirmed")).toBeNull();
+    expect(screen.queryByText("Ministry discount")).toBeNull();
+    expect(screen.queryByText(/-(CA)?\$0\.00/)).toBeNull();
+    expect(screen.queryByText(/Pay in full before/)).toBeNull();
+    expect(screen.queryByText(/e-Transfer/i)).toBeNull();
+    expect(screen.getAllByText(ZERO_AMOUNT).length).toBeGreaterThan(0);
+  });
+
+  it("keeps Personal checkout on the payment page with its rental price", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValue(draftDetail({ ministryId: null }));
+    mockFacility.previewQuote.mockResolvedValue({
+      subtotalAmount: "75.00",
+      discountAmount: "0.00",
+      surchargeAmount: "0.00",
+      quotedAmount: "75.00",
+      currency: "CAD",
+      isFreeMinistry: false,
+      roomLines: [{ facilityId: "gym-id", lineSubtotal: "75.00", currency: "CAD" }],
+    });
+    mockFacility.getDiscountEligibility.mockResolvedValue({ discountCode: null, discountPercent: 0 });
+    renderCheckoutToDetail(`/booking-details/one-time/${DRAFT_ID}`);
+
+    await waitFor(() => expect(screen.getAllByText(/75\.00/).length).toBeGreaterThan(0));
+    expect(screen.queryByText("Free Ministry booking")).toBeNull();
+    expect(screen.getByText("Discount")).toBeTruthy();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("Payment page")).toBeTruthy();
+  });
+
+  it("keeps an ineligible Ministry Draft priced and on the payment page when the server does not mark it free", async () => {
+    const user = userEvent.setup();
+    mockFacility.getBookingDraft.mockResolvedValue({
+      ...draftDetail({ ministryId: "ministry-1" }),
+      isFreeMinistry: false,
+    });
+    mockFacility.previewQuote.mockResolvedValue({
+      subtotalAmount: "75.00",
+      discountAmount: "0.00",
+      surchargeAmount: "0.00",
+      quotedAmount: "75.00",
+      currency: "CAD",
+      isFreeMinistry: false,
+      roomLines: [{ facilityId: "gym-id", lineSubtotal: "75.00", currency: "CAD" }],
+    });
+    mockFacility.getDiscountEligibility.mockResolvedValue({
+      discountCode: null,
+      discountPercent: 0,
+      isFreeMinistry: false,
+    });
+    renderCheckoutToDetail(`/booking-details/one-time/${DRAFT_ID}`);
+
+    await waitFor(() => expect(screen.getAllByText(/75\.00/).length).toBeGreaterThan(0));
+    expect(screen.queryByText("Free Ministry booking")).toBeNull();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Confirm" })).not.toBeDisabled());
+    await user.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(await screen.findByText("Payment page")).toBeTruthy();
+    expect(mockFacility.createBooking).toHaveBeenCalledWith(expect.objectContaining({ ministryId: "ministry-1" }));
+  });
+
+  it.each([
+    ["zh-TW", "免費事工預訂", "事工預訂免費，無需付款。"],
+    ["zh-CN", "免费事工预订", "事工预订免费，无需付款。"],
+  ])("uses the %s free Ministry copy", async (locale, badge, summary) => {
+    await change_app_language(locale);
+    renderCheckoutToDetail(`/booking-details/one-time/${DRAFT_ID}`);
+
+    expect(await screen.findByText(badge)).toBeTruthy();
+    expect(screen.getByText(summary)).toBeTruthy();
   });
 });

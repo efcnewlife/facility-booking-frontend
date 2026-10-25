@@ -4,6 +4,7 @@ export interface PreviewQuoteMoney {
   surchargeAmount?: string | number | null;
   quotedAmount?: string | number | null;
   currency?: string | null;
+  isFreeMinistry?: boolean;
 }
 
 export interface PaymentSummaryLabels {
@@ -13,6 +14,8 @@ export interface PaymentSummaryLabels {
   subtotal: string;
   tax: string;
   total: string;
+  /** Free Ministry summaries show zero charges with no discount row. */
+  isFreeMinistry: boolean;
 }
 
 const EM_DASH = "—";
@@ -60,6 +63,7 @@ export const mapPaymentSummary = (quote: PreviewQuoteMoney | null, locale: strin
       subtotal: EM_DASH,
       tax: EM_DASH,
       total: EM_DASH,
+      isFreeMinistry: false,
     };
   }
   const currency = quote.currency;
@@ -70,5 +74,6 @@ export const mapPaymentSummary = (quote: PreviewQuoteMoney | null, locale: strin
     subtotal: EM_DASH,
     tax: EM_DASH,
     total: formatQuotedAmount(quote.quotedAmount, currency, locale),
+    isFreeMinistry: Boolean(quote.isFreeMinistry),
   };
 };

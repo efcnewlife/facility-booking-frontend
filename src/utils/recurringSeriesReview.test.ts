@@ -75,7 +75,7 @@ const previewResult = (
   conflicts: RecurringBookingConflict[] = [],
   quotedAmount: string | number | null = "150.00",
   currency: string | null = "CAD"
-): RecurringBookingSeriesPreview => ({ conflicts, quotedAmount, currency });
+): RecurringBookingSeriesPreview => ({ conflicts, quotedAmount, currency, isFreeMinistry: false });
 
 const noActions = {
   canEditTitle: false,
