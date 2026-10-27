@@ -6,21 +6,21 @@ This document helps AI agents quickly understand the **Facility Booking** member
 
 ## 1. What This Project Is
 
-| Item                | Value                                                                                                                   |
-| ------------------- | ----------------------------------------------------------------------------------------------------------------------- |
-| **Purpose**         | Member-facing SPA for church facility (room) booking                                                                    |
-| **Package**         | `facility-booking-frontend` `0.1.0` (`private`)                                                                         |
-| **Framework**       | React 19 + Vite 6 + TypeScript                                                                                          |
-| **Styling**         | Tailwind CSS v4 (CSS-first `@theme` in `src/index.css`); host owns tokens                                               |
-| **UI lib**          | `@efcnewlife/newlife-ui` (GitHub Packages)                                                                              |
-| **Router**          | React Router v7 (`react-router`) — routes centralized in `src/routes/index.tsx`                                         |
-| **HTTP**            | Axios via `httpClient`; app API prefix `/api/v1`                                                                        |
-| **Auth**            | Microsoft Entra ID (MSAL popup) → backend token exchange; optional mock login in non-production                         |
-| **i18n**            | `i18next` + `react-i18next` (`en`, `zh-TW`, `zh-CN`)                                                                    |
-| **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                                                           |
-| **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                                                           |
-| **Tests**           | Vitest: Node `src/**/*.test.ts` plus jsdom `src/**/*.test.tsx` checkout-flow harnesses; `pnpm test` / `pnpm type-check` |
-| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                                                               |
+| Item                | Value                                                                                                          |
+| ------------------- | -------------------------------------------------------------------------------------------------------------- |
+| **Purpose**         | Member-facing SPA for church facility (room) booking                                                           |
+| **Package**         | `facility-booking-frontend` `0.1.0` (`private`)                                                                |
+| **Framework**       | React 19 + Vite 6 + TypeScript                                                                                 |
+| **Styling**         | Tailwind CSS v4 (CSS-first `@theme` in `src/index.css`); host owns tokens                                      |
+| **UI lib**          | `@efcnewlife/newlife-ui` (GitHub Packages)                                                                     |
+| **Router**          | React Router v7 (`react-router`) — routes centralized in `src/routes/index.tsx`                                |
+| **HTTP**            | Axios via `httpClient`; app API prefix `/api/v1`                                                               |
+| **Auth**            | Microsoft Entra ID (MSAL popup) → backend token exchange; optional mock login in non-production                |
+| **i18n**            | `i18next` + `react-i18next` (`en`, `zh-TW`, `zh-CN`)                                                           |
+| **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                                                  |
+| **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                                                  |
+| **Tests**           | Vitest: Node `src/**/*.test.ts` plus jsdom `src/**/*.test.tsx` flow harnesses; `pnpm test` / `pnpm type-check` |
+| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                                                      |
 
 `flatpickr`, `moment-timezone`, and `react-helmet-async` are listed in `package.json` but **unused in `src/`**. Do not assume they are part of the stack. `BookingDatePicker` is a custom moment calendar.
 
@@ -97,6 +97,7 @@ Path alias `@` → `./src` is declared in both `vite.config.ts` and `tsconfig.ap
 │   ├── components/{auth,booking,profile}/
 │   ├── data/                        # mockProfile, mockRooms, …
 │   ├── i18n/                        # init + locales/{en,zh-TW,zh-CN}/
+│   ├── observability/               # Sentry bootstrap + config resolution
 │   ├── types/
 │   └── utils/                       # caseConvert, startBookingFlow, roomAvailabilityFilter, …
 ├── docs/design/                     # HTML/CSS mocks + assets (not runtime)
@@ -109,7 +110,7 @@ Path alias `@` → `./src` is declared in both `vite.config.ts` and `tsconfig.ap
 ## 4. App Entry & Routing
 
 ```
-main.tsx → StrictMode → App (+ i18n, index.css)
+main.tsx → initSentry() → StrictMode → App (+ i18n, index.css)
 App → AuthProvider → RouterProvider (router from src/routes/index.tsx)
 ```
 
@@ -345,9 +346,14 @@ Centralized in `src/config/env.ts`.
 | `VITE_MOCK_LOGIN_SECRET`                              | Staging secret header for mock login                       |
 | `VITE_AZURE_CLIENT_ID` / `TENANT_ID` / `REDIRECT_URI` | MSAL (`REDIRECT_URI` defaults to `window.location.origin`) |
 | `VITE_APP_NAME` / `TITLE` / `VERSION`                 | Branding                                                   |
+| `VITE_SENTRY_DSN`                                     | Sentry DSN; unset keeps telemetry off                      |
+| `VITE_SENTRY_ENABLED`                                 | dev off unless `true`; stg/prod on unless `false`          |
+| `VITE_SENTRY_RELEASE_VERSION`                         | prod semver / stg short SHA; invalid keeps Sentry off      |
 | `NODE_AUTH_TOKEN`                                     | pnpm GitHub Packages (not a Vite var)                      |
 
 Derived flags: `IS_DEV`, `IS_STAGING`, `IS_PROD`, `IS_SHOW_MOCK_LOGIN`, `IS_MICROSOFT_LOGIN_ENABLED`.
+
+Sentry is initialized once in `src/main.tsx` via `src/observability/sentry.ts`. Build modes map to telemetry environments `development` → `dev`, `staging` → `stg`, `production` → `prod`; any other mode (including Vitest `test`) never initializes. Release is `facility-booking-frontend@<semver|short-sha|local>`. This slice exports nothing automatically (no error handlers, breadcrumbs, logs, tracing, Replay, sessions, or personal/request data). Flow tests use the real SDK with `createCapturedSentryTransport` (`src/observability/sentryTestSupport.ts`, test-only).
 
 ---
 
@@ -376,6 +382,7 @@ Keep Vite **port 5174** / `strictPort` in mind — the admin portal uses 5173.
 | `package.json`                                 | Scripts, dependencies                     |
 | `vite.config.ts`                               | Port 5174, alias, SVGR                    |
 | `src/config/env.ts`                            | Env flags                                 |
+| `src/observability/sentry.ts`                  | Sentry startup (once, privacy-off)        |
 | `src/App.tsx` / `src/main.tsx`                 | Bootstrap                                 |
 | `src/routes/index.tsx`                         | All routes                                |
 | `src/context/AuthContext.tsx`                  | Auth state                                |

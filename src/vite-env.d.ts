@@ -13,6 +13,9 @@ interface ImportMetaEnv {
   readonly VITE_AZURE_CLIENT_ID?: string;
   readonly VITE_AZURE_TENANT_ID?: string;
   readonly VITE_AZURE_REDIRECT_URI?: string;
+  readonly VITE_SENTRY_DSN?: string;
+  readonly VITE_SENTRY_ENABLED?: string;
+  readonly VITE_SENTRY_RELEASE_VERSION?: string;
 }
 
 interface ImportMeta {

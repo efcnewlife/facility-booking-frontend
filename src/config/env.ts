@@ -18,6 +18,10 @@ export const ENV_CONFIG = {
   AZURE_CLIENT_ID: (import.meta.env.VITE_AZURE_CLIENT_ID as string | undefined) || "",
   AZURE_TENANT_ID: (import.meta.env.VITE_AZURE_TENANT_ID as string | undefined) || "",
   AZURE_REDIRECT_URI: (import.meta.env.VITE_AZURE_REDIRECT_URI as string | undefined) || "",
+
+  SENTRY_DSN: (import.meta.env.VITE_SENTRY_DSN as string | undefined) || "",
+  SENTRY_ENABLED: (import.meta.env.VITE_SENTRY_ENABLED as string | undefined) || "",
+  SENTRY_RELEASE_VERSION: (import.meta.env.VITE_SENTRY_RELEASE_VERSION as string | undefined) || "",
 } as const;
 
 export const IS_DEV = ENV_CONFIG.APP_ENV === "development";

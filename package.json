@@ -21,6 +21,7 @@
   "dependencies": {
     "@azure/msal-browser": "^4.12.0",
     "@efcnewlife/newlife-ui": "^0.6.0",
+    "@sentry/react": "11.7.0",
     "@tailwindcss/forms": "^0.5.10",
     "axios": "^1.11.0",
     "clsx": "^2.1.1",
