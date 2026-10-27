@@ -24,6 +24,10 @@ export const createCapturedSentryTransport = ({ unavailable = false } = {}) => {
     transport,
     items,
     events: () => items.filter((item) => item.type === "event").map((item) => item.payload),
+    logs: () =>
+      items
+        .filter((item) => item.type === "log")
+        .flatMap((item) => (item.payload as { items: Array<Record<string, unknown>> }).items),
     sendAttempts: () => sendAttempts,
   };
 };
@@ -39,8 +43,11 @@ const parseEnvelopeItems = (body: string | Uint8Array): CapturedEnvelopeItem[] =
   return items;
 };
 
-/** Drops the active client so each test starts from an uninitialized SDK. */
+/** Drops the active client and scope data so each test starts from an uninitialized SDK. */
 export const resetSentryForTests = async () => {
   await Sentry.close();
   Sentry.getCurrentScope().setClient(undefined);
+  Sentry.getCurrentScope().clearBreadcrumbs();
+  Sentry.getIsolationScope().clearBreadcrumbs();
+  Sentry.setUser(null);
 };

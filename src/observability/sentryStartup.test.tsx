@@ -134,8 +134,11 @@ describe("Sentry startup", () => {
       release: "facility-booking-frontend@local",
     });
     expect(event).not.toHaveProperty("user");
-    expect(event).not.toHaveProperty("request");
-    expect(event).not.toHaveProperty("breadcrumbs");
+    expect(event.request).toEqual({ url: "http://localhost:3000/" });
+    expect(event.breadcrumbs).toEqual([
+      expect.objectContaining({ category: "ui.click", message: "input#ministry-no.sr-only" }),
+      expect.objectContaining({ category: "ui.click", message: expect.stringMatching(/^button\./) }),
+    ]);
   });
 
   it("initializes once across repeated startup", async () => {

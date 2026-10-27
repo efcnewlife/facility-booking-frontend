@@ -1,5 +1,6 @@
 import { API_ENDPOINTS, REQUEST_CONFIG } from "@/api";
 import i18n from "@/i18n";
+import { reportApiFailure, reportUnexpectedError } from "@/observability/sentry";
 import type { ApiError, ApiResponse, TokenResponse } from "@/types/api";
 import { deepKeysToSnakeCase } from "@/utils/caseConvert";
 import axios, {
@@ -26,6 +27,7 @@ class HttpClient {
   private responseInterceptors: ResponseInterceptor[] = [];
   private errorInterceptors: ErrorInterceptor[] = [];
   private refreshPromise: Promise<string> | null = null;
+  private reportedFailures = new WeakSet<Error>();
 
   constructor() {
     this.axiosInstance = axios.create({
@@ -195,11 +197,26 @@ class HttpClient {
             retryError && typeof retryError === "object" && "code" in retryError
               ? (retryError as ApiError)
               : this.handleError(retryError as AxiosError);
+          this.reportFailure(retryError, config);
           throw await this.executeErrorInterceptors(finalError);
         }
       }
 
+      this.reportFailure(error, config);
       throw await this.executeErrorInterceptors(apiError);
+    }
+  }
+
+  // Requests awaiting one shared refresh receive the same failure object; report it once.
+  private reportFailure(cause: unknown, config: HttpRequestConfig): void {
+    if (!(cause instanceof Error) || this.reportedFailures.has(cause)) {
+      return;
+    }
+    this.reportedFailures.add(cause);
+    if (axios.isAxiosError(cause)) {
+      reportApiFailure(cause.response?.status ?? 0, cause.config ?? config);
+    } else {
+      reportUnexpectedError(cause);
     }
   }
 
