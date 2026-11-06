@@ -97,7 +97,7 @@ Path alias `@` → `./src` is declared in both `vite.config.ts` and `tsconfig.ap
 │   ├── components/{auth,booking,profile}/
 │   ├── data/                        # mockProfile, mockRooms, …
 │   ├── i18n/                        # init + locales/{en,zh-TW,zh-CN}/
-│   ├── observability/               # Sentry bootstrap + config resolution
+│   ├── observability/               # Sentry bootstrap, config resolution, privacy filters
 │   ├── types/
 │   └── utils/                       # caseConvert, startBookingFlow, roomAvailabilityFilter, …
 ├── docs/design/                     # HTML/CSS mocks + assets (not runtime)
@@ -110,7 +110,7 @@ Path alias `@` → `./src` is declared in both `vite.config.ts` and `tsconfig.ap
 ## 4. App Entry & Routing
 
 ```
-main.tsx → initSentry() → StrictMode → App (+ i18n, index.css)
+main.tsx → initSentry() → createRoot(…, sentryReactRootOptions) → StrictMode → App (+ i18n, index.css)
 App → AuthProvider → RouterProvider (router from src/routes/index.tsx)
 ```
 
@@ -353,7 +353,19 @@ Centralized in `src/config/env.ts`.
 
 Derived flags: `IS_DEV`, `IS_STAGING`, `IS_PROD`, `IS_SHOW_MOCK_LOGIN`, `IS_MICROSOFT_LOGIN_ENABLED`.
 
-Sentry is initialized once in `src/main.tsx` via `src/observability/sentry.ts`. Build modes map to telemetry environments `development` → `dev`, `staging` → `stg`, `production` → `prod`; any other mode (including Vitest `test`) never initializes. Release is `facility-booking-frontend@<semver|short-sha|local>`. This slice exports nothing automatically (no error handlers, breadcrumbs, logs, tracing, Replay, sessions, or personal/request data). Flow tests use the real SDK with `createCapturedSentryTransport` (`src/observability/sentryTestSupport.ts`, test-only).
+Sentry is initialized once in `src/main.tsx` via `src/observability/sentry.ts`. Build modes map to telemetry environments `development` → `dev`, `staging` → `stg`, `production` → `prod`; any other mode (including Vitest `test`) never initializes. Release is `facility-booking-frontend@<semver|short-sha|local>`.
+
+What is enabled when Sentry is on (no other options are required):
+
+| Channel      | Source                                                                                                                                  | Notes                                                                                                                                                                                                                                                                 |
+| ------------ | --------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Errors       | React root `onCaughtError` / `onUncaughtError` (`sentryReactRootOptions`), `window.onerror`, unhandled rejections, browser API wrappers | Captured once (SDK dedupe + `__sentry_captured__`)                                                                                                                                                                                                                    |
+| API failures | `httpClient` → `reportApiFailure` / `reportUnexpectedError`                                                                             | Only 5xx responses (grouped by method + route + status, no backend text) and faults in the client's own code. 4xx (validation, auth, Booking conflicts), timeouts, and offline errors are not issues; `ApiError` / `AuthError` rejections are dropped in `beforeSend` |
+| Logs         | `console.warn` / `console.error`                                                                                                        | Info/debug never sent; only the authored template text, never arguments                                                                                                                                                                                               |
+| Breadcrumbs  | console warn/error, clicks, navigation, fetch/XHR                                                                                       | URL query values, fragments, selector attribute values, and console arguments removed                                                                                                                                                                                 |
+| User         | `AuthContext` → `setTelemetryUser`                                                                                                      | Internal member ID only; cleared on logout and any unauthenticated transition                                                                                                                                                                                         |
+
+Every channel passes through `src/observability/sentryPrivacy.ts` (`beforeSend`, `beforeBreadcrumb`, `beforeSendLog`) and SDK `dataCollection` is fully off: no bodies, headers, cookies, query strings, stack locals, credentials, tokens, names, email addresses, phone numbers, or remarks. Free-form text (exception messages) is pattern-scrubbed for emails, JWT/Bearer tokens, phone numbers, URL query values, and sensitive JSON keys; do not put personal data in `Error` messages you author. Not enabled: tracing, Replay, sessions, metrics, client reports (Replay and tracing are a separate ticket). Flow tests use the real SDK with `createCapturedSentryTransport` (`src/observability/sentryTestSupport.ts`, test-only).
 
 ---
 
@@ -382,7 +394,8 @@ Keep Vite **port 5174** / `strictPort` in mind — the admin portal uses 5173.
 | `package.json`                                 | Scripts, dependencies                     |
 | `vite.config.ts`                               | Port 5174, alias, SVGR                    |
 | `src/config/env.ts`                            | Env flags                                 |
-| `src/observability/sentry.ts`                  | Sentry startup (once, privacy-off)        |
+| `src/observability/sentry.ts`                  | Sentry startup, error/identity reporting  |
+| `src/observability/sentryPrivacy.ts`           | Telemetry privacy contract                |
 | `src/App.tsx` / `src/main.tsx`                 | Bootstrap                                 |
 | `src/routes/index.tsx`                         | All routes                                |
 | `src/context/AuthContext.tsx`                  | Auth state                                |

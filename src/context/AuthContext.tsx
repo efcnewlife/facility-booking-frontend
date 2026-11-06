@@ -1,6 +1,7 @@
 import { authService } from "@/api/services/authService";
 import { ensureMsalReady, MSAL_LOGIN_SCOPES } from "@/auth/msalInstance";
 import i18n from "@/i18n";
+import { setTelemetryUser } from "@/observability/sentry";
 import type { AuthState, MockLoginCredentials, User } from "@/types/auth";
 import { applyAccountLanguagePreference, persistAccountLanguagePreference } from "@/utils/accountLanguage";
 import { createContext, type ReactNode, useContext, useEffect, useReducer } from "react";
@@ -83,6 +84,11 @@ interface AuthProviderProps {
 
 export const AuthProvider = ({ children }: AuthProviderProps) => {
   const [state, dispatch] = useReducer(authReducer, initialState);
+  const telemetryUserId = state.isAuthenticated ? (state.user?.id ?? null) : null;
+
+  useEffect(() => {
+    setTelemetryUser(telemetryUserId);
+  }, [telemetryUserId]);
 
   const acceptAuthenticatedUser = async (user: User, token: string) => {
     await applyAccountLanguagePreference(user.preferredLocaleId);
