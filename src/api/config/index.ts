@@ -1,6 +1,6 @@
 import { ENV_CONFIG } from "@/config/env";
 
-const BOOKING_API_PREFIX = "/api/v1";
+export const BOOKING_API_PREFIX = "/api/v1";
 
 export const API_ENDPOINTS = {
   AUTH: {

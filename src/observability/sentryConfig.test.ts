@@ -8,6 +8,10 @@ const config = (overrides: Partial<SentryConfig>): SentryConfig => ({
   dsn: DSN,
   enabled: "",
   releaseVersion: "0.2.33",
+  tracesSampleRate: "",
+  replaysSessionSampleRate: "",
+  replaysOnErrorSampleRate: "",
+  apiUrl: "https://api.newlife.example.test/api/v1",
   ...overrides,
 });
 
@@ -17,11 +21,41 @@ describe("resolveSentryInit", () => {
     ["staging", "", "5ba2c79", "stg", "facility-booking-frontend@5ba2c79"],
     ["production", "", "0.2.33", "prod", "facility-booking-frontend@0.2.33"],
   ])("maps %s builds to the %s telemetry environment and release", (mode, enabled, releaseVersion, env, release) => {
-    expect(resolveSentryInit(config({ mode, enabled, releaseVersion }))).toEqual({
+    expect(resolveSentryInit(config({ mode, enabled, releaseVersion }))).toMatchObject({
       enabled: true,
       dsn: DSN,
       environment: env,
       release,
+    });
+  });
+
+  it("leaves tracing and Replay off until their sample rates are configured", () => {
+    expect(resolveSentryInit(config({}))).toMatchObject({
+      enabled: true,
+      tracesSampleRate: undefined,
+      replaysSessionSampleRate: undefined,
+      replaysOnErrorSampleRate: undefined,
+    });
+  });
+
+  it("applies the configured tracing and Replay sample rates", () => {
+    expect(
+      resolveSentryInit(
+        config({ tracesSampleRate: "0.25", replaysSessionSampleRate: "0", replaysOnErrorSampleRate: " 1 " })
+      )
+    ).toMatchObject({ tracesSampleRate: 0.25, replaysSessionSampleRate: 0, replaysOnErrorSampleRate: 1 });
+  });
+
+  it.each(["1.5", "-0.1", "abc", "50%", "0x1", "Infinity"])("treats sample rate %j as not configured", (rate) => {
+    expect(
+      resolveSentryInit(
+        config({ tracesSampleRate: rate, replaysSessionSampleRate: rate, replaysOnErrorSampleRate: rate })
+      )
+    ).toMatchObject({
+      enabled: true,
+      tracesSampleRate: undefined,
+      replaysSessionSampleRate: undefined,
+      replaysOnErrorSampleRate: undefined,
     });
   });
 

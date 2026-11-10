@@ -22,6 +22,11 @@ export const ENV_CONFIG = {
   SENTRY_DSN: (import.meta.env.VITE_SENTRY_DSN as string | undefined) || "",
   SENTRY_ENABLED: (import.meta.env.VITE_SENTRY_ENABLED as string | undefined) || "",
   SENTRY_RELEASE_VERSION: (import.meta.env.VITE_SENTRY_RELEASE_VERSION as string | undefined) || "",
+  SENTRY_TRACES_SAMPLE_RATE: (import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE as string | undefined) || "",
+  SENTRY_REPLAYS_SESSION_SAMPLE_RATE:
+    (import.meta.env.VITE_SENTRY_REPLAYS_SESSION_SAMPLE_RATE as string | undefined) || "",
+  SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE:
+    (import.meta.env.VITE_SENTRY_REPLAYS_ON_ERROR_SAMPLE_RATE as string | undefined) || "",
 } as const;
 
 export const IS_DEV = ENV_CONFIG.APP_ENV === "development";
