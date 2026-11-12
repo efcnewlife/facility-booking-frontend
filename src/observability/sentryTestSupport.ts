@@ -28,6 +28,10 @@ export const createCapturedSentryTransport = ({ unavailable = false } = {}) => {
       items
         .filter((item) => item.type === "log")
         .flatMap((item) => (item.payload as { items: Array<Record<string, unknown>> }).items),
+    spans: () =>
+      items
+        .filter((item) => item.type === "span")
+        .flatMap((item) => (item.payload as { items: Array<Record<string, unknown>> }).items),
     sendAttempts: () => sendAttempts,
   };
 };

@@ -39,6 +39,10 @@ const LOCAL_OPT_IN: SentryConfig = {
   dsn: "https://public@o0.ingest.example.test/1",
   enabled: "true",
   releaseVersion: "",
+  tracesSampleRate: "",
+  replaysSessionSampleRate: "",
+  replaysOnErrorSampleRate: "",
+  apiUrl: "http://127.0.0.1:8000/api/v1",
 };
 
 const MEMBER_A_ID = "member-a-7f3e";
@@ -359,7 +363,7 @@ describe("Sentry error capture", () => {
   it("labels staging browser errors with the staging environment and commit release", async () => {
     const captured = createCapturedSentryTransport();
     initSentry(
-      { mode: "staging", dsn: LOCAL_OPT_IN.dsn, enabled: "", releaseVersion: "5ba2c79" },
+      { ...LOCAL_OPT_IN, mode: "staging", enabled: "", releaseVersion: "5ba2c79" },
       {
         transport: captured.transport,
       }

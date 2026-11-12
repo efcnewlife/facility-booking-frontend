@@ -1,4 +1,19 @@
-import type { Breadcrumb, BreadcrumbHint, ErrorEvent, EventHint, Log, StackFrame } from "@sentry/react";
+import type {
+  Breadcrumb,
+  BreadcrumbHint,
+  BrowserOptions,
+  ErrorEvent,
+  EventHint,
+  Log,
+  replayIntegration,
+  StackFrame,
+} from "@sentry/react";
+
+export type StreamedSpanJSON = Parameters<NonNullable<BrowserOptions["beforeSendSpan"]>>[0];
+export type Envelope = Parameters<ReturnType<NonNullable<BrowserOptions["transport"]>>["send"]>[0];
+export type RecordingEvent = Parameters<
+  NonNullable<NonNullable<Parameters<typeof replayIntegration>[0]>["beforeAddRecordingEvent"]>
+>[0];
 
 /**
  * Privacy contract applied to every Sentry channel before transmission. Telemetry keeps code
@@ -135,14 +150,17 @@ export const isApiFailureRejection = (value: unknown): boolean => {
   return typeof message === "string" && (typeof code === "number" || typeof code === "string");
 };
 
-const scrubDeep = (value: unknown): unknown => {
-  if (typeof value === "string") return scrubText(value);
-  if (Array.isArray(value)) return value.map(scrubDeep);
+/** Applies `scrubString` to every string nested in arrays and plain objects. */
+const mapStrings = (value: unknown, scrubString: (text: string) => string): unknown => {
+  if (typeof value === "string") return scrubString(value);
+  if (Array.isArray(value)) return value.map((nested) => mapStrings(nested, scrubString));
   if (value && typeof value === "object") {
-    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, scrubDeep(nested)]));
+    return Object.fromEntries(Object.entries(value).map(([key, nested]) => [key, mapStrings(nested, scrubString)]));
   }
   return value;
 };
+
+const scrubDeep = (value: unknown): unknown => mapStrings(value, scrubText);
 
 const sanitizeFrame = (frame: StackFrame): StackFrame =>
   pickDefined({
@@ -192,4 +210,144 @@ export const sanitizeEvent = (event: ErrorEvent, hint: EventHint): ErrorEvent | 
     };
   }
   return sanitized;
+};
+
+/** Span metadata that can carry query values, payloads, headers, or identity beyond the internal user ID. */
+const DROPPED_SPAN_ATTRIBUTE = /query|fragment|body|header|cookie|user\.(?!id$)/i;
+
+export const sanitizeSpan = (span: StreamedSpanJSON): StreamedSpanJSON => ({
+  ...span,
+  name: scrubText(span.name),
+  attributes: Object.fromEntries(
+    Object.entries(span.attributes)
+      .filter(([key]) => !DROPPED_SPAN_ATTRIBUTE.test(key))
+      .map(([key, value]) => [key, scrubDeep(value)])
+  ),
+});
+
+type ReplayFrameData = Record<string, unknown> & {
+  nodeId?: number;
+  node?: { id: number; tagName: string };
+  key?: unknown;
+};
+
+/** Breadcrumb categories whose `data` the shared breadcrumb sanitizer already rebuilds. */
+const SANITIZED_BREADCRUMB_DATA = new Set(["console", "fetch", "xhr", "navigation"]);
+const REPLAY_REQUEST_OPS = new Set(["resource.fetch", "resource.xhr"]);
+/** Media paths can name the member (an uploaded photo file name, a per-member folder); keep only the origin. */
+const REPLAY_MEDIA_OPS = new Set(["resource.img", "resource.video", "resource.audio"]);
+const URL_LIKE = /^(?:https?:\/\/|\/)/i;
+
+const URL_ORIGIN = /^[a-z][\w+.-]*:\/\/(?:[^/?#@]*@)?[^/?#@]+/i;
+
+const urlOrigin = (url: string) => url.match(URL_ORIGIN)?.[0].replace(URL_CREDENTIALS, "$1") ?? FILTERED;
+
+const scrubReplayValue = (value: unknown): unknown =>
+  mapStrings(value, (text) => (URL_LIKE.test(text) ? sanitizeUrl(text) : scrubText(text)));
+
+/** DOM frames keep the recorded node reference for highlighting, never its text, attributes, or typed key. */
+const sanitizeReplayFrameData = (data: ReplayFrameData) => {
+  const { node, ...rest } = data;
+  delete rest.key;
+  return pickDefined({
+    ...(scrubReplayValue(rest) as Record<string, unknown>),
+    node: node && { id: node.id, tagName: node.tagName, textContent: "", attributes: {} },
+  });
+};
+
+type ReplayRequestData = {
+  method?: unknown;
+  statusCode?: unknown;
+  request?: { size?: unknown };
+  response?: { size?: unknown };
+};
+
+const sanitizeReplayRequestData = (data: ReplayRequestData) =>
+  pickDefined({
+    method: data.method,
+    statusCode: data.statusCode,
+    request: data.request && pickDefined({ size: data.request.size }),
+    response: data.response && pickDefined({ size: data.response.size }),
+  });
+
+/**
+ * Replay's own breadcrumb and span frames (console, clicks, keys, network, navigation). Masking of
+ * recorded DOM text, inputs, and media is configured on the Replay integration itself.
+ */
+export const sanitizeRecordingEvent = (event: RecordingEvent): RecordingEvent => {
+  if (event.data.tag === "breadcrumb") {
+    const frame = event.data.payload;
+    const sanitized = sanitizeBreadcrumb(frame as Breadcrumb) as typeof frame;
+    if (frame.data && !SANITIZED_BREADCRUMB_DATA.has(frame.category)) {
+      sanitized.data = sanitizeReplayFrameData(frame.data as ReplayFrameData);
+    }
+    return { ...event, data: { ...event.data, payload: sanitized } };
+  }
+  if (event.data.tag === "performanceSpan") {
+    const frame = event.data.payload;
+    const data =
+      frame.data &&
+      (REPLAY_REQUEST_OPS.has(frame.op)
+        ? sanitizeReplayRequestData(frame.data as ReplayRequestData)
+        : (scrubReplayValue(frame.data) as Record<string, unknown>));
+    return {
+      ...event,
+      data: {
+        ...event.data,
+        payload: pickDefined({
+          ...frame,
+          description: REPLAY_MEDIA_OPS.has(frame.op)
+            ? urlOrigin(frame.description)
+            : scrubReplayValue(frame.description),
+          data,
+        }),
+      },
+    } as RecordingEvent;
+  }
+  return event;
+};
+
+/** Replay events skip `beforeSend`; they carry the visited URLs plus the usual request and user metadata. */
+export const sanitizeReplayEvent = <T extends ErrorEvent & { urls?: string[] }>(event: T): T => {
+  const sanitized = sanitizeEvent(event, {}) as T;
+  if (event.urls) sanitized.urls = event.urls.map(sanitizeUrl);
+  return sanitized;
+};
+
+/** rrweb's Meta event: the page URL captured with each full snapshot. */
+const RRWEB_META_EVENT = 4;
+
+type RawRecordingEvent = { type: number; data?: { href?: unknown } };
+
+/**
+ * Snapshot page URLs come from the DOM recorder, which `beforeAddRecordingEvent` never sees. Requires
+ * Replay compression off so the recording is still JSON text; a binary recording is dropped, and a
+ * malformed one throws so the transport sends nothing.
+ */
+const sanitizeReplayRecording = (payload: unknown): string | null => {
+  if (typeof payload !== "string") return null;
+  const headerEnd = payload.indexOf("\n");
+  const events = JSON.parse(payload.slice(headerEnd + 1)) as RawRecordingEvent[];
+  const sanitized = events.map((event) =>
+    event.type === RRWEB_META_EVENT && typeof event.data?.href === "string"
+      ? { ...event, data: { ...event.data, href: sanitizeUrl(event.data.href) } }
+      : event
+  );
+  return `${payload.slice(0, headerEnd + 1)}${JSON.stringify(sanitized)}`;
+};
+
+type EnvelopeItem = [{ type: string; length?: number }, unknown];
+
+export const sanitizeEnvelope = (envelope: Envelope): Envelope => {
+  const [headers, items] = envelope as unknown as [unknown, EnvelopeItem[]];
+  if (!items.some(([header]) => header.type === "replay_recording")) return envelope;
+
+  const sanitizedItems = items.flatMap((item): EnvelopeItem[] => {
+    const [header, payload] = item;
+    if (header.type !== "replay_recording") return [item];
+    const recording = sanitizeReplayRecording(payload);
+    if (recording === null) return [];
+    return [[{ ...header, length: new TextEncoder().encode(recording).length }, recording]];
+  });
+  return [headers, sanitizedItems] as unknown as Envelope;
 };

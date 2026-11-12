@@ -70,6 +70,10 @@ const LOCAL_OPT_IN: SentryConfig = {
   dsn: "https://public@o0.ingest.example.test/1",
   enabled: "true",
   releaseVersion: "",
+  tracesSampleRate: "",
+  replaysSessionSampleRate: "",
+  replaysOnErrorSampleRate: "",
+  apiUrl: "http://127.0.0.1:8000/api/v1",
 };
 
 const SYNTHETIC_MESSAGE = "Facility Booking telemetry startup check";
