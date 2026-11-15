@@ -1,0 +1,3 @@
+# Files Wrangler must not upload from dist/ (Cloudflare Workers Static Assets).
+# Source maps go to Sentry only (scripts/deploy-staging.sh).
+*.map
