@@ -20,7 +20,7 @@ This document helps AI agents quickly understand the **Facility Booking** member
 | **Dates**           | `moment` (API dates are `YYYY-MM-DD` strings)                                                                  |
 | **Package manager** | pnpm only (`.npmrc`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`)                                                  |
 | **Tests**           | Vitest: Node `src/**/*.test.ts` plus jsdom `src/**/*.test.tsx` flow harnesses; `pnpm test` / `pnpm type-check` |
-| **CI**              | `.github/workflows/branch-name.yml` (PR head branch name)                                                      |
+| **CI**              | `.github/workflows/ci.yml` (checks, staging build, staging deploy); `branch-name.yml` (PR head branch name)    |
 
 `flatpickr`, `moment-timezone`, and `react-helmet-async` are listed in `package.json` but **unused in `src/`**. Do not assume they are part of the stack. `BookingDatePicker` is a custom moment calendar.
 
@@ -52,9 +52,10 @@ pnpm build            # tsc -b && vite build
 pnpm build:stg        # --mode staging
 pnpm build:prod       # --mode production
 pnpm preview
-./scripts/check-branch-name.test.sh
-./scripts/format-staged.test.sh
+for t in scripts/*.test.sh; do "$t"; done   # branch names, format hook, release target, staging deploy (fake sentry-cli/wrangler/curl)
 ```
+
+CI (`.github/workflows/ci.yml`) runs `pnpm install --frozen-lockfile`, **`pnpm format:check`**, **`pnpm type-check`**, **`pnpm test`**, the script tests, and a staging build on every PR and on pushes to `main`, `develop`, `release/**`, and tags. It does not run `lint`. `main` and `x.y.z` tags on a `release/*` branch also upload source maps to Sentry and deploy staging to Cloudflare (see _Staging hosting_ in section 13); agents never trigger that. PRs also run `.github/workflows/branch-name.yml` (`Branch name` check).
 
 ### Branch names
 
@@ -372,6 +373,22 @@ What is enabled when Sentry is on (no other options are required for these rows)
 
 Every channel passes through `src/observability/sentryPrivacy.ts` (`beforeSend`, `beforeBreadcrumb`, `beforeSendLog`, `beforeSendSpan`, Replay `beforeAddRecordingEvent`, and a transport-level `sanitizeEnvelope`) and SDK `dataCollection` is fully off: no bodies, headers, cookies, query strings, stack locals, credentials, tokens, names, email addresses, phone numbers, or remarks. Free-form text (exception messages) is pattern-scrubbed for emails, JWT/Bearer tokens, phone numbers, URL query values, and sensitive JSON keys; do not put personal data in `Error` messages you author. Not enabled: sessions, metrics, client reports, profiling, canvas recording. No sampling policy is fixed; tracing and Replay stay off until their rates are configured. Replay does not start under jsdom, so Replay privacy and the logout restart are verified in a real browser against a local envelope collector. Flow tests use the real SDK with `createCapturedSentryTransport` (`src/observability/sentryTestSupport.ts`, test-only).
 
+### Staging hosting (Cloudflare)
+
+Staging is served at `https://booking-dev.efcnewlife.com` by the Worker `facility-booking-frontend-stg` on Cloudflare Workers Static Assets: built files only, no Worker script. `dev` in the hostname means staging. The staging pipeline passes the same release value to the SDK build and to the source-map upload.
+
+| File                                | Role                                                                                                                             |
+| ----------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `wrangler.staging.jsonc`            | `dist/`, SPA fallback (unknown paths get `index.html`), the `booking-dev` custom domain only; `workers.dev` and Preview URLs off |
+| `.env.staging`                      | Public build values: staging API, Entra **NewLife STG** client/tenant, exact redirect URI. Mock login off. Never a token         |
+| `public/_headers`                   | `/assets/*` cached for a year (hashed names); `index.html` revalidates on every load; baseline browser headers                   |
+| `public/.assetsignore`              | `*.map` is never uploaded; source maps go to Sentry only (`vite build` writes hidden maps)                                       |
+| `scripts/release-target.sh`         | Which refs deploy: `main` and `x.y.z` tags on a `release/*` branch                                                               |
+| `scripts/deploy-staging.sh`         | Upload maps to Sentry (fails → no deploy), `wrangler deploy`, smoke: release, deep link, bundle, maps not public                 |
+| `src/config/stagingHosting.test.ts` | Hosting contract for the files above (repo-root deployment files are covered from `src/config/`)                                 |
+
+CI keeps each deployable build as the artifact `booking-staging-<main-sha12 | x.y.z>` (with `dist/release.json`) for 90 days, plus a release record. Later `main` runs replace staging; there is no freeze. Deployment stays off until the operator sets the repository variable `CLOUDFLARE_ACCOUNT_ID`. Cloudflare account, token, DNS, security rules, Entra, live acceptance, and rollback are human steps in [newlife-infra `docs/cloudflare-booking-staging.md`](https://github.com/efcnewlife/newlife-infra/blob/main/docs/cloudflare-booking-staging.md).
+
 ---
 
 ## 14. Do NOT (Agent Guardrails)
@@ -399,6 +416,8 @@ Keep Vite **port 5174** / `strictPort` in mind — the admin portal uses 5173.
 | `package.json`                                 | Scripts, dependencies                     |
 | `vite.config.ts`                               | Port 5174, alias, SVGR                    |
 | `src/config/env.ts`                            | Env flags                                 |
+| `wrangler.staging.jsonc`, `.env.staging`       | Staging hosting and build settings        |
+| `scripts/deploy-staging.sh`                    | Source-map gate, deploy, smoke            |
 | `src/observability/sentry.ts`                  | Sentry startup, error/identity reporting  |
 | `src/observability/sentryPrivacy.ts`           | Telemetry privacy contract                |
 | `src/App.tsx` / `src/main.tsx`                 | Bootstrap                                 |

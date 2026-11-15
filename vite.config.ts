@@ -26,6 +26,11 @@ export default defineConfig({
     port: 5174,
     strictPort: true,
   },
+  // Maps are written for the Sentry upload but not referenced from the bundles; public/.assetsignore keeps
+  // them off the deployed site.
+  build: {
+    sourcemap: "hidden",
+  },
   test: {
     projects: [
       {

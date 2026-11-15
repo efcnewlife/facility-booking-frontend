@@ -1,0 +1,241 @@
+# CI and staging release (newlife-core-api ADR 0039, EFC-313).
+#   Pull requests, release/* and develop: format, types, tests, script tests, staging build. Nothing leaves GitHub.
+#   main and x.y.z tags on a release/* branch: the same, then upload source maps to Sentry and deploy the build to
+#   the staging Worker at https://booking-dev.efcnewlife.com (Cloudflare Workers Static Assets).
+# Deployment runs only once the operator has set up the staging environment (newlife-infra
+# docs/cloudflare-booking-staging.md) and the repository variable CLOUDFLARE_ACCOUNT_ID. The workflow never changes
+# DNS or security rules and never deploys production.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, develop, "release/**"]
+    tags: ["*"]
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  packages: read
+
+# Explicit bash adds pipefail, so a failing script piped into tee fails its step.
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  check:
+    name: Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@efcnewlife"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Format check
+        run: pnpm run format:check
+
+      - name: Type check
+        run: pnpm run type-check
+
+      - name: Tests
+        run: pnpm run test
+
+      - name: Script tests
+        run: for test in scripts/*.test.sh; do "$test"; done
+
+  build:
+    name: Staging build
+    needs: check
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.target.outputs.publish }}
+      label: ${{ steps.target.outputs.label }}
+      release: ${{ steps.target.outputs.release }}
+      revision: ${{ steps.target.outputs.revision }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # release-target.sh checks that a tag is on an origin/release/* branch
+
+      - name: Release target
+        id: target
+        env:
+          EVENT: ${{ github.event_name }}
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$EVENT" = pull_request ]; then
+            echo "publish=false" >>"$GITHUB_OUTPUT"
+          else
+            scripts/release-target.sh "$REF_TYPE" "$REF_NAME" "$SHA" | tee -a "$GITHUB_OUTPUT"
+          fi
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@efcnewlife"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      # Only public values reach the bundle: .env.staging plus the release and the public DSN.
+      # No token or secret is available to this step.
+      - name: Build
+        env:
+          SHA: ${{ github.sha }}
+          VITE_SENTRY_RELEASE_VERSION: ${{ steps.target.outputs.release || '0000000' }}
+          VITE_SENTRY_DSN: ${{ vars.VITE_SENTRY_DSN }}
+        run: |
+          pnpm run build:stg
+          jq -cn --arg release "$VITE_SENTRY_RELEASE_VERSION" --arg revision "$SHA" \
+            '{repository: "facility-booking-frontend", release: $release, revision: $revision}' >dist/release.json
+
+      # Debug IDs tie each bundle to its map; injecting here keeps the kept artifact identical to what is deployed.
+      - name: Inject source-map debug IDs
+        run: pnpm exec sentry-cli sourcemaps inject dist
+
+      - name: Keep build
+        if: steps.target.outputs.publish == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: booking-staging-${{ steps.target.outputs.label }}
+          path: dist
+          include-hidden-files: true # public/.assetsignore keeps the source maps off the site
+          retention-days: 90
+          overwrite: true # a re-run of this job replaces its build
+
+      - name: Deployment not enabled
+        if: steps.target.outputs.publish == 'true' && vars.CLOUDFLARE_ACCOUNT_ID == ''
+        run: echo "::notice::Staging build kept; deployment is off until CLOUDFLARE_ACCOUNT_ID is set."
+
+  deploy-staging:
+    name: Deploy staging
+    needs: build
+    if: needs.build.outputs.publish == 'true' && vars.CLOUDFLARE_ACCOUNT_ID != ''
+    runs-on: ubuntu-latest
+    environment:
+      name: staging
+      url: https://booking-dev.efcnewlife.com
+    # One staging deployment at a time; a running deployment is never cancelled. GitHub keeps only the newest
+    # waiting run: a superseded build (a tag too) stays kept; re-run this job to put it on staging.
+    concurrency:
+      group: staging-booking-deploy
+      cancel-in-progress: false
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: "22"
+          registry-url: https://npm.pkg.github.com
+          scope: "@efcnewlife"
+          cache: "pnpm"
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.PACKAGE_TOKEN }}
+
+      - name: Fetch build
+        uses: actions/download-artifact@v4
+        with:
+          name: booking-staging-${{ needs.build.outputs.label }}
+          path: dist
+
+      # Builds run in parallel, so an older main build can reach this job after a newer one. Skip it rather than
+      # put older code back on staging; the newer main run deploys. Tags always deploy.
+      - name: Skip superseded main build
+        id: current
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          SHA: ${{ github.sha }}
+        run: |
+          if [ "$REF_TYPE" = branch ] && [ "$(git ls-remote origin refs/heads/main | cut -f1)" != "$SHA" ]; then
+            echo "::notice::main has moved past $SHA; its own run deploys staging."
+            echo "deploy=false" >>"$GITHUB_OUTPUT"
+          else
+            echo "deploy=true" >>"$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload source maps, deploy, and smoke
+        id: deploy
+        if: steps.current.outputs.deploy == 'true'
+        env:
+          RELEASE: ${{ needs.build.outputs.release }}
+          LABEL: ${{ needs.build.outputs.label }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: "false"
+        run: |
+          export PATH="$PWD/node_modules/.bin:$PATH"
+          scripts/deploy-staging.sh "$RELEASE" "$LABEL" | tee -a "$GITHUB_OUTPUT"
+
+      - name: Release record
+        if: always() && steps.deploy.outcome != 'skipped'
+        env:
+          REF: ${{ github.ref }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}/attempts/${{ github.run_attempt }}
+          REVISION: ${{ needs.build.outputs.revision }}
+          LABEL: ${{ needs.build.outputs.label }}
+          SENTRY_RELEASE: ${{ steps.deploy.outputs.sentry_release }}
+          VERSION_ID: ${{ steps.deploy.outputs.version_id }}
+          SMOKE: ${{ steps.deploy.outputs.smoke || 'not run' }}
+        run: |
+          jq -n --arg ref "$REF" --arg run "$RUN_URL" --arg revision "$REVISION" --arg label "$LABEL" \
+            --arg release "$SENTRY_RELEASE" --arg version_id "$VERSION_ID" --arg smoke "$SMOKE" \
+            --arg deployed_at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            '{environment: "staging", url: "https://booking-dev.efcnewlife.com", ref: $ref, revision: $revision,
+              label: $label, sentry_release: $release, worker_version_id: $version_id, smoke: $smoke,
+              deployed_at: $deployed_at, run: $run, artifact: ("booking-staging-" + $label)}' >release-record.json
+          {
+            echo "### Staging deployment"
+            echo '```json'
+            cat release-record.json
+            echo '```'
+            echo "Smoke checks the release, a deep link, the entry bundle, and that source maps are not public."
+            echo "Sign-in, CORS, Booking, and file checks are human acceptance (newlife-infra docs/cloudflare-booking-staging.md)."
+          } >>"$GITHUB_STEP_SUMMARY"
+
+      - name: Keep release record
+        if: always() && steps.deploy.outcome != 'skipped'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-record-${{ needs.build.outputs.label }}-${{ github.run_attempt }}
+          path: release-record.json
+          retention-days: 90
